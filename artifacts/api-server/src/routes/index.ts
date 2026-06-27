@@ -9,6 +9,7 @@ import ambassadorsRouter from "./ambassadors";
 import bookPromoRouter from "./book-promo";
 import liveVideoRouter from "./live-video";
 import clipEngineRouter from "./clip-engine";
+import autoPostRouter from "./auto-post";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(ambassadorsRouter);
 router.use(bookPromoRouter);
 router.use(liveVideoRouter);
 router.use(clipEngineRouter);
+router.use(autoPostRouter);
 
 export default router;

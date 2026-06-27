@@ -19,6 +19,7 @@ import { BookPromoPage } from "@/pages/book-promo";
 import { LiveVideoPage } from "@/pages/live-video";
 import { LiveSessionSignupPage } from "@/pages/live-session-signup";
 import { ClipEnginePage } from "@/pages/clip-engine";
+import { AutoPostPage } from "@/pages/auto-post";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -238,6 +239,9 @@ function ClerkProviderWithRoutes() {
             </Route>
             <Route path="/clip-engine">
               <AuthRequired><ClipEnginePage /></AuthRequired>
+            </Route>
+            <Route path="/auto-post">
+              <AuthRequired><AutoPostPage /></AuthRequired>
             </Route>
             <Route path="/traffic">
               <AuthRequired><TrafficPage /></AuthRequired>

@@ -30,6 +30,8 @@ tags:
     description: Book Download Promotion Engine — campaigns, tracked links, QR codes, funnel analytics, drip scheduler, fan verifications, affiliate commissions
   - name: liveVideo
     description: Live Video & Real-Time Engagement — sessions, broadcast setup, chat moderation, fan reminders, revenue tracking, post-live clip generator
+  - name: autoPost
+    description: Intelligent Auto-Post Engine — multi-platform composer, AI caption variants, hashtag engine, posting time optimizer, account groups, approval workflow, compliance checker, publish job tracker
 
 paths:
   /healthz:
@@ -5404,3 +5406,821 @@ components:
                 type: number
         totalClips:
           type: integer
+
+  # ─── Auto-Post Engine ─────────────────────────────────────────────────────────
+
+  /auto-post/drafts:
+    get:
+      operationId: listPostDrafts
+      tags: [autoPost]
+      summary: List post drafts for current user
+      responses:
+        "200":
+          description: List of drafts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostDraft"
+    post:
+      operationId: createPostDraft
+      tags: [autoPost]
+      summary: Create a new post draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostDraftBody"
+      responses:
+        "201":
+          description: Created draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostDraft"
+
+  /auto-post/drafts/{id}:
+    get:
+      operationId: getPostDraft
+      tags: [autoPost]
+      summary: Get a draft with its publish jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Draft with jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostDraftWithJobs"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePostDraft
+      tags: [autoPost]
+      summary: Update a post draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePostDraftBody"
+      responses:
+        "200":
+          description: Updated draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostDraft"
+    delete:
+      operationId: deletePostDraft
+      tags: [autoPost]
+      summary: Delete a post draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /auto-post/drafts/{id}/generate-variants:
+    post:
+      operationId: generatePostVariants
+      tags: [autoPost]
+      summary: Generate AI caption variants per platform
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platforms:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Generated variants
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateVariantsResponse"
+
+  /auto-post/drafts/{id}/compliance-check:
+    post:
+      operationId: checkPostCompliance
+      tags: [autoPost]
+      summary: Run AI compliance scan on draft caption
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Compliance result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceFlag"
+
+  /auto-post/drafts/{id}/publish:
+    post:
+      operationId: publishPostDraft
+      tags: [autoPost]
+      summary: Publish draft — creates per-platform publish jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scheduledAt:
+                  type: string
+                  format: date-time
+      responses:
+        "201":
+          description: Publish jobs created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishResult"
+
+  /auto-post/publish-jobs:
+    get:
+      operationId: listPublishJobs
+      tags: [autoPost]
+      summary: List publish jobs
+      parameters:
+        - name: draftId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of publish jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublishJob"
+
+  /auto-post/publish-jobs/{id}/retry:
+    post:
+      operationId: retryPublishJob
+      tags: [autoPost]
+      summary: Retry a failed publish job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Job queued for retry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  job:
+                    $ref: "#/components/schemas/PublishJob"
+
+  /auto-post/account-groups:
+    get:
+      operationId: listAccountGroups
+      tags: [autoPost]
+      summary: List account groups with members
+      responses:
+        "200":
+          description: List of groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccountGroup"
+    post:
+      operationId: createAccountGroup
+      tags: [autoPost]
+      summary: Create an account group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountGroupBody"
+      responses:
+        "201":
+          description: Created group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountGroup"
+
+  /auto-post/account-groups/{id}:
+    patch:
+      operationId: updateAccountGroup
+      tags: [autoPost]
+      summary: Update an account group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountGroupBody"
+      responses:
+        "200":
+          description: Updated group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountGroup"
+    delete:
+      operationId: deleteAccountGroup
+      tags: [autoPost]
+      summary: Delete an account group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /auto-post/account-groups/{id}/publish:
+    post:
+      operationId: publishToAccountGroup
+      tags: [autoPost]
+      summary: Publish to all accounts in a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                draftId:
+                  type: integer
+                sourceCaption:
+                  type: string
+                scheduledAt:
+                  type: string
+                  format: date-time
+      responses:
+        "201":
+          description: Group publish jobs created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishResult"
+
+  /auto-post/posting-time-recommendations:
+    get:
+      operationId: getPostingTimeRecommendations
+      tags: [autoPost]
+      summary: Get optimal posting times per platform (WAT timezone)
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Posting time recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostingTimeRecommendations"
+
+  /auto-post/hashtag-engine:
+    get:
+      operationId: getHashtagSuggestions
+      tags: [autoPost]
+      summary: Get hashtag suggestions per platform, region, and niche
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+            default: instagram
+        - name: region
+          in: query
+          schema:
+            type: string
+            default: NG
+        - name: niche
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Hashtag suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HashtagEngineResponse"
+
+  /auto-post/approval-requests:
+    get:
+      operationId: listApprovalRequests
+      tags: [autoPost]
+      summary: List approval requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of approval requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApprovalRequest"
+    post:
+      operationId: createApprovalRequest
+      tags: [autoPost]
+      summary: Submit a draft for approval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [draftId]
+              properties:
+                draftId:
+                  type: integer
+      responses:
+        "201":
+          description: Approval request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalRequest"
+
+  /auto-post/approval-requests/{id}:
+    patch:
+      operationId: reviewApprovalRequest
+      tags: [autoPost]
+      summary: Approve, reject, or request edit on an approval request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected, edited]
+                reviewNote:
+                  type: string
+      responses:
+        "200":
+          description: Updated approval request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalRequest"
+
+    # ─── Auto-Post Schemas ───────────────────────────────────────────────────────
+
+    PostDraft:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+          nullable: true
+        sourceCaption:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        selectedPlatforms:
+          type: array
+          items:
+            type: string
+        selectedAccountIds:
+          type: array
+          items:
+            type: integer
+        selectedGroupId:
+          type: integer
+          nullable: true
+        platformVariants:
+          type: object
+          additionalProperties:
+            type: string
+        platformHashtags:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        approvalRequired:
+          type: boolean
+        complianceChecked:
+          type: boolean
+        complianceScore:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePostDraftBody:
+      type: object
+      required: [sourceCaption]
+      properties:
+        title:
+          type: string
+        sourceCaption:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        selectedPlatforms:
+          type: array
+          items:
+            type: string
+        selectedAccountIds:
+          type: array
+          items:
+            type: integer
+        selectedGroupId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        approvalRequired:
+          type: boolean
+
+    UpdatePostDraftBody:
+      type: object
+      properties:
+        title:
+          type: string
+        sourceCaption:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        selectedPlatforms:
+          type: array
+          items:
+            type: string
+        platformVariants:
+          type: object
+          additionalProperties:
+            type: string
+        platformHashtags:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        approvalRequired:
+          type: boolean
+        status:
+          type: string
+
+    PostDraftWithJobs:
+      type: object
+      properties:
+        draft:
+          $ref: "#/components/schemas/PostDraft"
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishJob"
+
+    PublishJob:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        draftId:
+          type: integer
+        platform:
+          type: string
+        platformAccountId:
+          type: integer
+          nullable: true
+        caption:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        attemptCount:
+          type: integer
+        maxAttempts:
+          type: integer
+        errorMessage:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastAttemptAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    GenerateVariantsResponse:
+      type: object
+      properties:
+        variants:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              caption:
+                type: string
+              hashtags:
+                type: array
+                items:
+                  type: string
+              charCount:
+                type: integer
+        platformVariants:
+          type: object
+          additionalProperties:
+            type: string
+        platformHashtags:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    ComplianceFlag:
+      type: object
+      properties:
+        id:
+          type: integer
+        draftId:
+          type: integer
+        overallScore:
+          type: integer
+        flags:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              severity:
+                type: string
+              message:
+                type: string
+              guideline:
+                type: string
+        recommendation:
+          type: string
+          nullable: true
+        checkedAt:
+          type: string
+          format: date-time
+
+    PublishResult:
+      type: object
+      properties:
+        message:
+          type: string
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishJob"
+
+    AccountGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        color:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountGroupMember"
+        createdAt:
+          type: string
+          format: date-time
+
+    AccountGroupMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        groupId:
+          type: integer
+        platform:
+          type: string
+        handle:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        platformAccountId:
+          type: integer
+          nullable: true
+
+    CreateAccountGroupBody:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountGroupMember"
+
+    PostingTimeRecommendations:
+      type: object
+      properties:
+        recommendations:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              slots:
+                type: array
+                items:
+                  type: string
+              timezone:
+                type: string
+              explanation:
+                type: string
+        note:
+          type: string
+
+    HashtagEngineResponse:
+      type: object
+      properties:
+        platform:
+          type: string
+        region:
+          type: string
+        niche:
+          type: string
+          nullable: true
+        dbTags:
+          type: array
+          items:
+            type: object
+            properties:
+              hashtag:
+                type: string
+              trendScore:
+                type: integer
+              category:
+                type: string
+                nullable: true
+        curatedTags:
+          type: array
+          items:
+            type: string
+        allSuggestions:
+          type: array
+          items:
+            type: string
+
+    ApprovalRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        draftId:
+          type: integer
+        requestedByUserId:
+          type: integer
+        status:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        draft:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/PostDraft"

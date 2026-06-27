@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Book Promo", path: "/book-promo", icon: <BookOpen className="w-4 h-4" />, moduleKey: "bookPromo", requiredTier: "creator" },
   { label: "Live Video", path: "/live-video", icon: <Radio className="w-4 h-4" />, moduleKey: "liveVideo", requiredTier: "brand" },
   { label: "Clip Engine", path: "/clip-engine", icon: <Scissors className="w-4 h-4" />, moduleKey: "clipEngine", requiredTier: "brand" },
+  { label: "Auto-Post", path: "/auto-post", icon: <Send className="w-4 h-4" />, moduleKey: "autoPost", requiredTier: "brand" },
   { label: "Traffic Engine", path: "/traffic", icon: <TrendingUp className="w-4 h-4" />, moduleKey: "trafficTools", requiredTier: "brand" },
   { label: "Ambassadors", path: "/ambassadors", icon: <Users className="w-4 h-4" />, moduleKey: "ambassadorCrm", requiredTier: "agency" },
   { label: "Fan Hub", path: "/fan-hub", icon: <Star className="w-4 h-4" />, moduleKey: "fanHub", requiredTier: "agency" },
