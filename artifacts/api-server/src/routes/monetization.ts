@@ -157,7 +157,7 @@ router.get("/brand-deals", ...requireMonetization, async (req: any, res): Promis
 
     const deals = await db.select().from(brandDealsTable).where(where).orderBy(desc(brandDealsTable.createdAt));
 
-    if (deals.length === 0) {
+    if (deals.length === 0 && process.env.NODE_ENV !== "production") {
       const seeds: typeof brandDealsTable.$inferInsert[] = [
         { userId: user.id, brandName: "Paystack Nigeria", contactName: "Temi Adeyemi", contactEmail: "temi@paystack.com", dealValue: "1500000", currency: "NGN", status: "agreed", deliverables: "3 Instagram posts + 1 TikTok video", platforms: ["instagram", "tiktok"] },
         { userId: user.id, brandName: "Guinness Africa", contactName: "Chidi Okafor", contactEmail: "chidi@guinness.com", dealValue: "800000", currency: "NGN", status: "negotiating", deliverables: "2 YouTube integrations", platforms: ["youtube"] },
@@ -258,7 +258,7 @@ router.get("/invoices", ...requireMonetization, async (req: any, res): Promise<v
 
     const invoices = await db.select().from(invoicesTable).where(where).orderBy(desc(invoicesTable.createdAt));
 
-    if (invoices.length === 0) {
+    if (invoices.length === 0 && process.env.NODE_ENV !== "production") {
       const seeds: typeof invoicesTable.$inferInsert[] = [
         { userId: user.id, invoiceNumber: "INV-0001", clientName: "Paystack Nigeria", clientEmail: "billing@paystack.com", currency: "NGN", subtotal: "1500000", taxRate: "7.5", taxAmount: "112500", total: "1612500", status: "paid" },
         { userId: user.id, invoiceNumber: "INV-0002", clientName: "Guinness Africa", clientEmail: "billing@guinness.com", currency: "NGN", subtotal: "800000", taxRate: "7.5", taxAmount: "60000", total: "860000", status: "sent" },
@@ -693,8 +693,12 @@ router.post("/monetization/process-reminders", requireAuth, async (req: any, res
 
 router.post("/webhooks/paystack", async (req: any, res): Promise<void> => {
   try {
-    const psKey = process.env.PAYSTACK_SECRET_KEY ?? "";
+    const psKey = process.env.PAYSTACK_SECRET_KEY;
+    // Fail closed: if secret is not configured, reject immediately — never attempt verification with empty key
+    if (!psKey) { res.status(500).json({ error: "Paystack webhook secret not configured" }); return; }
+
     const sig = (req.headers["x-paystack-signature"] as string) ?? "";
+    if (!sig) { res.status(400).json({ error: "Missing x-paystack-signature header" }); return; }
 
     // Use raw body bytes (preserved by app.ts middleware) for correct HMAC
     const rawBodyBuf: Buffer = req.rawBody ?? Buffer.from(JSON.stringify(req.body), "utf8");
@@ -767,7 +771,7 @@ router.get("/affiliate-links", ...requireMonetization, async (req: any, res): Pr
 
     const links = await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id)).orderBy(desc(affiliateLinksTable.createdAt));
 
-    if (links.length === 0) {
+    if (links.length === 0 && process.env.NODE_ENV !== "production") {
       const seeds: typeof affiliateLinksTable.$inferInsert[] = [
         { userId: user.id, name: "999 Book — Instagram Bio", destinationUrl: "https://charlyboy.com/999", slug: "999-ig", platform: "instagram", campaignTag: "book-launch", clickCount: 1847, conversionCount: 312, revenueGenerated: "468000" },
         { userId: user.id, name: "999 Book — TikTok Bio", destinationUrl: "https://charlyboy.com/999", slug: "999-tk", platform: "tiktok", campaignTag: "book-launch", clickCount: 2340, conversionCount: 478, revenueGenerated: "717000" },
