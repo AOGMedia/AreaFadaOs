@@ -57,10 +57,12 @@ export type DealStatus = typeof DealStatus[keyof typeof DealStatus];
 
 
 export const DealStatus = {
-  prospecting: 'prospecting',
+  inbound: 'inbound',
   negotiating: 'negotiating',
-  active: 'active',
-  completed: 'completed',
+  agreed: 'agreed',
+  deliverable_due: 'deliverable_due',
+  invoiced: 'invoiced',
+  paid: 'paid',
   cancelled: 'cancelled',
 } as const;
 

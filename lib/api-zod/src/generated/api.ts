@@ -516,7 +516,7 @@ export const GetPostHistoryResponse = zod.array(GetPostHistoryResponseItem)
  * @summary List brand deals for current user
  */
 export const ListBrandDealsQueryParams = zod.object({
-  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']).optional()
+  "status": zod.enum(['inbound', 'negotiating', 'agreed', 'deliverable_due', 'invoiced', 'paid', 'cancelled']).optional()
 })
 
 export const ListBrandDealsResponseItem = zod.object({
@@ -527,7 +527,7 @@ export const ListBrandDealsResponseItem = zod.object({
   "contactEmail": zod.string().nullish(),
   "dealValue": zod.number(),
   "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
-  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']),
+  "status": zod.enum(['inbound', 'negotiating', 'agreed', 'deliverable_due', 'invoiced', 'paid', 'cancelled']),
   "deliverables": zod.string().nullish(),
   "platforms": zod.array(zod.string()),
   "startDate": zod.coerce.date().nullish(),
@@ -548,7 +548,7 @@ export const CreateBrandDealBody = zod.object({
   "contactEmail": zod.string().optional(),
   "dealValue": zod.number().optional(),
   "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']).optional(),
-  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']).optional(),
+  "status": zod.enum(['inbound', 'negotiating', 'agreed', 'deliverable_due', 'invoiced', 'paid', 'cancelled']).optional(),
   "deliverables": zod.string().optional(),
   "platforms": zod.array(zod.string()).optional(),
   "startDate": zod.coerce.date().optional(),
@@ -564,7 +564,7 @@ export const CreateBrandDealResponse = zod.object({
   "contactEmail": zod.string().nullish(),
   "dealValue": zod.number(),
   "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
-  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']),
+  "status": zod.enum(['inbound', 'negotiating', 'agreed', 'deliverable_due', 'invoiced', 'paid', 'cancelled']),
   "deliverables": zod.string().nullish(),
   "platforms": zod.array(zod.string()),
   "startDate": zod.coerce.date().nullish(),
@@ -588,7 +588,7 @@ export const UpdateBrandDealBody = zod.object({
   "contactEmail": zod.string().optional(),
   "dealValue": zod.number().optional(),
   "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']).optional(),
-  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']).optional(),
+  "status": zod.enum(['inbound', 'negotiating', 'agreed', 'deliverable_due', 'invoiced', 'paid', 'cancelled']).optional(),
   "deliverables": zod.string().optional(),
   "platforms": zod.array(zod.string()).optional(),
   "startDate": zod.coerce.date().optional(),
@@ -604,7 +604,7 @@ export const UpdateBrandDealResponse = zod.object({
   "contactEmail": zod.string().nullish(),
   "dealValue": zod.number(),
   "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
-  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']),
+  "status": zod.enum(['inbound', 'negotiating', 'agreed', 'deliverable_due', 'invoiced', 'paid', 'cancelled']),
   "deliverables": zod.string().nullish(),
   "platforms": zod.array(zod.string()),
   "startDate": zod.coerce.date().nullish(),

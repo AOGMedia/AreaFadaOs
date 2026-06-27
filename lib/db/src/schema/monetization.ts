@@ -23,7 +23,7 @@ export const brandDealsTable = pgTable("brand_deals", {
   contactEmail: text("contact_email"),
   dealValue: numeric("deal_value", { precision: 14, scale: 2 }).notNull().default("0"),
   currency: text("currency").$type<Currency>().notNull().default("NGN"),
-  status: text("status").$type<DealStatus>().notNull().default("prospecting"),
+  status: text("status").$type<DealStatus>().notNull().default("inbound"),
   deliverables: text("deliverables"),
   platforms: jsonb("platforms").$type<string[]>().notNull().default([]),
   startDate: timestamp("start_date"),

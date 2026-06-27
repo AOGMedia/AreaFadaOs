@@ -750,7 +750,7 @@ components:
 
     DealStatus:
       type: string
-      enum: [prospecting, negotiating, active, completed, cancelled]
+      enum: [inbound, negotiating, agreed, deliverable_due, invoiced, paid, cancelled]
 
     InvoiceStatus:
       type: string
