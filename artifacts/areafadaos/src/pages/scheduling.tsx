@@ -283,12 +283,12 @@ function CaptionGenerator({ onUseCaption }: { onUseCaption: (text: string) => vo
 // ── Hashtag Panel ────────────────────────────────────────────────────────
 
 function HashtagPanel({ onAddHashtag }: { onAddHashtag: (tag: string) => void }) {
-  const [platform, setPlatform] = useState<string>("");
+  const [platform, setPlatform] = useState<string>("__all__");
   const [region, setRegion] = useState("NG");
   const [search, setSearch] = useState("");
 
   const { data: hashtags, isLoading } = useGetTrendingHashtags({
-    platform: platform || undefined,
+    platform: platform === "__all__" ? undefined : platform,
     region,
   });
 
@@ -304,7 +304,7 @@ function HashtagPanel({ onAddHashtag }: { onAddHashtag: (tag: string) => void })
             <SelectValue placeholder="All platforms" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All platforms</SelectItem>
+            <SelectItem value="__all__">All platforms</SelectItem>
             {PLATFORMS.map((p) => <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -543,7 +543,7 @@ function ComposeDialog({ open, onClose, editPost, campaigns, defaultDate, onCamp
     editPost?.scheduledAt ? format(new Date(editPost.scheduledAt), "yyyy-MM-dd'T'HH:mm") :
     defaultDate ? format(defaultDate, "yyyy-MM-dd'T'10:00") : ""
   );
-  const [campaignId, setCampaignId] = useState<string>(editPost?.campaignId?.toString() || "");
+  const [campaignId, setCampaignId] = useState<string>(editPost?.campaignId?.toString() || "__none__");
   const [hashtags, setHashtags] = useState<string[]>(editPost?.hashtags || []);
   const [hashtagInput, setHashtagInput] = useState("");
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
@@ -574,7 +574,7 @@ function ComposeDialog({ open, onClose, editPost, campaigns, defaultDate, onCamp
       hashtags,
       status,
       scheduledAt: status === "scheduled" ? scheduledAt : undefined,
-      campaignId: campaignId ? parseInt(campaignId) : undefined,
+      campaignId: campaignId && campaignId !== "__none__" ? parseInt(campaignId) : undefined,
     };
 
     try {
@@ -681,7 +681,7 @@ function ComposeDialog({ open, onClose, editPost, campaigns, defaultDate, onCamp
                         <SelectValue placeholder="None" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="__none__">None</SelectItem>
                         {campaigns.map((c) => (
                           <SelectItem key={c.id} value={c.id.toString()}>
                             <span className="flex items-center gap-1.5">
