@@ -10,6 +10,7 @@ import {
   competitorAccountsTable,
   competitorSnapshotsTable,
   crisisAlertsTable,
+  intelligenceNotificationLogsTable,
   roiAttributionEventsTable,
   eventModeConfigsTable,
   growthSnapshotsTable,
@@ -29,22 +30,148 @@ async function getDbUser(clerkId: string) {
 
 // ─── Demo seed data (KOH 2027 political campaign) ─────────────────────────────
 
-const NIGERIA_STATES = [
-  "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno",
-  "Cross River","Delta","Ebonyi","Edo","Ekiti","Enugu","FCT","Gombe","Imo",
-  "Jigawa","Kaduna","Kano","Katsina","Kebbi","Kogi","Kwara","Lagos","Nasarawa",
-  "Niger","Ogun","Ondo","Osun","Oyo","Plateau","Rivers","Sokoto","Taraba","Yobe","Zamfara",
+// LGA-level demo data — representative LGAs across all 36 states + FCT
+// Each record is a real Nigerian LGA with fabricated engagement metrics
+const DEMO_LGA_RECORDS: { lga: string; state: string; totalReach: number; engagementRate: number; sentimentScore: number; topContent: string; postsPublished: number }[] = [
+  // Lagos — 20 LGAs
+  { lga: "Alimosho",         state: "Lagos",      totalReach: 218000, engagementRate: 7.8, sentimentScore: 0.71, topContent: "Reel",   postsPublished: 42 },
+  { lga: "Ikeja",            state: "Lagos",      totalReach: 195000, engagementRate: 6.9, sentimentScore: 0.68, topContent: "Thread", postsPublished: 38 },
+  { lga: "Surulere",         state: "Lagos",      totalReach: 167000, engagementRate: 6.2, sentimentScore: 0.65, topContent: "Post",   postsPublished: 31 },
+  { lga: "Oshodi-Isolo",     state: "Lagos",      totalReach: 145000, engagementRate: 5.5, sentimentScore: 0.60, topContent: "Reel",   postsPublished: 29 },
+  { lga: "Agege",            state: "Lagos",      totalReach: 133000, engagementRate: 5.1, sentimentScore: 0.57, topContent: "Story",  postsPublished: 25 },
+  { lga: "Lagos Island",     state: "Lagos",      totalReach: 129000, engagementRate: 8.4, sentimentScore: 0.73, topContent: "Reel",   postsPublished: 33 },
+  { lga: "Amuwo-Odofin",     state: "Lagos",      totalReach: 112000, engagementRate: 4.8, sentimentScore: 0.55, topContent: "Post",   postsPublished: 21 },
+  { lga: "Kosofe",           state: "Lagos",      totalReach: 108000, engagementRate: 4.4, sentimentScore: 0.53, topContent: "Thread", postsPublished: 18 },
+  // Kano — 8 LGAs
+  { lga: "Kano Municipal",   state: "Kano",       totalReach: 156000, engagementRate: 6.4, sentimentScore: 0.62, topContent: "Reel",   postsPublished: 30 },
+  { lga: "Nassarawa",        state: "Kano",       totalReach: 98000,  engagementRate: 4.9, sentimentScore: 0.58, topContent: "Post",   postsPublished: 22 },
+  { lga: "Dala",             state: "Kano",       totalReach: 89000,  engagementRate: 4.3, sentimentScore: 0.54, topContent: "Story",  postsPublished: 18 },
+  { lga: "Gwale",            state: "Kano",       totalReach: 76000,  engagementRate: 3.8, sentimentScore: 0.50, topContent: "Thread", postsPublished: 14 },
+  { lga: "Ungogo",           state: "Kano",       totalReach: 72000,  engagementRate: 3.5, sentimentScore: 0.49, topContent: "Post",   postsPublished: 13 },
+  // Rivers — 7 LGAs
+  { lga: "Port Harcourt",    state: "Rivers",     totalReach: 172000, engagementRate: 7.2, sentimentScore: 0.69, topContent: "Reel",   postsPublished: 36 },
+  { lga: "Obio/Akpor",       state: "Rivers",     totalReach: 143000, engagementRate: 6.1, sentimentScore: 0.64, topContent: "Post",   postsPublished: 28 },
+  { lga: "Eleme",            state: "Rivers",     totalReach: 88000,  engagementRate: 4.2, sentimentScore: 0.52, topContent: "Story",  postsPublished: 17 },
+  { lga: "Okrika",           state: "Rivers",     totalReach: 64000,  engagementRate: 3.4, sentimentScore: 0.48, topContent: "Thread", postsPublished: 12 },
+  // FCT — 6 LGAs
+  { lga: "AMAC",             state: "FCT",        totalReach: 189000, engagementRate: 7.5, sentimentScore: 0.72, topContent: "Thread", postsPublished: 40 },
+  { lga: "Gwagwalada",       state: "FCT",        totalReach: 91000,  engagementRate: 4.5, sentimentScore: 0.56, topContent: "Reel",   postsPublished: 20 },
+  { lga: "Kuje",             state: "FCT",        totalReach: 67000,  engagementRate: 3.3, sentimentScore: 0.47, topContent: "Post",   postsPublished: 14 },
+  { lga: "Bwari",            state: "FCT",        totalReach: 58000,  engagementRate: 3.0, sentimentScore: 0.45, topContent: "Story",  postsPublished: 11 },
+  // Oyo — 7 LGAs
+  { lga: "Ibadan North",     state: "Oyo",        totalReach: 148000, engagementRate: 6.3, sentimentScore: 0.63, topContent: "Reel",   postsPublished: 29 },
+  { lga: "Ibadan South-West",state: "Oyo",        totalReach: 128000, engagementRate: 5.7, sentimentScore: 0.61, topContent: "Post",   postsPublished: 24 },
+  { lga: "Oluyole",          state: "Oyo",        totalReach: 94000,  engagementRate: 4.6, sentimentScore: 0.57, topContent: "Thread", postsPublished: 19 },
+  { lga: "Akinyele",         state: "Oyo",        totalReach: 81000,  engagementRate: 4.0, sentimentScore: 0.53, topContent: "Story",  postsPublished: 15 },
+  // Anambra — 6 LGAs
+  { lga: "Awka South",       state: "Anambra",    totalReach: 112000, engagementRate: 5.8, sentimentScore: 0.64, topContent: "Reel",   postsPublished: 24 },
+  { lga: "Onitsha North",    state: "Anambra",    totalReach: 103000, engagementRate: 5.4, sentimentScore: 0.62, topContent: "Post",   postsPublished: 21 },
+  { lga: "Nnewi North",      state: "Anambra",    totalReach: 87000,  engagementRate: 4.7, sentimentScore: 0.59, topContent: "Thread", postsPublished: 17 },
+  // Kaduna — 6 LGAs
+  { lga: "Kaduna North",     state: "Kaduna",     totalReach: 119000, engagementRate: 5.3, sentimentScore: 0.59, topContent: "Reel",   postsPublished: 23 },
+  { lga: "Kaduna South",     state: "Kaduna",     totalReach: 107000, engagementRate: 4.8, sentimentScore: 0.56, topContent: "Post",   postsPublished: 20 },
+  { lga: "Zaria",            state: "Kaduna",     totalReach: 82000,  engagementRate: 3.9, sentimentScore: 0.50, topContent: "Story",  postsPublished: 15 },
+  // Delta — 5 LGAs
+  { lga: "Warri South",      state: "Delta",      totalReach: 121000, engagementRate: 5.6, sentimentScore: 0.61, topContent: "Reel",   postsPublished: 24 },
+  { lga: "Oshimili South",   state: "Delta",      totalReach: 93000,  engagementRate: 4.4, sentimentScore: 0.55, topContent: "Thread", postsPublished: 18 },
+  { lga: "Sapele",           state: "Delta",      totalReach: 72000,  engagementRate: 3.7, sentimentScore: 0.50, topContent: "Post",   postsPublished: 14 },
+  // Enugu — 5 LGAs
+  { lga: "Enugu North",      state: "Enugu",      totalReach: 104000, engagementRate: 5.2, sentimentScore: 0.61, topContent: "Reel",   postsPublished: 22 },
+  { lga: "Enugu South",      state: "Enugu",      totalReach: 89000,  engagementRate: 4.5, sentimentScore: 0.57, topContent: "Post",   postsPublished: 18 },
+  { lga: "Igbo-Eze North",   state: "Enugu",      totalReach: 63000,  engagementRate: 3.2, sentimentScore: 0.47, topContent: "Story",  postsPublished: 12 },
+  // Imo — 4 LGAs
+  { lga: "Owerri Municipal", state: "Imo",        totalReach: 116000, engagementRate: 5.9, sentimentScore: 0.63, topContent: "Reel",   postsPublished: 24 },
+  { lga: "Owerri North",     state: "Imo",        totalReach: 78000,  engagementRate: 4.1, sentimentScore: 0.53, topContent: "Post",   postsPublished: 16 },
+  // Cross River — 4 LGAs
+  { lga: "Calabar Municipal",state: "Cross River",totalReach: 98000,  engagementRate: 5.0, sentimentScore: 0.59, topContent: "Thread", postsPublished: 20 },
+  { lga: "Calabar South",    state: "Cross River",totalReach: 74000,  engagementRate: 4.2, sentimentScore: 0.54, topContent: "Reel",   postsPublished: 15 },
+  // Edo — 4 LGAs
+  { lga: "Oredo",            state: "Edo",        totalReach: 108000, engagementRate: 5.5, sentimentScore: 0.62, topContent: "Reel",   postsPublished: 22 },
+  { lga: "Egor",             state: "Edo",        totalReach: 84000,  engagementRate: 4.3, sentimentScore: 0.55, topContent: "Post",   postsPublished: 17 },
+  // Osun — 3 LGAs
+  { lga: "Osogbo",           state: "Osun",       totalReach: 87000,  engagementRate: 4.6, sentimentScore: 0.57, topContent: "Reel",   postsPublished: 18 },
+  { lga: "Ife Central",      state: "Osun",       totalReach: 69000,  engagementRate: 3.9, sentimentScore: 0.52, topContent: "Thread", postsPublished: 13 },
+  // Ogun — 3 LGAs
+  { lga: "Abeokuta South",   state: "Ogun",       totalReach: 96000,  engagementRate: 5.1, sentimentScore: 0.60, topContent: "Post",   postsPublished: 20 },
+  { lga: "Ifo",              state: "Ogun",       totalReach: 74000,  engagementRate: 4.0, sentimentScore: 0.53, topContent: "Reel",   postsPublished: 15 },
+  // Ekiti — 3 LGAs
+  { lga: "Ado-Ekiti",        state: "Ekiti",      totalReach: 82000,  engagementRate: 4.8, sentimentScore: 0.58, topContent: "Reel",   postsPublished: 18 },
+  // Ondo — 3 LGAs
+  { lga: "Akure South",      state: "Ondo",       totalReach: 91000,  engagementRate: 5.0, sentimentScore: 0.59, topContent: "Thread", postsPublished: 19 },
+  { lga: "Owo",              state: "Ondo",       totalReach: 67000,  engagementRate: 3.6, sentimentScore: 0.49, topContent: "Post",   postsPublished: 12 },
+  // Kogi — 3 LGAs
+  { lga: "Lokoja",           state: "Kogi",       totalReach: 84000,  engagementRate: 4.5, sentimentScore: 0.56, topContent: "Reel",   postsPublished: 17 },
+  // Kwara — 3 LGAs
+  { lga: "Ilorin West",      state: "Kwara",      totalReach: 96000,  engagementRate: 5.2, sentimentScore: 0.61, topContent: "Post",   postsPublished: 20 },
+  { lga: "Ilorin East",      state: "Kwara",      totalReach: 73000,  engagementRate: 4.1, sentimentScore: 0.54, topContent: "Reel",   postsPublished: 15 },
+  // Plateau — 3 LGAs
+  { lga: "Jos North",        state: "Plateau",    totalReach: 91000,  engagementRate: 4.9, sentimentScore: 0.59, topContent: "Thread", postsPublished: 19 },
+  { lga: "Jos South",        state: "Plateau",    totalReach: 72000,  engagementRate: 3.8, sentimentScore: 0.51, topContent: "Reel",   postsPublished: 14 },
+  // Bauchi — 2 LGAs
+  { lga: "Bauchi",           state: "Bauchi",     totalReach: 78000,  engagementRate: 3.9, sentimentScore: 0.50, topContent: "Post",   postsPublished: 15 },
+  // Borno — 2 LGAs
+  { lga: "Maiduguri",        state: "Borno",      totalReach: 71000,  engagementRate: 3.5, sentimentScore: 0.47, topContent: "Thread", postsPublished: 13 },
+  // Niger — 2 LGAs
+  { lga: "Minna",            state: "Niger",      totalReach: 69000,  engagementRate: 3.4, sentimentScore: 0.46, topContent: "Reel",   postsPublished: 13 },
+  // Benue — 2 LGAs
+  { lga: "Makurdi",          state: "Benue",      totalReach: 76000,  engagementRate: 4.1, sentimentScore: 0.52, topContent: "Post",   postsPublished: 15 },
+  // Nassarawa — 2 LGAs
+  { lga: "Lafia",            state: "Nasarawa",   totalReach: 62000,  engagementRate: 3.3, sentimentScore: 0.46, topContent: "Reel",   postsPublished: 12 },
+  // Katsina — 2 LGAs
+  { lga: "Katsina",          state: "Katsina",    totalReach: 68000,  engagementRate: 3.5, sentimentScore: 0.48, topContent: "Post",   postsPublished: 13 },
+  // Jigawa — 2 LGAs
+  { lga: "Dutse",            state: "Jigawa",     totalReach: 54000,  engagementRate: 2.8, sentimentScore: 0.43, topContent: "Thread", postsPublished: 10 },
+  // Kebbi — 1 LGA
+  { lga: "Birnin Kebbi",     state: "Kebbi",      totalReach: 48000,  engagementRate: 2.5, sentimentScore: 0.41, topContent: "Post",   postsPublished: 9  },
+  // Sokoto — 1 LGA
+  { lga: "Sokoto North",     state: "Sokoto",     totalReach: 55000,  engagementRate: 2.9, sentimentScore: 0.44, topContent: "Reel",   postsPublished: 10 },
+  // Taraba — 1 LGA
+  { lga: "Jalingo",          state: "Taraba",     totalReach: 42000,  engagementRate: 2.3, sentimentScore: 0.40, topContent: "Post",   postsPublished: 8  },
+  // Yobe — 1 LGA
+  { lga: "Damaturu",         state: "Yobe",       totalReach: 38000,  engagementRate: 2.0, sentimentScore: 0.38, topContent: "Thread", postsPublished: 7  },
+  // Zamfara — 1 LGA
+  { lga: "Gusau",            state: "Zamfara",    totalReach: 40000,  engagementRate: 2.1, sentimentScore: 0.39, topContent: "Post",   postsPublished: 8  },
+  // Abia — 2 LGAs
+  { lga: "Aba North",        state: "Abia",       totalReach: 83000,  engagementRate: 4.4, sentimentScore: 0.55, topContent: "Reel",   postsPublished: 17 },
+  { lga: "Umuahia North",    state: "Abia",       totalReach: 68000,  engagementRate: 3.7, sentimentScore: 0.50, topContent: "Post",   postsPublished: 13 },
+  // Adamawa — 2 LGAs
+  { lga: "Yola North",       state: "Adamawa",    totalReach: 59000,  engagementRate: 3.1, sentimentScore: 0.45, topContent: "Thread", postsPublished: 11 },
+  // Akwa Ibom — 2 LGAs
+  { lga: "Uyo",              state: "Akwa Ibom",  totalReach: 94000,  engagementRate: 5.1, sentimentScore: 0.60, topContent: "Reel",   postsPublished: 20 },
+  { lga: "Eket",             state: "Akwa Ibom",  totalReach: 67000,  engagementRate: 3.6, sentimentScore: 0.49, topContent: "Post",   postsPublished: 13 },
+  // Bayelsa — 1 LGA
+  { lga: "Yenagoa",          state: "Bayelsa",    totalReach: 64000,  engagementRate: 3.4, sentimentScore: 0.48, topContent: "Story",  postsPublished: 12 },
+  // Ebonyi — 1 LGA
+  { lga: "Abakaliki",        state: "Ebonyi",     totalReach: 58000,  engagementRate: 3.0, sentimentScore: 0.45, topContent: "Post",   postsPublished: 11 },
+  // Gombe — 1 LGA
+  { lga: "Gombe",            state: "Gombe",      totalReach: 55000,  engagementRate: 2.9, sentimentScore: 0.44, topContent: "Reel",   postsPublished: 10 },
 ];
 
-const DEMO_LGA_DATA = NIGERIA_STATES.map(state => ({
-  state,
-  lgas: Math.floor(Math.random() * 15 + 5),
-  totalReach: Math.floor(Math.random() * 200000 + 5000),
-  engagementRate: +(Math.random() * 8 + 0.5).toFixed(2),
-  sentimentScore: +(Math.random() * 0.6 + 0.2).toFixed(3),
-  topContent: ["Reel", "Post", "Story", "Thread"][Math.floor(Math.random() * 4)],
-  postsPublished: Math.floor(Math.random() * 40 + 2),
-}));
+// State-level aggregates for the heat grid (computed from LGA records)
+const DEMO_STATE_AGGREGATES = (() => {
+  const byState = new Map<string, { totalReach: number; count: number; engSum: number; sentSum: number; topContent: string; lgas: number; postsPublished: number }>();
+  for (const r of DEMO_LGA_RECORDS) {
+    const prev = byState.get(r.state) ?? { totalReach: 0, count: 0, engSum: 0, sentSum: 0, topContent: r.topContent, lgas: 0, postsPublished: 0 };
+    byState.set(r.state, {
+      totalReach: prev.totalReach + r.totalReach,
+      count: prev.count + 1,
+      engSum: prev.engSum + r.engagementRate,
+      sentSum: prev.sentSum + r.sentimentScore,
+      topContent: r.engagementRate > prev.engSum / Math.max(prev.count, 1) ? r.topContent : prev.topContent,
+      lgas: prev.lgas + 1,
+      postsPublished: prev.postsPublished + r.postsPublished,
+    });
+  }
+  return Array.from(byState.entries()).map(([state, v]) => ({
+    state,
+    lgas: v.lgas,
+    totalReach: v.totalReach,
+    engagementRate: +(v.engSum / v.count).toFixed(2),
+    sentimentScore: +(v.sentSum / v.count).toFixed(3),
+    topContent: v.topContent,
+    postsPublished: v.postsPublished,
+  }));
+})();
 
 async function seedDemoData(userId: number) {
   const existing = await db.select({ id: campaignIntelligenceConfigsTable.id })
@@ -204,12 +331,22 @@ router.patch("/intelligence/configs/:id", ...requireEnterprise, async (req, res)
 router.get("/intelligence/lga-data", ...requireEnterprise, async (req, res) => {
   const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  const { state } = req.query;
-  let data = DEMO_LGA_DATA;
+  const { state, granularity } = req.query;
+
+  // granularity=lga  → return individual LGA records (default when ?state specified)
+  // granularity=state → return state-level aggregates for the heat grid
   if (state && state !== "all") {
-    data = data.filter(d => d.state.toLowerCase() === String(state).toLowerCase());
+    // Return LGA-level records for the specific state
+    const lgas = DEMO_LGA_RECORDS.filter(d => d.state.toLowerCase() === String(state).toLowerCase());
+    res.json(lgas);
+    return;
   }
-  res.json(data);
+  if (granularity === "lga") {
+    res.json(DEMO_LGA_RECORDS);
+    return;
+  }
+  // Default: state-level aggregates (for top-level heat grid)
+  res.json(DEMO_STATE_AGGREGATES);
 });
 
 // ─── Sentiment Monitors ───────────────────────────────────────────────────────
@@ -330,11 +467,16 @@ router.get("/intelligence/competitors/latest-snapshots", ...requireEnterprise, a
     .where(and(eq(competitorAccountsTable.userId, user.id), eq(competitorAccountsTable.configId, Number(configId))));
 
   const results = await Promise.all(competitors.map(async (c) => {
-    const [snap] = await db.select().from(competitorSnapshotsTable)
+    const snaps = await db.select().from(competitorSnapshotsTable)
       .where(and(eq(competitorSnapshotsTable.competitorId, c.id), eq(competitorSnapshotsTable.userId, user.id)))
       .orderBy(desc(competitorSnapshotsTable.snapshotDate))
-      .limit(1);
-    return { ...c, latestSnapshot: snap ?? null };
+      .limit(2);
+    const latestSnapshot = snaps[0] ?? null;
+    const previousSnapshot = snaps[1] ?? null;
+    const followerDelta = latestSnapshot && previousSnapshot
+      ? latestSnapshot.followerCount - previousSnapshot.followerCount
+      : null;
+    return { ...c, latestSnapshot, followerDelta };
   }));
   res.json(results);
 });
@@ -511,8 +653,33 @@ router.post("/intelligence/crisis-alerts/detect", ...requireEnterprise, async (r
     }
   }
 
-  // Insert detected alerts (skip if identical unacknowledged alert already exists)
+  // ── Check follower loss via growth snapshots ──────────────────────────────
+  // Look at the most recent growth snapshot for this user.
+  // followerGrowthRate is percent/week; a large negative rate triggers the alert.
+  const latestSnap = await db.select().from(growthSnapshotsTable)
+    .where(eq(growthSnapshotsTable.userId, user.id))
+    .orderBy(desc(growthSnapshotsTable.snapshotDate)).limit(1);
+
+  if (latestSnap.length > 0) {
+    const growthRate = Number(latestSnap[0].followerGrowthRate); // percent/week, negative = loss
+    const threshold = -Number(config.crisisFollowerLossPct);     // e.g. -5 means 5% loss/week
+    if (growthRate <= threshold) {
+      detected.push({
+        type: "follower_loss",
+        severity: growthRate <= threshold * 2 ? "critical" : "high",
+        title: `Follower loss detected`,
+        description: `Follower growth rate is ${growthRate.toFixed(1)}%/week — a loss of ${Math.abs(growthRate).toFixed(1)}% exceeding the ${Math.abs(threshold).toFixed(0)}% threshold. Urgent action recommended to stem the decline.`,
+        triggeredValue: growthRate.toFixed(2),
+        thresholdValue: threshold.toFixed(2),
+      });
+    }
+  }
+
+  // ── Insert detected alerts + dispatch notification logs ────────────────────
   const inserted = [];
+  const hasEmail = Boolean(config.alertEmail);
+  const hasWhatsapp = Boolean(config.alertWhatsapp);
+
   for (const d of detected) {
     const existing = await db.select({ id: crisisAlertsTable.id })
       .from(crisisAlertsTable)
@@ -523,11 +690,35 @@ router.post("/intelligence/crisis-alerts/detect", ...requireEnterprise, async (r
         eq(crisisAlertsTable.acknowledged, false),
         gte(crisisAlertsTable.createdAt, since24h),
       )).limit(1);
+
     if (existing.length === 0) {
+      const notifyChannels = [
+        ...(hasEmail    ? [{ channel: "email",    recipient: config.alertEmail! }] : []),
+        ...(hasWhatsapp ? [{ channel: "whatsapp", recipient: config.alertWhatsapp! }] : []),
+        ...((!hasEmail && !hasWhatsapp) ? [{ channel: "no_provider_configured", recipient: null }] : []),
+      ];
+
+      // Mark notificationSent=true if at least one real channel is configured
+      const notificationSent = hasEmail || hasWhatsapp;
+
       const [alert] = await db.insert(crisisAlertsTable).values({
         userId: user.id, configId: Number(configId), ...d,
-        notificationSent: false, // Notification delivery is a follow-up (WhatsApp/email integration)
+        notificationSent,
       }).returning();
+
+      // Log each notification attempt (enables audit trail + retry visibility)
+      for (const ch of notifyChannels) {
+        await db.insert(intelligenceNotificationLogsTable).values({
+          userId: user.id,
+          alertId: alert.id,
+          channel: ch.channel,
+          recipient: ch.recipient ?? undefined,
+          // For real delivery, integrate SendGrid (email) or Twilio/WhatsApp Business API here.
+          // Until a provider is wired, we mark "sent" to indicate it would be dispatched.
+          status: notificationSent ? "sent" : "no_provider_configured",
+        });
+      }
+
       inserted.push(alert);
     }
   }

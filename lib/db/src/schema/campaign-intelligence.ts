@@ -118,6 +118,18 @@ export const roiAttributionEventsTable = pgTable("roi_attribution_events", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// ─── Intelligence Notification Logs ──────────────────────────────────────────
+export const intelligenceNotificationLogsTable = pgTable("intelligence_notification_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  alertId: integer("alert_id").notNull(),
+  channel: text("channel").notNull(),       // email | whatsapp | no_provider_configured
+  recipient: text("recipient"),
+  status: text("status").notNull().default("pending"), // sent | failed | no_provider_configured
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 // ─── Event Mode Configs (AFRIMA/Awards) ───────────────────────────────────────
 export const eventModeConfigsTable = pgTable("event_mode_configs", {
   id: serial("id").primaryKey(),

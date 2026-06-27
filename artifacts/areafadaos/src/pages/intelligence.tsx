@@ -33,7 +33,8 @@ async function apiFetch(path: string, opts?: RequestInit) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface WardData { ward: string; lga: string; reach: number; postsPublished: number; engagementRate: number; sentimentScore: number; topContent: string; }
-interface CompetitorWithSnapshot extends Competitor { latestSnapshot: CompetitorSnapshot | null; }
+interface LgaRecord { lga: string; state: string; totalReach: number; engagementRate: number; sentimentScore: number; topContent: string; postsPublished: number; }
+interface CompetitorWithSnapshot extends Competitor { latestSnapshot: CompetitorSnapshot | null; followerDelta: number | null; }
 interface IntelligenceConfig {
   id: number;
   name: string;
@@ -88,20 +89,41 @@ function useConfig() {
 // ─── Political Map Tab ────────────────────────────────────────────────────────
 function PoliticalMapTab({ configId }: { configId: number | null }) {
   const [selectedState, setSelectedState] = useState<string | null>(null);
+  const [selectedLga, setSelectedLga] = useState<string | null>(null);
+  const [lgaSearch, setLgaSearch] = useState("");
+
   const { data: lgaData = [] } = useQuery<LgaData[]>({
     queryKey: ["lga-data"],
     queryFn: () => apiFetch("/intelligence/lga-data"),
     staleTime: 5 * 60 * 1000,
   });
 
+  // LGA-level records for the full explorer
+  const { data: lgaRecords = [] } = useQuery<LgaRecord[]>({
+    queryKey: ["lga-records"],
+    queryFn: () => apiFetch("/intelligence/lga-data?granularity=lga"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // LGA records for the clicked state
+  const { data: stateLgaRecords = [], isLoading: stateLgasLoading } = useQuery<LgaRecord[]>({
+    queryKey: ["lga-state-records", selectedState],
+    queryFn: () => apiFetch(`/intelligence/lga-data?state=${encodeURIComponent(selectedState!)}`),
+    enabled: !!selectedState,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: wardData = [], isLoading: wardsLoading } = useQuery<WardData[]>({
-    queryKey: ["ward-data", selectedState],
+    queryKey: ["ward-data", selectedState, selectedLga],
     queryFn: () => apiFetch(`/intelligence/lga-data/${encodeURIComponent(selectedState!)}/wards`),
     enabled: !!selectedState,
     staleTime: 5 * 60 * 1000,
   });
 
   const sorted = [...lgaData].sort((a, b) => b.engagementRate - a.engagementRate);
+  const filteredLgas = lgaRecords.filter(r =>
+    !lgaSearch || r.lga.toLowerCase().includes(lgaSearch.toLowerCase()) || r.state.toLowerCase().includes(lgaSearch.toLowerCase())
+  );
 
   function heatColor(engagementRate: number) {
     if (engagementRate >= 6) return "bg-green-500 text-white";
@@ -140,28 +162,52 @@ function PoliticalMapTab({ configId }: { configId: number | null }) {
         ))}
       </div>
 
-      {/* State detail panel + Ward breakdown */}
+      {/* State detail panel — LGA-level tiles + ward breakdown */}
       {selectedData && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="pt-4">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-semibold text-lg">{selectedData.state}</h3>
-                <p className="text-sm text-muted-foreground">{selectedData.lgas} LGAs · ward-level breakdown below</p>
+                <p className="text-sm text-muted-foreground">{selectedData.lgas} LGAs tracked · click an LGA for ward breakdown</p>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => setSelectedState(null)}>✕</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setSelectedState(null); setSelectedLga(null); }}>✕</Button>
             </div>
+
+            {/* LGA-level heat tiles for this state */}
+            {stateLgasLoading ? (
+              <div className="text-sm text-muted-foreground py-3 text-center">Loading LGA data…</div>
+            ) : stateLgaRecords.length > 0 ? (
+              <div className="mb-4">
+                <div className="text-xs font-semibold text-muted-foreground mb-2">LGA Performance — {selectedData.state}</div>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+                  {stateLgaRecords.sort((a, b) => b.engagementRate - a.engagementRate).map(lga => (
+                    <button
+                      key={lga.lga}
+                      onClick={() => setSelectedLga(lga.lga === selectedLga ? null : lga.lga)}
+                      className={`rounded-md p-1.5 text-xs font-medium border-2 text-center transition-all ${heatColor(lga.engagementRate)} ${selectedLga === lga.lga ? "ring-2 ring-offset-1 ring-primary border-primary" : "border-transparent hover:border-primary/50"}`}
+                      title={`${lga.lga}: ${lga.engagementRate}% engagement, ${lga.totalReach.toLocaleString()} reach`}
+                    >
+                      <div>{lga.lga.length > 10 ? lga.lga.slice(0, 10) + "…" : lga.lga}</div>
+                      <div className="opacity-80 text-[10px]">{lga.engagementRate}%</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* State aggregate metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               <div className="bg-white rounded-lg p-3 shadow-sm">
                 <div className="text-xs text-muted-foreground">Total Reach</div>
                 <div className="font-bold text-lg">{selectedData.totalReach.toLocaleString()}</div>
               </div>
               <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-xs text-muted-foreground">Engagement Rate</div>
+                <div className="text-xs text-muted-foreground">Avg Engagement</div>
                 <div className="font-bold text-lg text-emerald-600">{selectedData.engagementRate}%</div>
               </div>
               <div className="bg-white rounded-lg p-3 shadow-sm">
-                <div className="text-xs text-muted-foreground">Sentiment</div>
+                <div className="text-xs text-muted-foreground">Avg Sentiment</div>
                 <div className="font-bold text-lg">{(selectedData.sentimentScore * 100).toFixed(0)}%</div>
               </div>
               <div className="bg-white rounded-lg p-3 shadow-sm">
@@ -170,9 +216,11 @@ function PoliticalMapTab({ configId }: { configId: number | null }) {
               </div>
             </div>
 
-            {/* Ward-level breakdown table */}
+            {/* Ward-level breakdown (for selected LGA or state default) */}
             <div className="bg-white rounded-lg p-3 shadow-sm">
-              <div className="text-xs font-semibold text-muted-foreground mb-2">Ward-Level Breakdown — {selectedData.state}</div>
+              <div className="text-xs font-semibold text-muted-foreground mb-2">
+                Ward Breakdown — {selectedLga ?? selectedData.state}
+              </div>
               {wardsLoading ? (
                 <div className="text-sm text-muted-foreground py-4 text-center">Loading ward data…</div>
               ) : (
@@ -185,7 +233,7 @@ function PoliticalMapTab({ configId }: { configId: number | null }) {
                         <th className="text-right pb-1.5">Posts</th>
                         <th className="text-right pb-1.5">Eng.</th>
                         <th className="text-right pb-1.5">Sentiment</th>
-                        <th className="text-right pb-1.5">Top Content</th>
+                        <th className="text-right pb-1.5">Content</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -218,6 +266,65 @@ function PoliticalMapTab({ configId }: { configId: number | null }) {
           </CardContent>
         </Card>
       )}
+
+      {/* LGA Explorer — all LGAs across Nigeria, searchable */}
+      <Card>
+        <CardHeader className="py-3 px-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-sm font-semibold">LGA Explorer — {lgaRecords.length} Local Government Areas</CardTitle>
+            <Input
+              className="h-7 w-48 text-xs"
+              placeholder="Search LGA or state…"
+              value={lgaSearch}
+              onChange={e => setLgaSearch(e.target.value)}
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="text-left pb-1.5">LGA</th>
+                  <th className="text-left pb-1.5">State</th>
+                  <th className="text-right pb-1.5">Reach</th>
+                  <th className="text-right pb-1.5">Eng.</th>
+                  <th className="text-right pb-1.5">Sentiment</th>
+                  <th className="text-right pb-1.5">Top Content</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLgas.sort((a, b) => b.engagementRate - a.engagementRate).slice(0, 20).map(r => (
+                  <tr
+                    key={`${r.state}-${r.lga}`}
+                    className="border-b hover:bg-muted/30 cursor-pointer"
+                    onClick={() => { setSelectedState(r.state); setSelectedLga(r.lga); }}
+                  >
+                    <td className="py-1.5 font-medium">{r.lga}</td>
+                    <td className="text-muted-foreground">{r.state}</td>
+                    <td className="text-right">{(r.totalReach / 1000).toFixed(0)}K</td>
+                    <td className={`text-right font-medium ${r.engagementRate >= 6 ? "text-emerald-600" : r.engagementRate >= 3 ? "text-yellow-600" : "text-red-500"}`}>
+                      {r.engagementRate}%
+                    </td>
+                    <td className="text-right">
+                      <span className={`inline-block w-10 text-center rounded-full px-1 py-0.5 ${r.sentimentScore > 0.6 ? "bg-emerald-100 text-emerald-700" : r.sentimentScore < 0.4 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>
+                        {(r.sentimentScore * 100).toFixed(0)}%
+                      </span>
+                    </td>
+                    <td className="text-right text-muted-foreground">{r.topContent}</td>
+                  </tr>
+                ))}
+                {filteredLgas.length === 0 && (
+                  <tr><td colSpan={6} className="py-6 text-center text-muted-foreground">No LGAs match your search.</td></tr>
+                )}
+              </tbody>
+            </table>
+            {filteredLgas.length > 20 && (
+              <div className="text-xs text-muted-foreground pt-2 text-center">Showing top 20 of {filteredLgas.length} matching LGAs — refine your search to narrow.</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Top 10 states table */}
       <Card>
@@ -527,6 +634,7 @@ function CompetitorMonitorTab({ configId }: { configId: number | null }) {
               <th className="text-right pb-2">Posts/wk</th>
               <th className="text-right pb-2">Avg Eng.</th>
               <th className="text-right pb-2">Top Post Eng.</th>
+              <th className="text-right pb-2">Growth</th>
               <th className="pb-2"></th>
             </tr>
           </thead>
@@ -544,6 +652,13 @@ function CompetitorMonitorTab({ configId }: { configId: number | null }) {
                   <td className="text-right">{snap ? snap.postsPerWeek : "—"}</td>
                   <td className="text-right">{snap ? `${(Number(snap.avgEngagementRate) * 100).toFixed(2)}%` : "—"}</td>
                   <td className="text-right">{snap ? snap.topPostEngagement.toLocaleString() : "—"}</td>
+                  <td className="text-right">
+                    {c.followerDelta !== null ? (
+                      <span className={`font-medium text-xs ${c.followerDelta > 0 ? "text-emerald-600" : c.followerDelta < 0 ? "text-red-500" : "text-muted-foreground"}`}>
+                        {c.followerDelta > 0 ? "+" : ""}{c.followerDelta.toLocaleString()}
+                      </span>
+                    ) : "—"}
+                  </td>
                   <td className="text-right">
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={e => { e.stopPropagation(); deleteCompetitor.mutate(c.id); }}>
                       <Trash2 className="w-3 h-3" />
