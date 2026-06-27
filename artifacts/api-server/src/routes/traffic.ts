@@ -323,13 +323,14 @@ router.get("/hook-library", ...requireTraffic, async (req, res) => {
       CURATED_HOOKS.map(h => ({ ...h, curated: true, weekNumber }))
     );
   }
-  // Build filters
-  const conditions: Parameters<typeof and>[0][] = [];
+  // Build filters — always scope to curated entries OR own entries (tenant isolation)
+  const tenantFilter = sql`(${hookLibraryEntriesTable.curated} = true OR ${hookLibraryEntriesTable.userId} = ${user.id})`;
+  const conditions: Parameters<typeof and>[0][] = [tenantFilter];
   if (platform && platform !== "all") conditions.push(eq(hookLibraryEntriesTable.platform, String(platform)));
   if (niche) conditions.push(eq(hookLibraryEntriesTable.niche, String(niche)));
   if (format) conditions.push(eq(hookLibraryEntriesTable.format, String(format)));
   const hooks = await db.select().from(hookLibraryEntriesTable)
-    .where(conditions.length > 0 ? and(...(conditions as Parameters<typeof and>)) : undefined)
+    .where(and(...(conditions as Parameters<typeof and>)))
     .orderBy(desc(hookLibraryEntriesTable.likeCount), desc(hookLibraryEntriesTable.createdAt))
     .limit(100);
   // Client-side text filter for search
@@ -358,18 +359,30 @@ router.post("/hook-library", ...requireTraffic, async (req, res) => {
 });
 
 router.post("/hook-library/:id/like", ...requireTraffic, async (req, res) => {
+  const user = await getDbUser(getAuth(req).userId!);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  // Only allow like on curated hooks or own hooks (prevents cross-tenant mutation)
   const [updated] = await db.update(hookLibraryEntriesTable)
     .set({ likeCount: sql`like_count + 1`, updatedAt: new Date() })
-    .where(eq(hookLibraryEntriesTable.id, Number(req.params.id)))
+    .where(and(
+      eq(hookLibraryEntriesTable.id, Number(req.params.id)),
+      sql`(${hookLibraryEntriesTable.curated} = true OR ${hookLibraryEntriesTable.userId} = ${user.id})`,
+    ))
     .returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(updated);
 });
 
 router.post("/hook-library/:id/use", ...requireTraffic, async (req, res) => {
+  const user = await getDbUser(getAuth(req).userId!);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  // Only allow use on curated hooks or own hooks (prevents cross-tenant mutation)
   const [updated] = await db.update(hookLibraryEntriesTable)
     .set({ useCount: sql`use_count + 1`, updatedAt: new Date() })
-    .where(eq(hookLibraryEntriesTable.id, Number(req.params.id)))
+    .where(and(
+      eq(hookLibraryEntriesTable.id, Number(req.params.id)),
+      sql`(${hookLibraryEntriesTable.curated} = true OR ${hookLibraryEntriesTable.userId} = ${user.id})`,
+    ))
     .returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(updated);
