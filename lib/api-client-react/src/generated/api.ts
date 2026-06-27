@@ -3231,6 +3231,83 @@ export const useGenerateAnalyticsReport = <TError = ErrorType<unknown>,
       return useMutation(getGenerateAnalyticsReportMutationOptions(options));
     }
 
+export const getDownloadAnalyticsReportPdfUrl = (id: number,) => {
+
+
+
+
+  return `/api/analytics/reports/${id}/pdf`
+}
+
+/**
+ * @summary Download analytics report as a binary PDF
+ */
+export const downloadAnalyticsReportPdf = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadAnalyticsReportPdfUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadAnalyticsReportPdfQueryKey = (id: number,) => {
+    return [
+    `/api/analytics/reports/${id}/pdf`
+    ] as const;
+    }
+
+
+export const getDownloadAnalyticsReportPdfQueryOptions = <TData = Awaited<ReturnType<typeof downloadAnalyticsReportPdf>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAnalyticsReportPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadAnalyticsReportPdfQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadAnalyticsReportPdf>>> = ({ signal }) => downloadAnalyticsReportPdf(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadAnalyticsReportPdf>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadAnalyticsReportPdfQueryResult = NonNullable<Awaited<ReturnType<typeof downloadAnalyticsReportPdf>>>
+export type DownloadAnalyticsReportPdfQueryError = ErrorType<void>
+
+
+/**
+ * @summary Download analytics report as a binary PDF
+ */
+
+export function useDownloadAnalyticsReportPdf<TData = Awaited<ReturnType<typeof downloadAnalyticsReportPdf>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadAnalyticsReportPdf>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadAnalyticsReportPdfQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getGenerateWeeklyDigestUrl = () => {
 
 

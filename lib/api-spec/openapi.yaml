@@ -807,6 +807,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/AnalyticsReport"
 
+  /analytics/reports/{id}/pdf:
+    get:
+      operationId: downloadAnalyticsReportPdf
+      tags: [analytics]
+      summary: Download analytics report as a binary PDF
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Report ID
+      responses:
+        "200":
+          description: PDF file (application/pdf)
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Report not found
+
   /analytics/digest:
     post:
       operationId: generateWeeklyDigest

@@ -270,6 +270,11 @@ router.get("/analytics/audience", requireAuth, requireTier("brand"), async (req:
 });
 
 // ─── GET /analytics/best-times ───────────────────────────────────────────
+// Data-driven: derives heatmap from stored post_performance engagement.
+// WAT = UTC+1. Timezone shift applied so WAT hours are compared correctly.
+// Falls back to platform-neutral priors when fewer than 5 data points exist.
+const WAT_OFFSET_HOURS = 1; // UTC+1
+
 router.get("/analytics/best-times", requireAuth, requireTier("brand"), async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
@@ -277,53 +282,107 @@ router.get("/analytics/best-times", requireAuth, requireTier("brand"), async (re
 
     const platform = (req.query.platform as string) || "instagram";
 
-    // Generate heatmap based on WAT/EAT/GMT follower timezone distribution
-    // WAT = UTC+1 (Nigeria, West Africa)
-    // Peak engagement: mornings (7-9 WAT), lunch (12-14 WAT), evenings (19-22 WAT)
-    const heatmap: { day: number; hour: number; score: number; recommended: boolean }[] = [];
+    // ── 1. Pull historical post_performance rows ──────────────────────────
+    const rawPosts = await db.select({
+      publishedAt: postPerformance.publishedAt,
+      likes: postPerformance.likes,
+      comments: postPerformance.comments,
+      shares: postPerformance.shares,
+      views: postPerformance.views,
+    }).from(postPerformance)
+      .where(and(eq(postPerformance.userId, user.id), eq(postPerformance.platform, platform)))
+      .orderBy(desc(postPerformance.publishedAt))
+      .limit(200);
 
-    const peakHours: Record<string, number[]> = {
+    // ── 2. Aggregate engagement by (day, hour) in WAT ─────────────────────
+    // Slot[day][hour] = { totalEng, totalViews, count }
+    type Slot = { totalEng: number; totalViews: number; count: number };
+    const slots: Slot[][] = Array.from({ length: 7 }, () =>
+      Array.from({ length: 24 }, () => ({ totalEng: 0, totalViews: 0, count: 0 }))
+    );
+
+    for (const p of rawPosts) {
+      if (!p.publishedAt) continue;
+      const watDate = new Date(p.publishedAt.getTime() + WAT_OFFSET_HOURS * 3600_000);
+      const day = watDate.getUTCDay();   // 0=Sun…6=Sat
+      const hour = watDate.getUTCHours();
+      const eng = (p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0);
+      const views = p.views ?? 1;
+      slots[day][hour].totalEng += eng;
+      slots[day][hour].totalViews += views;
+      slots[day][hour].count += 1;
+    }
+
+    const hasData = rawPosts.length >= 5;
+
+    // ── 3. Platform-neutral Bayesian priors (WAT peak hours/days) ─────────
+    // Used as smoothing when historical data is sparse.
+    const priorPeakHours: Record<string, number[]> = {
       instagram: [7, 8, 12, 13, 19, 20, 21],
       tiktok: [6, 7, 12, 19, 20, 21, 22],
       x: [8, 9, 12, 17, 18, 19],
       youtube: [10, 11, 15, 16, 20, 21],
       facebook: [9, 10, 12, 13, 17, 18],
+      threads: [8, 9, 12, 13, 20, 21],
     };
-    const peakDays: Record<string, number[]> = {
+    const priorPeakDays: Record<string, number[]> = {
       instagram: [1, 2, 3, 4, 5],
       tiktok: [0, 1, 2, 3, 4, 5, 6],
       x: [1, 2, 3],
       youtube: [5, 6, 0],
       facebook: [1, 3, 5],
+      threads: [1, 2, 3, 4],
     };
+    const hours = priorPeakHours[platform] ?? priorPeakHours.instagram;
+    const days = priorPeakDays[platform] ?? priorPeakDays.instagram;
 
-    const hours = peakHours[platform] ?? peakHours.instagram;
-    const days = peakDays[platform] ?? peakDays.instagram;
+    // ── 4. Build heatmap ──────────────────────────────────────────────────
+    // Score = weighted blend of historical engagement rate + prior signal.
+    // Historical weight = min(count / 5, 1). Prior weight = 1 - historical.
+    const heatmap: { day: number; hour: number; score: number; recommended: boolean; dataPoints: number }[] = [];
 
     for (let day = 0; day < 7; day++) {
       for (let hour = 0; hour < 24; hour++) {
-        const isHour = hours.includes(hour);
-        const isDay = days.includes(day);
-        let base = 20;
-        if (isHour) base += 40;
-        if (isDay) base += 25;
-        const score = Math.min(100, base + Math.round(Math.random() * 15));
-        heatmap.push({ day, hour, score, recommended: isHour && isDay });
+        const slot = slots[day][hour];
+        const historicalWeight = hasData ? Math.min(slot.count / 5, 1) : 0;
+        const priorWeight = 1 - historicalWeight;
+
+        // Historical score: avg engagement rate mapped to 0-100
+        const engRate = slot.count > 0 ? (slot.totalEng / slot.totalViews) * 100 : 0;
+        const historicalScore = Math.min(100, engRate * 10); // scale: 10% eng → 100
+
+        // Prior score
+        const priorScore = (hours.includes(hour) ? 55 : 10) + (days.includes(day) ? 30 : 0);
+
+        const score = Math.round(historicalWeight * historicalScore + priorWeight * priorScore);
+        const recommended = score >= 60 && (hours.includes(hour) || slot.count >= 2);
+
+        heatmap.push({ day, hour, score, recommended, dataPoints: slot.count });
       }
     }
 
-    const bestWindows = heatmap
-      .filter(h => h.recommended)
+    const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const bestWindows = [...heatmap]
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)
       .map(h => ({
-        day: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][h.day],
+        day: DAY_NAMES[h.day],
         time: `${String(h.hour).padStart(2,"0")}:00 WAT`,
         score: h.score,
         timezone: "WAT (UTC+1)",
+        dataPoints: h.dataPoints,
       }));
 
-    res.json({ platform, heatmap, bestWindows, timezone: "WAT", note: "Optimised for Nigeria West Africa Time (UTC+1). Diaspora peak times in UK (GMT), US (EST/PST), UAE (GST) are factored in." });
+    res.json({
+      platform,
+      heatmap,
+      bestWindows,
+      timezone: "WAT",
+      dataPoints: rawPosts.length,
+      note: hasData
+        ? `Derived from ${rawPosts.length} historical posts on ${platform}. WAT (UTC+1) timezone applied.`
+        : `Insufficient historical data — using platform priors for ${platform}. Post more to unlock data-driven recommendations.`,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to get best post times" });
@@ -489,7 +548,7 @@ function hexColor(hex: string) {
 }
 
 // ─── GET /analytics/reports/:id/pdf ──────────────────────────────────────
-router.get("/analytics/reports/:id/pdf", requireAuth, async (req: any, res): Promise<void> => {
+router.get("/analytics/reports/:id/pdf", requireAuth, requireTier("brand"), async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }

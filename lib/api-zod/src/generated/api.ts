@@ -1075,6 +1075,16 @@ export const GenerateAnalyticsReportResponse = zod.object({
 
 
 /**
+ * @summary Download analytics report as a binary PDF
+ */
+export const DownloadAnalyticsReportPdfParams = zod.object({
+  "id": zod.coerce.number().describe('Report ID')
+})
+
+export const DownloadAnalyticsReportPdfResponse = zod.unknown()
+
+
+/**
  * @summary Generate weekly performance digest narrative
  */
 export const GenerateWeeklyDigestResponse = zod.object({

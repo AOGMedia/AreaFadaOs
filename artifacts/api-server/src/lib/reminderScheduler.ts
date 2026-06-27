@@ -78,27 +78,44 @@ async function processOverdueReminders(now: Date): Promise<number> {
 
 // ─── Weekly digest job ────────────────────────────────────────────────────
 
+/** Normalize a Date to the Monday 00:00:00.000 UTC that starts its ISO week. */
+function isoWeekStart(d: Date): Date {
+  const out = new Date(d);
+  out.setUTCHours(0, 0, 0, 0);
+  // getUTCDay(): 0=Sun,1=Mon,…,6=Sat.  Shift so Monday=0.
+  const offset = (out.getUTCDay() + 6) % 7; // days since last Monday
+  out.setUTCDate(out.getUTCDate() - offset);
+  return out;
+}
+
 async function generateWeeklyDigests(): Promise<number> {
   const now = new Date();
   const dayOfWeek = now.getUTCDay(); // 0 = Sunday
   if (dayOfWeek !== 0) return 0; // Only run on Sundays
 
-  const weekStart = new Date(now); weekStart.setUTCDate(weekStart.getUTCDate() - 7);
-  const weekEnd = new Date(now);
+  // Stable calendar boundaries — identical on every hourly run this Sunday
+  const weekStart = isoWeekStart(now);                       // Monday 00:00 UTC
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);              // Sunday 00:00 UTC
+  weekEnd.setUTCHours(23, 59, 59, 999);
 
-  // Get all users who have analytics snapshots but no digest this week
+  // Look back at the full week for snapshot data
+  const snapWindowStart = new Date(weekStart);
+  snapWindowStart.setUTCDate(snapWindowStart.getUTCDate() - 7);
+
+  // Get all users who have analytics snapshots in this window
   const usersWithSnaps = await db
     .selectDistinct({ userId: analyticsSnapshots.userId })
     .from(analyticsSnapshots)
-    .where(gte(analyticsSnapshots.snapshotDate, weekStart));
+    .where(gte(analyticsSnapshots.snapshotDate, snapWindowStart));
 
   let generated = 0;
 
   for (const { userId } of usersWithSnaps) {
-    // Skip if already generated this week
+    // Idempotency: exact calendar-week match (weekStart is always Monday 00:00 UTC)
     const [existing] = await db.select({ id: weeklyDigests.id })
       .from(weeklyDigests)
-      .where(and(eq(weeklyDigests.userId, userId), gte(weeklyDigests.weekStart, weekStart)))
+      .where(and(eq(weeklyDigests.userId, userId), eq(weeklyDigests.weekStart, weekStart)))
       .limit(1);
     if (existing) continue;
 
