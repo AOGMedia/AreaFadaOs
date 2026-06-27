@@ -13,7 +13,7 @@ import {
   usersTable,
   activityLogTable,
 } from "@workspace/db";
-import { eq, desc, and, lte, isNull, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lte, isNull, inArray } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
 
@@ -563,6 +563,23 @@ router.post("/auto-post/account-groups/:id/publish", ...requirePost, async (req:
       draft = d ?? null;
     }
 
+    // Ensure we always have a real draft row (publish_jobs.draft_id is NOT NULL).
+    // When no existing draft is provided, auto-create a minimal one from the caption.
+    if (!draft && sourceCaption) {
+      const platforms = [...new Set(members.map(m => m.platform))];
+      const [created] = await db.insert(postDraftsTable).values({
+        userId: user.id,
+        title: `Group: ${group.name}`,
+        sourceCaption,
+        selectedPlatforms: platforms,
+        mediaUrls: [],
+        selectedAccountIds: [],
+      }).returning();
+      draft = created;
+    }
+
+    if (!draft) { res.status(400).json({ error: "Could not resolve or create a draft" }); return; }
+
     const variants = (platformVariants ?? draft?.platformVariants ?? {}) as Record<string, string>;
     const hashtags = (platformHashtags ?? draft?.platformHashtags ?? {}) as Record<string, string[]>;
     const baseCaption = sourceCaption ?? draft?.sourceCaption ?? "";
@@ -614,7 +631,7 @@ router.get("/auto-post/posting-time-recommendations", ...requirePost, async (req
       .where(and(
         eq(publishJobsTable.userId, user.id),
         eq(publishJobsTable.status, "published"),
-        lte(publishJobsTable.publishedAt, since),
+        gte(publishJobsTable.publishedAt, since),
       ))
       .limit(200);
 
@@ -627,45 +644,76 @@ router.get("/auto-post/posting-time-recommendations", ...requirePost, async (req
       platformHourCounts[job.platform][watHour] = (platformHourCounts[job.platform][watHour] ?? 0) + 1;
     }
 
+    // Timezone heuristics per platform account handle/displayName
+    // Nigerian creators → WAT (UTC+1), East Africa → EAT (UTC+3), UK diaspora → GMT (UTC+0)
+    function inferAccountTimezone(handle: string, displayName: string | null): { tz: string; offsetHours: number } {
+      const h = `${handle} ${displayName ?? ""}`.toLowerCase();
+      if (/\.ke|nairobi|kenya|mombasa/.test(h)) return { tz: "EAT (UTC+3)", offsetHours: 3 };
+      if (/\.gh|ghana|accra/.test(h)) return { tz: "GMT (UTC+0)", offsetHours: 0 };
+      if (/\.za|sa|johannesburg|capetown/.test(h)) return { tz: "SAST (UTC+2)", offsetHours: 2 };
+      if (/\.uk|london|\.gb/.test(h)) return { tz: "GMT (UTC+0)", offsetHours: 0 };
+      return { tz: "WAT (UTC+1)", offsetHours: 1 }; // Default: Nigerian/West Africa
+    }
+
+    function formatSlotForTimezone(watHour: number, offsetHours: number, tz: string): string {
+      const localHour = ((watHour - 1 + offsetHours) + 24) % 24; // WAT=UTC+1, convert via UTC
+      const period = localHour < 12 ? "AM" : "PM";
+      const display = localHour === 0 ? 12 : localHour > 12 ? localHour - 12 : localHour;
+      return `${display}:00 ${period} ${tz.split(" ")[0]}`;
+    }
+
     // Build per-platform recommendations blending historical + curated optimal times
     const platformsToReturn = platform ? [String(platform)] : Object.keys(OPTIMAL_TIMES);
-    const recommendations: Record<string, { slots: string[]; timezone: string; explanation: string; dataSource: string; perAccount: Array<{ accountId: number; username: string; platform: string; bestSlots: string[] }> }> = {};
+    const recommendations: Record<string, { slots: string[]; timezone: string; explanation: string; dataSource: string; perAccount: Array<{ accountId: number; username: string; platform: string; timezone: string; bestSlots: string[] }> }> = {};
 
     for (const plat of platformsToReturn) {
       const curated = OPTIMAL_TIMES[plat] ?? OPTIMAL_TIMES.instagram;
       const historicalCounts = platformHourCounts[plat];
+      let watSlots: number[]; // canonical WAT hours
       let slots: string[];
       let dataSource: string;
       let explanation: string;
 
       if (historicalCounts && Object.keys(historicalCounts).length >= 3) {
         // Have enough history — derive top 3 hours from actual publish data
-        const sorted = Object.entries(historicalCounts)
+        watSlots = Object.entries(historicalCounts)
           .sort(([, a], [, b]) => b - a)
           .slice(0, 3)
-          .map(([hour]) => {
-            const h = Number(hour);
-            const period = h < 12 ? "AM" : "PM";
-            const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
-            return `${display}:00 ${period} WAT`;
-          });
-        slots = sorted;
+          .map(([hour]) => Number(hour));
+        slots = watSlots.map(h => {
+          const period = h < 12 ? "AM" : "PM";
+          const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+          return `${display}:00 ${period} WAT`;
+        });
         dataSource = "historical";
-        explanation = `Based on your last ${historicalJobs.filter(j => j.platform === plat).length} published posts — your audience responds best at these times.`;
+        explanation = `Based on your last ${historicalJobs.filter(j => j.platform === plat).length} posts in the past 90 days — your audience responds best at these times.`;
       } else {
+        // Fall back to curated times; parse WAT hour from "8:00 AM WAT" format
+        watSlots = curated.slots.map((s: string) => {
+          const m = s.match(/(\d+):00\s*(AM|PM)/i);
+          if (!m) return 8;
+          let h = Number(m[1]);
+          if (m[2].toUpperCase() === "PM" && h !== 12) h += 12;
+          if (m[2].toUpperCase() === "AM" && h === 12) h = 0;
+          return h;
+        });
         slots = curated.slots;
         dataSource = "curated";
-        explanation = `No sufficient posting history yet — using curated optimal times for Nigerian ${plat} audiences. ${curated.explanation}`;
+        explanation = `Less than 3 days of posting history — using curated optimal times for Nigerian ${plat} audiences. Post more to get personalised recommendations. ${curated.explanation}`;
       }
 
-      // Per-account breakdown for accounts on this platform
+      // Per-account breakdown with per-account timezone conversion
       const platformAccounts = accounts.filter(a => a.platform === plat);
-      const perAccount = platformAccounts.map(a => ({
-        accountId: a.id,
-        username: a.handle,
-        platform: a.platform,
-        bestSlots: slots, // Per-account data would come from real analytics API
-      }));
+      const perAccount = platformAccounts.map(a => {
+        const { tz, offsetHours } = inferAccountTimezone(a.handle, a.displayName);
+        return {
+          accountId: a.id,
+          username: a.handle,
+          platform: a.platform,
+          timezone: tz,
+          bestSlots: watSlots.map(h => formatSlotForTimezone(h, offsetHours, tz)),
+        };
+      });
 
       recommendations[plat] = {
         slots,

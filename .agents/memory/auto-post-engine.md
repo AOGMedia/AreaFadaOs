@@ -1,24 +1,28 @@
 ---
 name: Auto-Post Engine
-description: DB schema layout, TypeScript project reference build requirement, and API patterns for the Auto-Post Engine (Task #9).
+description: Durable decisions and non-obvious constraints for the Auto-Post Engine module.
 ---
 
 # Auto-Post Engine
 
 ## DB package TypeScript project references
-The `lib/db` package uses `composite: true` + `emitDeclarationOnly`. After adding new schema files, you MUST run `cd lib/db && pnpm exec tsc -p tsconfig.json` to regenerate `.d.ts` declarations before the API server typecheck will see the new exports. The DB package has no `build` script — use tsc directly.
+After adding new schema files to `lib/db`, you MUST run `pnpm exec tsc -p tsconfig.json` inside `lib/db` to regenerate `.d.ts` declarations before the API server typecheck will see the new exports. No `build` script exists — use tsc directly.
 
-**Why:** TypeScript project references resolve types from the compiled `dist/` declarations, not the source `.ts` files, even though the package exports `./src/index.ts`. The consuming package (api-server) uses `references` in tsconfig which triggers declaration-based resolution.
+**Why:** TypeScript project references resolve types from compiled `dist/` declarations, not source `.ts` files, even though the package exports `./src/index.ts`.
 
-**How to apply:** Any time you add exports to `lib/db/src/schema/*.ts`, run the tsc compile step before typechecking dependent packages.
+**How to apply:** Any time you add exports to `lib/db/src/schema/*.ts`, compile lib/db before typechecking dependent packages.
 
-## Auto-Post tables
-6 tables in `lib/db/src/schema/auto-post.ts`:
-- `post_drafts` — source content, platform variants, status (draft/pending_approval/approved/published/rejected)
-- `publish_jobs` — per-platform job with attemptCount/maxAttempts/status
-- `account_groups` + `account_group_members` — named multi-account groups
-- `approval_requests` — per-draft approval workflow with notificationLog
-- `compliance_flags` — AI compliance scan results
+## draftId is NOT NULL in publish_jobs
+`publish_jobs.draft_id` is `.notNull()`. When group-publishing without a draft, auto-create a minimal draft from the caption rather than passing draftId=0.
 
-## Tier + moduleKey
-All auto-post routes use `requireTier("brand")`. Module key is `"autoPost"` — already registered in `artifacts/api-server/src/routes/users.ts` tier matrix before this task.
+**Why:** Passing 0 creates orphaned rows and violates implicit FK semantics even without a DB-level FK constraint.
+
+## Posting-time historical query direction
+Use `gte(publishJobsTable.publishedAt, since)` (not lte) to select jobs from the last N days.
+
+**Why:** `lte(col, since)` selects jobs OLDER than the window — opposite of intent.
+
+## Image resize in Auto-Post
+Current implementation is CSS crop-preview only (client-side `object-fit: cover` per aspect ratio). No server-side resize pipeline exists — real platform push is stubbed. The UI explicitly labels this as "preview only."
+
+**Why:** No object storage is connected. When real platform accounts are wired, actual resize should happen at publish time via the platform's media API.

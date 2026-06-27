@@ -292,7 +292,7 @@ function ComposerTab() {
                     <button onClick={() => setMediaDataUrl(null)}
                       className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-bold shadow">×</button>
                   </div>
-                  <p className="text-xs text-muted-foreground">Click × to remove. Crop previews appear in each platform variant card below.</p>
+                  <p className="text-xs text-muted-foreground">Click × to remove. CSS crop previews (aspect-ratio simulation) appear in each platform variant card below. Actual image resize happens at publish time when platform accounts are connected.</p>
                 </div>
               )}
             </div>
