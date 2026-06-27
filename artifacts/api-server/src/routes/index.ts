@@ -6,6 +6,7 @@ import schedulingRouter from "./scheduling";
 import monetizationRouter from "./monetization";
 import analyticsRouter from "./analytics";
 import ambassadorsRouter from "./ambassadors";
+import bookPromoRouter from "./book-promo";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(schedulingRouter);
 router.use(monetizationRouter);
 router.use(analyticsRouter);
 router.use(ambassadorsRouter);
+router.use(bookPromoRouter);
 
 export default router;
