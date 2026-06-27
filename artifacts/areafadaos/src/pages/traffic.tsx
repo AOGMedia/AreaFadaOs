@@ -349,84 +349,110 @@ function AttributionChart({ channels }: { channels: CampaignChannel[] }) {
 }
 
 // ─── Influencer Activation Panel ──────────────────────────────────────────────
-interface InfluencerActivationRecord {
-  influencerId: string; influencerName: string; action: string;
-  status: string; notes?: string; activatedAt?: string;
+// Backend status machine: idle → briefed → active → completed
+interface InfluencerWithActivation {
+  id: number; name: string; handle: string; platform: string;
+  followerCount: number; niche: string;
+  activationStatus: "idle" | "briefed" | "active" | "completed";
+  briefSent: boolean; visitsAttributed: number;
 }
 
-const INFLUENCER_PRESETS = [
-  { id: "creator_001", name: "Adaobi Nwosu – Lagos Fashion" },
-  { id: "creator_002", name: "Emeka Okafor – Tech/Startup" },
-  { id: "creator_003", name: "Fatimah Bello – Gospel Music" },
-  { id: "creator_004", name: "Chidi Eze – Comedy/Skit" },
-  { id: "creator_005", name: "Ngozi Obi – Lifestyle/Food" },
-];
+const INFLUENCER_STATUS_BADGE: Record<string, string> = {
+  idle: "bg-gray-100 text-gray-600",
+  briefed: "bg-yellow-100 text-yellow-700",
+  active: "bg-green-100 text-green-700",
+  completed: "bg-blue-100 text-blue-700",
+};
 
 function InfluencerPanel({ campaignId }: { campaignId: number }) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [activations, setActivations] = useState<InfluencerActivationRecord[]>([]);
-  const [actionInfluencer, setActionInfluencer] = useState<{ id: string; name: string } | null>(null);
-  const [actionType, setActionType] = useState("send_brief");
+  const [actionInfluencer, setActionInfluencer] = useState<InfluencerWithActivation | null>(null);
+  const [actionType, setActionType] = useState<"send_brief" | "mark_active" | "mark_completed">("send_brief");
   const [notes, setNotes] = useState("");
+
+  // Load influencers from the directory with server-persisted activation status
+  const { data: influencers = [], isLoading } = useQuery<InfluencerWithActivation[]>({
+    queryKey: ["influencer-activations", campaignId],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/traffic-campaigns/${campaignId}/influencer-activations`, { credentials: "include" });
+      return res.json();
+    },
+  });
 
   const { mutate: activate, isPending } = useMutation({
     mutationFn: async () => {
       if (!actionInfluencer) return null;
+      // influencerId is the numeric DB id from microInfluencersTable
       const res = await apiFetch(
         "POST",
         `${BASE}/api/traffic-campaigns/${campaignId}/influencer-activations/${actionInfluencer.id}`,
-        { action: actionType, notes, influencerName: actionInfluencer.name }
+        { action: actionType, notes }
       );
       return res.json();
     },
-    onSuccess: (data) => {
-      if (data) setActivations(prev => [data, ...prev.filter(a => a.influencerId !== data.influencerId)]);
+    onSuccess: () => {
       setActionInfluencer(null); setNotes("");
-      toast({ title: `Influencer ${actionType === "send_brief" ? "brief sent" : actionType === "mark_active" ? "activated" : "completed"}!` });
+      const label = actionType === "send_brief" ? "Brief sent" : actionType === "mark_active" ? "Influencer activated" : "Marked complete";
+      toast({ title: label });
+      // Refetch server state so status persists on reload
+      qc.invalidateQueries({ queryKey: ["influencer-activations", campaignId] });
       qc.invalidateQueries({ queryKey: ["traffic-campaign-detail", campaignId] });
     },
     onError: () => toast({ title: "Action failed", variant: "destructive" }),
   });
 
-  const currentAction = (influencerId: string) => activations.find(a => a.influencerId === influencerId);
+  if (isLoading) return <div className="text-xs text-muted-foreground py-2">Loading influencer directory...</div>;
+
+  if (influencers.length === 0) return (
+    <div className="border rounded-lg p-3 text-xs text-muted-foreground">
+      No influencers in your micro-influencer directory yet. Add them in the Ambassador CRM to activate them for campaigns.
+    </div>
+  );
 
   return (
     <div>
       <h3 className="text-sm font-semibold mb-2">🌟 Influencer Network</h3>
       <div className="space-y-2">
-        {INFLUENCER_PRESETS.map(inf => {
-          const act = currentAction(inf.id);
-          return (
-            <div key={inf.id} className="flex items-center justify-between gap-3 border rounded-lg p-3">
-              <div>
-                <div className="text-sm font-medium">{inf.name}</div>
-                {act && (
-                  <Badge className={`text-xs mt-1 ${act.status === "active" ? "bg-green-100 text-green-700" : act.status === "completed" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>
-                    {act.status}
-                  </Badge>
-                )}
+        {influencers.map(inf => (
+          <div key={inf.id} className="flex items-center justify-between gap-3 border rounded-lg p-3">
+            <div>
+              <div className="text-sm font-medium">{inf.name}</div>
+              <div className="text-xs text-muted-foreground">
+                @{inf.handle} · {inf.platform} · {inf.followerCount?.toLocaleString()} followers
               </div>
-              <div className="flex gap-1">
-                {(!act || act.status === "pending") && (
-                  <Button size="sm" className="h-7 px-2 text-xs" onClick={() => { setActionInfluencer(inf); setActionType("send_brief"); }}>
-                    📨 Brief
-                  </Button>
-                )}
-                {act?.status === "pending" && (
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => { setActionInfluencer(inf); setActionType("mark_active"); }}>
-                    ▶ Activate
-                  </Button>
-                )}
-                {act?.status === "active" && (
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => { setActionInfluencer(inf); setActionType("mark_completed"); }}>
-                    ✓ Complete
-                  </Button>
-                )}
-              </div>
+              <Badge className={`text-xs mt-1 ${INFLUENCER_STATUS_BADGE[inf.activationStatus] ?? "bg-gray-100"}`}>
+                {inf.activationStatus}
+              </Badge>
             </div>
-          );
-        })}
+            <div className="flex gap-1 shrink-0">
+              {/* idle → send brief */}
+              {inf.activationStatus === "idle" && (
+                <Button size="sm" className="h-7 px-2 text-xs"
+                  onClick={() => { setActionInfluencer(inf); setActionType("send_brief"); }}>
+                  📨 Brief
+                </Button>
+              )}
+              {/* briefed → mark active */}
+              {inf.activationStatus === "briefed" && (
+                <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
+                  onClick={() => { setActionInfluencer(inf); setActionType("mark_active"); }}>
+                  ▶ Activate
+                </Button>
+              )}
+              {/* active → mark completed */}
+              {inf.activationStatus === "active" && (
+                <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
+                  onClick={() => { setActionInfluencer(inf); setActionType("mark_completed"); }}>
+                  ✓ Complete
+                </Button>
+              )}
+              {inf.visitsAttributed > 0 && (
+                <Badge variant="outline" className="text-xs h-7 px-2">{inf.visitsAttributed} visits</Badge>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
 
       <Dialog open={!!actionInfluencer} onOpenChange={() => setActionInfluencer(null)}>
@@ -438,14 +464,14 @@ function InfluencerPanel({ campaignId }: { campaignId: number }) {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Influencer: <strong>{actionInfluencer?.name}</strong>
+              Influencer: <strong>{actionInfluencer?.name}</strong> (@{actionInfluencer?.handle})
             </p>
             <div>
               <Label>Notes / Instructions</Label>
               <Textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder={actionType === "send_brief" ? "Include campaign goal, posting guidelines, hashtags..." : "Any notes for this status change..."}
+                placeholder={actionType === "send_brief" ? "Campaign goal, posting guidelines, hashtags, deadline..." : "Notes for this status change..."}
                 rows={3}
               />
             </div>
