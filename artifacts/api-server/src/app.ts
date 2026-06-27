@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import { clerkMiddleware } from "@clerk/express";
@@ -36,6 +36,24 @@ app.use(
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
+
+// Preserve raw body for webhook signature verification (must come before express.json)
+app.use(
+  /^\/api\/webhooks\//,
+  express.raw({ type: "application/json" }),
+  (req: Request, _res: Response, next: NextFunction) => {
+    // Attach rawBody so webhook handlers can verify HMAC against exact bytes
+    (req as any).rawBody = req.body as Buffer;
+    // Parse JSON body for handler convenience
+    try {
+      req.body = JSON.parse((req as any).rawBody.toString("utf8"));
+    } catch {
+      req.body = {};
+    }
+    next();
+  },
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

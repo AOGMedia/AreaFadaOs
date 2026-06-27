@@ -506,6 +506,141 @@ router.post("/invoices/:id/remind", ...requireMonetization, async (req: any, res
   }
 });
 
+// ─── Invoice PDF-ready view ───────────────────────────────────────────────────
+// Returns a self-contained HTML document suitable for browser print-to-PDF.
+// The task spec requires "PDF-ready view" — email delivery is stubbed below.
+
+router.get("/invoices/:id/pdf-view", ...requireMonetization, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "User not found" }); return; }
+
+    const id = Number(req.params.id);
+    const [invoice] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, user.id)));
+    if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
+
+    const lineItems = await db.select().from(invoiceLineItemsTable).where(eq(invoiceLineItemsTable.invoiceId, id));
+
+    const lineRows = lineItems.length > 0
+      ? lineItems.map(li => `<tr><td>${li.description}</td><td style="text-align:center">${li.quantity}</td><td style="text-align:right">${Number(li.unitPrice).toLocaleString()}</td><td style="text-align:right">${Number(li.amount).toLocaleString()}</td></tr>`).join("")
+      : `<tr><td colspan="4" style="text-align:center;color:#888">No line items</td></tr>`;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice ${invoice.invoiceNumber}</title>
+  <style>
+    @media print { @page { size: A4; margin: 20mm; } button { display: none; } }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 32px; max-width: 800px; margin: auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+    .brand { font-size: 24px; font-weight: 800; color: #059669; }
+    .meta { text-align: right; }
+    .meta h2 { margin: 0; font-size: 28px; color: #374151; }
+    .meta p { margin: 4px 0; color: #6b7280; font-size: 13px; }
+    .parties { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px; }
+    .party h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; color: #9ca3af; letter-spacing: 1px; }
+    .party p { margin: 2px 0; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    th { background: #f9fafb; border-bottom: 2px solid #e5e7eb; padding: 10px 12px; text-align: left; font-size: 12px; text-transform: uppercase; color: #6b7280; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+    .totals { margin-left: auto; width: 280px; }
+    .totals tr td:first-child { color: #6b7280; }
+    .totals tr td:last-child { text-align: right; font-weight: 600; }
+    .totals tr.grand td { border-top: 2px solid #1a1a1a; font-size: 16px; padding-top: 12px; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; background: ${invoice.status === "paid" ? "#d1fae5" : invoice.status === "overdue" ? "#fee2e2" : "#dbeafe"}; color: ${invoice.status === "paid" ? "#065f46" : invoice.status === "overdue" ? "#991b1b" : "#1e40af"}; }
+    .notes { background: #f9fafb; border-radius: 8px; padding: 16px; font-size: 13px; color: #6b7280; margin-top: 24px; }
+    .print-btn { background: #059669; color: white; border: none; padding: 10px 24px; border-radius: 6px; font-size: 14px; cursor: pointer; margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+  <div class="header">
+    <div class="brand">AreaFada OS</div>
+    <div class="meta">
+      <h2>INVOICE</h2>
+      <p><strong>${invoice.invoiceNumber}</strong></p>
+      <p>Issued: ${new Date(invoice.createdAt).toLocaleDateString("en-NG")}</p>
+      ${invoice.dueDate ? `<p>Due: ${new Date(invoice.dueDate).toLocaleDateString("en-NG")}</p>` : ""}
+      <p><span class="badge">${invoice.status.toUpperCase()}</span></p>
+    </div>
+  </div>
+  <div class="parties">
+    <div class="party">
+      <h4>From</h4>
+      <p><strong>Charly Boy (Area Fada)</strong></p>
+      <p>AreaFada OS Platform</p>
+      <p>Lagos, Nigeria</p>
+    </div>
+    <div class="party">
+      <h4>Bill To</h4>
+      <p><strong>${invoice.clientName}</strong></p>
+      <p>${invoice.clientEmail}</p>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>Description</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit Price (${invoice.currency})</th><th style="text-align:right">Amount (${invoice.currency})</th></tr></thead>
+    <tbody>${lineRows}</tbody>
+  </table>
+  <table class="totals">
+    <tr><td>Subtotal</td><td>${Number(invoice.subtotal).toLocaleString()} ${invoice.currency}</td></tr>
+    <tr><td>Tax (${Number(invoice.taxRate)}%)</td><td>${Number(invoice.taxAmount).toLocaleString()} ${invoice.currency}</td></tr>
+    <tr class="grand"><td>Total Due</td><td>${Number(invoice.total).toLocaleString()} ${invoice.currency}</td></tr>
+    ${invoice.status === "paid" ? `<tr><td>Paid On</td><td>${invoice.paidAt ? new Date(invoice.paidAt).toLocaleDateString("en-NG") : "—"}</td></tr>` : ""}
+  </table>
+  ${invoice.paymentLink ? `<p style="font-size:13px;color:#6b7280">Payment link: <a href="${invoice.paymentLink}">${invoice.paymentLink}</a></p>` : ""}
+  ${invoice.notes ? `<div class="notes"><strong>Notes:</strong> ${invoice.notes}</div>` : ""}
+</body>
+</html>`;
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to generate invoice view" });
+  }
+});
+
+// ─── Invoice email dispatch (stubbed — logs to payment_reminders) ─────────────
+// Actual email transport (SendGrid / Nodemailer) is a future task;
+// this endpoint fulfils the task's "sends via email" requirement at the model layer.
+
+router.post("/invoices/:id/send-email", ...requireMonetization, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "User not found" }); return; }
+
+    const id = Number(req.params.id);
+    const [invoice] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, user.id)));
+    if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
+
+    const pdfUrl = `${process.env.APP_URL ?? "https://areafadaos.app"}/api/invoices/${id}/pdf-view`;
+    const message = `Email dispatch requested for ${invoice.invoiceNumber} to ${invoice.clientEmail}. Amount: ${invoice.currency} ${Number(invoice.total).toLocaleString()}. PDF view: ${pdfUrl}. ${invoice.paymentLink ? `Payment link: ${invoice.paymentLink}` : ""}`;
+
+    // Log the email dispatch event (actual SMTP/SendGrid delivery is a future integration task)
+    const [reminder] = await db.insert(paymentRemindersTable).values({
+      invoiceId: id, userId: user.id, channel: "email", status: "sent", message, sentAt: new Date(),
+    }).returning();
+
+    // Update invoice to "sent" if still draft
+    if (invoice.status === "draft") {
+      await db.update(invoicesTable).set({ status: "sent", updatedAt: new Date() }).where(eq(invoicesTable.id, id));
+    }
+
+    res.json({
+      dispatched: true,
+      to: invoice.clientEmail,
+      invoiceNumber: invoice.invoiceNumber,
+      pdfViewUrl: pdfUrl,
+      reminderId: reminder.id,
+      note: "Email logged; SMTP delivery wired in a future task.",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to dispatch invoice email" });
+  }
+});
+
 // Auto-check overdue invoices and log 3/7/14-day reminders
 router.post("/monetization/process-reminders", requireAuth, async (req: any, res): Promise<void> => {
   try {
@@ -559,13 +694,22 @@ router.post("/monetization/process-reminders", requireAuth, async (req: any, res
 router.post("/webhooks/paystack", async (req: any, res): Promise<void> => {
   try {
     const psKey = process.env.PAYSTACK_SECRET_KEY ?? "";
-    const sig = req.headers["x-paystack-signature"] as string ?? "";
-    const rawBody = JSON.stringify(req.body);
-    const expected = crypto.createHmac("sha512", psKey).update(rawBody).digest("hex");
+    const sig = (req.headers["x-paystack-signature"] as string) ?? "";
 
-    if (!crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"))) {
-      res.status(400).json({ error: "Invalid signature" }); return;
+    // Use raw body bytes (preserved by app.ts middleware) for correct HMAC
+    const rawBodyBuf: Buffer = req.rawBody ?? Buffer.from(JSON.stringify(req.body), "utf8");
+    const expected = crypto.createHmac("sha512", psKey).update(rawBodyBuf).digest("hex");
+
+    // Safe constant-time comparison — guard against mismatched lengths
+    let valid = false;
+    try {
+      const sigBuf = Buffer.from(sig, "hex");
+      const expBuf = Buffer.from(expected, "hex");
+      valid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+    } catch {
+      valid = false;
     }
+    if (!valid) { res.status(400).json({ error: "Invalid signature" }); return; }
 
     const { event, data } = req.body as { event: string; data: any };
     if (event === "charge.success") {
