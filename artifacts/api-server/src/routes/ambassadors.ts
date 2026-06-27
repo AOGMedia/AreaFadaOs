@@ -435,35 +435,45 @@ router.post("/ambassador-tasks/:id/complete", requireAuth, requireTier("agency")
     const { ambassadorId, notes } = req.body;
     if (!ambassadorId) { res.status(400).json({ error: "ambassadorId required" }); return; }
 
+    // 1. Validate task ownership
     const [task] = await db.select().from(ambassadorTasksTable)
       .where(and(eq(ambassadorTasksTable.id, taskId), eq(ambassadorTasksTable.userId, user.id)));
     if (!task) { res.status(404).json({ error: "Task not found" }); return; }
 
-    // Check not already completed
+    // 2. Validate ambassador ownership BEFORE any writes
+    const [amb] = await db.select().from(ambassadorsTable)
+      .where(and(eq(ambassadorsTable.id, ambassadorId), eq(ambassadorsTable.userId, user.id)));
+    if (!amb) { res.status(403).json({ error: "Ambassador not found or access denied" }); return; }
+
+    // 3. Check not already completed
     const [existing] = await db.select().from(taskCompletionsTable)
       .where(and(eq(taskCompletionsTable.taskId, taskId), eq(taskCompletionsTable.ambassadorId, ambassadorId)));
     if (existing) { res.status(409).json({ error: "Already completed by this ambassador" }); return; }
 
-    await db.insert(taskCompletionsTable).values({ taskId, ambassadorId, userId: user.id, notes });
-    await db.update(ambassadorTasksTable)
-      .set({ completedCount: task.completedCount + 1 })
-      .where(eq(ambassadorTasksTable.id, taskId));
+    // 4. All writes in an atomic transaction
+    await db.transaction(async (tx) => {
+      await tx.insert(taskCompletionsTable).values({ taskId, ambassadorId, userId: user.id, notes });
+      await tx.update(ambassadorTasksTable)
+        .set({ completedCount: task.completedCount + 1 })
+        .where(eq(ambassadorTasksTable.id, taskId));
 
-    if (task.pointReward > 0) {
-      // userId scope enforced — ambassador must belong to this user
-      const [amb] = await db.select().from(ambassadorsTable)
-        .where(and(eq(ambassadorsTable.id, ambassadorId), eq(ambassadorsTable.userId, user.id)));
-      if (!amb) { res.status(403).json({ error: "Ambassador not found or access denied" }); return; }
-      const newTotal = amb.totalPoints + task.pointReward;
-      const tier = newTotal >= 4000 ? "gold" : newTotal >= 2000 ? "silver" : newTotal >= 800 ? "bronze" : "member";
-      await db.insert(ambassadorPointsTable).values({ ambassadorId, userId: user.id, action: "task_complete", points: task.pointReward, description: `Completed: ${task.title}` });
-      await db.update(ambassadorsTable).set({ totalPoints: newTotal, tier, tasksCompleted: amb.tasksCompleted + 1 }).where(eq(ambassadorsTable.id, ambassadorId));
-    } else {
-      // Even with 0 points, verify ambassador belongs to this user
-      const [amb] = await db.select({ id: ambassadorsTable.id }).from(ambassadorsTable)
-        .where(and(eq(ambassadorsTable.id, ambassadorId), eq(ambassadorsTable.userId, user.id)));
-      if (!amb) { res.status(403).json({ error: "Ambassador not found or access denied" }); return; }
-    }
+      const newTasksCompleted = amb.tasksCompleted + 1;
+      if (task.pointReward > 0) {
+        const newTotal = amb.totalPoints + task.pointReward;
+        const tier = newTotal >= 4000 ? "gold" : newTotal >= 2000 ? "silver" : newTotal >= 800 ? "bronze" : "member";
+        await tx.insert(ambassadorPointsTable).values({
+          ambassadorId, userId: user.id, action: "task_complete",
+          points: task.pointReward, description: `Completed: ${task.title}`,
+        });
+        await tx.update(ambassadorsTable)
+          .set({ totalPoints: newTotal, tier, tasksCompleted: newTasksCompleted })
+          .where(eq(ambassadorsTable.id, ambassadorId));
+      } else {
+        await tx.update(ambassadorsTable)
+          .set({ tasksCompleted: newTasksCompleted })
+          .where(eq(ambassadorsTable.id, ambassadorId));
+      }
+    });
 
     res.json({ success: true, pointsAwarded: task.pointReward });
   } catch (err) {
@@ -703,10 +713,24 @@ router.delete("/whatsapp-broadcasts/:id", requireAuth, requireTier("agency"), as
   }
 });
 
-// ─── GET /ambassadors/widget (PUBLIC — no auth) ───────────────────────────
-router.get("/ambassadors/widget", async (_req: any, res): Promise<void> => {
+// ─── GET /ambassadors/widget (PUBLIC — tenant-scoped by token) ────────────
+router.get("/ambassadors/widget", async (req: any, res): Promise<void> => {
   try {
-    // Fetch top 10 across all users — public display, no PII beyond name/state/points
+    const token = (req.query.token as string | undefined)?.trim();
+    if (!token) {
+      res.status(400).send("<p style='font-family:sans-serif;padding:16px;color:#ef4444;'>Missing token. Use the embed code from your Ambassador CRM dashboard.</p>");
+      return;
+    }
+
+    // Look up the tenant by Clerk ID (token = Clerk user ID — long opaque string)
+    const [dbUser] = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(eq(usersTable.clerkId, token));
+    if (!dbUser) {
+      res.status(404).send("<p style='font-family:sans-serif;padding:16px;color:#ef4444;'>Leaderboard not found.</p>");
+      return;
+    }
+
+    // Fetch top 10 for this tenant only
     const rows = await db.select({
       id: ambassadorsTable.id,
       name: ambassadorsTable.name,
@@ -716,7 +740,7 @@ router.get("/ambassadors/widget", async (_req: any, res): Promise<void> => {
       totalPoints: ambassadorsTable.totalPoints,
       avatarInitials: ambassadorsTable.avatarInitials,
     }).from(ambassadorsTable)
-      .where(eq(ambassadorsTable.status, "active"))
+      .where(and(eq(ambassadorsTable.userId, dbUser.id), eq(ambassadorsTable.status, "active")))
       .orderBy(desc(ambassadorsTable.totalPoints))
       .limit(10);
 

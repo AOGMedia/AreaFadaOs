@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useUser } from "@clerk/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { TierGuard } from "@/components/TierGuard";
@@ -363,6 +364,7 @@ function StateMapTab({ ambassadors, onRefetch }: { ambassadors: Ambassador[]; on
 // ─── Leaderboard Tab ───────────────────────────────────────────────────────────
 function LeaderboardTab({ ambassadors }: { ambassadors: Ambassador[] }) {
   const { toast } = useToast();
+  const { user } = useUser();
   const [widgetOpen, setWidgetOpen] = useState(false);
 
   const sorted = [...ambassadors].sort((a, b) => b.totalPoints - a.totalPoints);
@@ -384,8 +386,9 @@ function LeaderboardTab({ ambassadors }: { ambassadors: Ambassador[] }) {
     }
   }
 
+  const basePath = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
   const widgetCode = `<iframe
-  src="${window.location.origin}/ambassadors/widget"
+  src="${window.location.origin}${basePath}/api/ambassadors/widget?token=${user?.id ?? ""}"
   width="100%"
   height="480"
   frameborder="0"
