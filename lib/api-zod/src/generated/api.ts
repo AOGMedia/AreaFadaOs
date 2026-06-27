@@ -2501,3 +2501,38 @@ export const GenerateHypeScheduleResponse = zod.object({
 })
 
 
+/**
+ * @summary Export live session revenue events as CSV
+ */
+export const ExportLiveRevenueCsvParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ExportLiveRevenueCsvResponse = zod.unknown()
+
+
+/**
+ * @summary Queue replay and clip distribution to YouTube/IGTV/Facebook after session ends
+ */
+export const QueueReplayDistributionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const QueueReplayDistributionBody = zod.object({
+  "replayUrl": zod.string().optional(),
+  "platforms": zod.array(zod.string()).optional(),
+  "distributeClips": zod.boolean().optional()
+})
+
+export const QueueReplayDistributionResponse = zod.object({
+  "message": zod.string().optional(),
+  "replayQueue": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "clipQueue": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "sessionId": zod.number().optional()
+})
+
+

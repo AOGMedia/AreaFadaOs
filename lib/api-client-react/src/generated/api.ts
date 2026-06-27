@@ -102,6 +102,8 @@ import type {
   PromoFunnelData,
   PromoLink,
   PurchaseVerification,
+  QueueReplayDistribution200,
+  QueueReplayDistributionBody,
   RecyclePostBody,
   RegisterLiveReminder201,
   RegisterLiveReminderBody,
@@ -7488,5 +7490,153 @@ export const useGenerateHypeSchedule = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getGenerateHypeScheduleMutationOptions(options));
+    }
+
+export const getExportLiveRevenueCsvUrl = (id: number,) => {
+
+
+
+
+  return `/api/live-sessions/${id}/revenue.csv`
+}
+
+/**
+ * @summary Export live session revenue events as CSV
+ */
+export const exportLiveRevenueCsv = async (id: number, options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getExportLiveRevenueCsvUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getExportLiveRevenueCsvQueryKey = (id: number,) => {
+    return [
+    `/api/live-sessions/${id}/revenue.csv`
+    ] as const;
+    }
+
+
+export const getExportLiveRevenueCsvQueryOptions = <TData = Awaited<ReturnType<typeof exportLiveRevenueCsv>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportLiveRevenueCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getExportLiveRevenueCsvQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof exportLiveRevenueCsv>>> = ({ signal }) => exportLiveRevenueCsv(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof exportLiveRevenueCsv>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ExportLiveRevenueCsvQueryResult = NonNullable<Awaited<ReturnType<typeof exportLiveRevenueCsv>>>
+export type ExportLiveRevenueCsvQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Export live session revenue events as CSV
+ */
+
+export function useExportLiveRevenueCsv<TData = Awaited<ReturnType<typeof exportLiveRevenueCsv>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof exportLiveRevenueCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getExportLiveRevenueCsvQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getQueueReplayDistributionUrl = (id: number,) => {
+
+
+
+
+  return `/api/live-sessions/${id}/queue-replay`
+}
+
+/**
+ * @summary Queue replay and clip distribution to YouTube/IGTV/Facebook after session ends
+ */
+export const queueReplayDistribution = async (id: number,
+    queueReplayDistributionBody?: QueueReplayDistributionBody, options?: RequestInit): Promise<QueueReplayDistribution200> => {
+
+  return customFetch<QueueReplayDistribution200>(getQueueReplayDistributionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(queueReplayDistributionBody)
+  }
+);}
+
+
+
+
+export const getQueueReplayDistributionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof queueReplayDistribution>>, TError,{id: number;data?: BodyType<QueueReplayDistributionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof queueReplayDistribution>>, TError,{id: number;data?: BodyType<QueueReplayDistributionBody>}, TContext> => {
+
+const mutationKey = ['queueReplayDistribution'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof queueReplayDistribution>>, {id: number;data?: BodyType<QueueReplayDistributionBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  queueReplayDistribution(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QueueReplayDistributionMutationResult = NonNullable<Awaited<ReturnType<typeof queueReplayDistribution>>>
+    export type QueueReplayDistributionMutationBody = BodyType<QueueReplayDistributionBody> | undefined
+    export type QueueReplayDistributionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Queue replay and clip distribution to YouTube/IGTV/Facebook after session ends
+ */
+export const useQueueReplayDistribution = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof queueReplayDistribution>>, TError,{id: number;data?: BodyType<QueueReplayDistributionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof queueReplayDistribution>>,
+        TError,
+        {id: number;data?: BodyType<QueueReplayDistributionBody>},
+        TContext
+      > => {
+      return useMutation(getQueueReplayDistributionMutationOptions(options));
     }
 

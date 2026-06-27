@@ -17,6 +17,7 @@ import AnalyticsPage from "@/pages/analytics";
 import { AmbassadorsPage } from "@/pages/ambassadors";
 import { BookPromoPage } from "@/pages/book-promo";
 import { LiveVideoPage } from "@/pages/live-video";
+import { LiveSessionSignupPage } from "@/pages/live-session-signup";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -237,6 +238,9 @@ function ClerkProviderWithRoutes() {
             </Route>
             <Route path="/live-video">
               <AuthRequired><LiveVideoPage /></AuthRequired>
+            </Route>
+            <Route path="/live/:id">
+              {(params: { id?: string }) => <LiveSessionSignupPage sessionId={Number(params.id)} />}
             </Route>
             <Route path="/clip-engine">
               <AuthRequired><ClipEnginePage /></AuthRequired>

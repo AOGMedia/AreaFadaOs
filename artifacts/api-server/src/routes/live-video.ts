@@ -271,11 +271,20 @@ router.patch("/live-chat/:id", ...requireLive, async (req: any, res): Promise<vo
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const { isPinned, isBanned, isModerated } = req.body;
+
+    const { isPinned, isBanned, isModerated, isQuestion } = req.body;
+    const patch: Record<string, unknown> = {};
+    if (isPinned !== undefined) patch.isPinned = isPinned;
+    if (isBanned !== undefined) patch.isBanned = isBanned;
+    if (isModerated !== undefined) patch.isModerated = isModerated;
+    if (isQuestion !== undefined) patch.isQuestion = isQuestion;
+
     const [updated] = await db.update(liveChatMessagesTable)
-      .set({ isPinned, isBanned, isModerated })
+      .set(patch)
       .where(and(eq(liveChatMessagesTable.id, Number(req.params.id)), eq(liveChatMessagesTable.userId, user.id)))
       .returning();
+
+    if (!updated) { res.status(404).json({ error: "Message not found" }); return; }
     res.json(updated);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to update message" }); }
 });
@@ -398,14 +407,142 @@ router.post("/live-sessions/:id/send-reminders", ...requireLive, async (req: any
     const pending = await db.select().from(liveReminderSignupsTable)
       .where(and(eq(liveReminderSignupsTable.sessionId, Number(req.params.id)), eq(liveReminderSignupsTable.reminded, false)));
 
+    const now = new Date();
+    const liveDate = new Date(session.scheduledAt);
+    const liveStr = liveDate.toLocaleDateString("en-NG", { weekday: "long", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+
+    const notificationLog: Array<{ channel: string; recipient: string; status: string; message: string }> = [];
+
     for (const signup of pending) {
       await db.update(liveReminderSignupsTable)
-        .set({ reminded: true, remindedAt: new Date() })
+        .set({ reminded: true, remindedAt: now })
         .where(eq(liveReminderSignupsTable.id, signup.id));
+
+      // Notification delivery logging (email/WhatsApp simulation; integrate Resend/Twilio in production)
+      if (signup.channel === "email" && signup.fanEmail) {
+        notificationLog.push({
+          channel: "email",
+          recipient: signup.fanEmail,
+          status: "queued",
+          message: `Subject: You're going LIVE with ${session.title}!\n\nHey ${signup.fanName}, don't forget — "${session.title}" goes LIVE on ${liveStr}. See you there! 🎙 — Area Fada OS`,
+        });
+      } else if ((signup.channel === "whatsapp" || signup.channel === "sms") && signup.fanPhone) {
+        notificationLog.push({
+          channel: signup.channel,
+          recipient: signup.fanPhone,
+          status: "queued",
+          message: `Hey ${signup.fanName}! 🔴 "${session.title}" goes LIVE on ${liveStr}. Don't miss it! — Area Fada OS`,
+        });
+      }
     }
 
-    res.json({ message: `Reminders sent to ${pending.length} fans — email and WhatsApp notifications logged`, count: pending.length });
+    // In production: iterate notificationLog and call Resend (email) / Twilio / WhatsApp Business API
+    // For now, log deliveries for auditability
+    if (notificationLog.length > 0) {
+      console.info(`[live-reminders] Session ${session.id}: dispatching ${notificationLog.length} notifications`, notificationLog.map(n => ({ ch: n.channel, to: n.recipient.slice(0, 6) + "***" })));
+    }
+
+    res.json({
+      message: `Reminders queued for ${pending.length} fans`,
+      count: pending.length,
+      breakdown: { email: notificationLog.filter(n => n.channel === "email").length, whatsapp: notificationLog.filter(n => n.channel === "whatsapp").length, sms: notificationLog.filter(n => n.channel === "sms").length },
+      notificationLog,
+    });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to send reminders" }); }
+});
+
+// ─── GET /live-sessions/:id/revenue.csv ──────────────────────────────────────
+router.get("/live-sessions/:id/revenue.csv", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const [session] = await db.select().from(liveSessionsTable)
+      .where(and(eq(liveSessionsTable.id, Number(req.params.id)), eq(liveSessionsTable.userId, user.id)));
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+
+    const events = await db.select().from(liveRevenueEventsTable)
+      .where(and(eq(liveRevenueEventsTable.sessionId, Number(req.params.id)), eq(liveRevenueEventsTable.userId, user.id)))
+      .orderBy(desc(liveRevenueEventsTable.occurredAt));
+
+    const escape = (v: string | null | undefined) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["ID", "Platform", "Event Type", "Sender", "Amount (NGN)", "Currency", "Message", "Occurred At"];
+    const rows = events.map(e => [
+      e.id, e.platform, e.eventType, e.senderName, e.amount, e.currency, e.message ?? "", e.occurredAt.toISOString(),
+    ].map(v => escape(String(v))).join(","));
+
+    const csv = [header.join(","), ...rows].join("\r\n");
+    const filename = `live-revenue-session-${session.id}-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to export revenue" }); }
+});
+
+// ─── POST /live-sessions/:id/queue-replay ────────────────────────────────────
+router.post("/live-sessions/:id/queue-replay", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const [session] = await db.select().from(liveSessionsTable)
+      .where(and(eq(liveSessionsTable.id, Number(req.params.id)), eq(liveSessionsTable.userId, user.id)));
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+    if (session.status !== "ended") { res.status(400).json({ error: "Session must be ended before queueing replay distribution" }); return; }
+
+    const { replayUrl, platforms, distributeClips } = req.body;
+
+    // Update replayUrl on session if provided
+    if (replayUrl) {
+      await db.update(liveSessionsTable)
+        .set({ replayUrl, updatedAt: new Date() })
+        .where(eq(liveSessionsTable.id, session.id));
+    }
+
+    const targetPlatforms: string[] = platforms ?? (session.platforms as string[]);
+    const clips = distributeClips ? await db.select().from(postLiveClipsTable)
+      .where(and(eq(postLiveClipsTable.sessionId, session.id), eq(postLiveClipsTable.userId, user.id))) : [];
+
+    // Update clip statuses to "queued" for distribution
+    if (clips.length > 0) {
+      for (const clip of clips) {
+        if (clip.status === "ready") {
+          await db.update(postLiveClipsTable)
+            .set({ status: "queued" })
+            .where(eq(postLiveClipsTable.id, clip.id));
+        }
+      }
+    }
+
+    // In production: integrate with YouTube Data API v3, Instagram Graph API, Facebook Live API
+    // Each platform receives: replayUrl or clip upload task queued to a worker
+    const replayQueue = targetPlatforms.map(platform => ({
+      platform,
+      type: "full_replay",
+      replayUrl: replayUrl ?? session.replayUrl,
+      status: "queued",
+      scheduledAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 min from now
+      title: session.title,
+    }));
+
+    const clipQueue = (distributeClips && clips.length > 0) ? clips.filter(c => c.platform).map(c => ({
+      platform: c.platform,
+      type: "clip",
+      clipId: c.id,
+      label: c.label,
+      status: "queued",
+      aiCaption: c.aiCaption,
+      scheduledAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    })) : [];
+
+    console.info(`[replay-queue] Session ${session.id}: queued ${replayQueue.length} replay tasks + ${clipQueue.length} clip tasks`);
+
+    res.json({
+      message: `Replay distribution queued for ${targetPlatforms.length} platform${targetPlatforms.length !== 1 ? "s" : ""}${clipQueue.length > 0 ? ` + ${clipQueue.length} clip${clipQueue.length !== 1 ? "s" : ""}` : ""}`,
+      replayQueue,
+      clipQueue,
+      sessionId: session.id,
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to queue replay" }); }
 });
 
 // ─── POST /live-sessions/:id/hype-schedule ───────────────────────────────────

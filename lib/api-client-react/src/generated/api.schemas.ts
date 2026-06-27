@@ -1345,3 +1345,20 @@ export type SendLiveReminders200 = {
   count?: number;
 };
 
+export type QueueReplayDistributionBody = {
+  replayUrl?: string;
+  platforms?: string[];
+  distributeClips?: boolean;
+};
+
+export type QueueReplayDistribution200ReplayQueueItem = { [key: string]: unknown };
+
+export type QueueReplayDistribution200ClipQueueItem = { [key: string]: unknown };
+
+export type QueueReplayDistribution200 = {
+  message?: string;
+  replayQueue?: QueueReplayDistribution200ReplayQueueItem[];
+  clipQueue?: QueueReplayDistribution200ClipQueueItem[];
+  sessionId?: number;
+};
+
