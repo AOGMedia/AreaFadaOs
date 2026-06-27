@@ -27,6 +27,48 @@ async function getDbUser(clerkId: string) {
   return user ?? null;
 }
 
+// ─── Shared hype-schedule helper ─────────────────────────────────────────────
+// Generates countdown posts into postsTable; returns the created post entries.
+// Called automatically on session creation (countdownPostsEnabled=true) and
+// manually via POST /live-sessions/:id/hype-schedule.
+async function generateHypeSchedule(
+  session: { id: number; title: string; scheduledAt: Date; platforms: unknown },
+  userId: number
+): Promise<Array<{ postId: number; platform: string; content: string; scheduledDate: string; hoursBeforeLive: number; platforms: string[] }>> {
+  const liveDate = new Date(session.scheduledAt);
+  const title = session.title;
+  const sessionPlatforms = (session.platforms as string[]) ?? [];
+  const platformList = sessionPlatforms.join(", ") || "social media";
+
+  const templates: Array<{ hoursBeforeLive: number; platforms: string[]; caption: string; hashtags: string[] }> = [
+    { hoursBeforeLive: 168, platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"], caption: `🚨 LIVE IN 7 DAYS 🚨\n\n${title}\n\nJoin me LIVE on ${platformList} — mark your calendar and set a reminder. This one will be different.`, hashtags: ["#AreaFada", "#CharlyBoy", "#LiveNG"] },
+    { hoursBeforeLive: 72, platforms: sessionPlatforms.length > 1 ? [sessionPlatforms[1]] : ["twitter"], caption: `72 hours to go. "${title}" — coming LIVE to your screen. Set a reminder. Bring your questions. I won't hold back.`, hashtags: ["#LiveNG", "#AreaFada"] },
+    { hoursBeforeLive: 48, platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"], caption: `48 hours. Here's a teaser of what we'll discuss LIVE: the things people are afraid to say out loud. "${title}" — ${liveDate.toLocaleDateString("en-NG", { weekday: "long", month: "short", day: "numeric" })} on ${platformList}. 🎙`, hashtags: ["#Teaser", "#AreaFada"] },
+    { hoursBeforeLive: 24, platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"], caption: `TOMORROW! 🔥 "${title}" goes LIVE in 24 hours. Everything is set. Are you ready? Drop a 🔴 below if you're coming through.`, hashtags: ["#AreaFada", "#LiveNG"] },
+    { hoursBeforeLive: 6, platforms: sessionPlatforms.length > 1 ? [sessionPlatforms[1]] : ["twitter"], caption: `⏰ 6 HOURS. "${title}" is happening TONIGHT. Set your reminder RIGHT NOW. No excuses. I'll be waiting. 🎙`, hashtags: ["#LiveNG", "#CharlyBoy"] },
+    { hoursBeforeLive: 1, platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"], caption: `🔴 WE GO LIVE IN 1 HOUR!\n\n"${title}"\n\nGo to ${platformList} NOW and hit the notification bell. Don't be late!`, hashtags: ["#LiveNow", "#AreaFada"] },
+    { hoursBeforeLive: 0.25, platforms: sessionPlatforms.length > 1 ? [sessionPlatforms[1]] : ["twitter"], caption: `🔴 LIVE IN 15 MINUTES — "${title}". Join me NOW on ${platformList}. This is the moment. 🎬`, hashtags: ["#LiveNow"] },
+  ];
+
+  const created: Array<{ postId: number; platform: string; content: string; scheduledDate: string; hoursBeforeLive: number; platforms: string[] }> = [];
+  const now = new Date();
+  for (const t of templates) {
+    const scheduledAt = new Date(liveDate.getTime() - t.hoursBeforeLive * 3600 * 1000);
+    if (scheduledAt <= now) continue;
+    const [post] = await db.insert(postsTable).values({
+      userId,
+      caption: t.caption,
+      platforms: t.platforms as any,
+      hashtags: t.hashtags,
+      mediaUrls: [],
+      status: "scheduled",
+      scheduledAt,
+    }).returning({ id: postsTable.id });
+    created.push({ postId: post.id, platform: t.platforms[0], content: t.caption, scheduledDate: scheduledAt.toISOString(), hoursBeforeLive: t.hoursBeforeLive, platforms: t.platforms });
+  }
+  return created;
+}
+
 function nanoid6() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
@@ -192,7 +234,13 @@ router.post("/live-sessions", ...requireLive, async (req: any, res): Promise<voi
       );
     }
 
-    res.status(201).json(session);
+    // Auto-generate hype schedule when countdownPostsEnabled and session is in the future
+    let hypePosts: Awaited<ReturnType<typeof generateHypeSchedule>> = [];
+    if (session.countdownPostsEnabled && new Date(session.scheduledAt) > new Date()) {
+      hypePosts = await generateHypeSchedule(session, user.id);
+    }
+
+    res.status(201).json({ ...session, hypePosts });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to create session" }); }
 });
 
@@ -622,74 +670,7 @@ router.post("/live-sessions/:id/hype-schedule", ...requireLive, async (req: any,
       .where(and(eq(liveSessionsTable.id, Number(req.params.id)), eq(liveSessionsTable.userId, user.id)));
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
 
-    const liveDate = new Date(session.scheduledAt);
-    const title = session.title;
-    const platformList = (session.platforms as string[]).join(", ");
-    const sessionPlatforms = session.platforms as string[];
-
-    const templates: Array<{ hoursBeforeLive: number; platforms: string[]; caption: string; hashtags: string[] }> = [
-      {
-        hoursBeforeLive: 168,
-        platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"],
-        caption: `🚨 LIVE IN 7 DAYS 🚨\n\n${title}\n\nJoin me LIVE on ${platformList} — mark your calendar and set a reminder. This one will be different.`,
-        hashtags: ["#AreaFada", "#CharlyBoy", "#LiveNG"],
-      },
-      {
-        hoursBeforeLive: 72,
-        platforms: sessionPlatforms.length > 1 ? [sessionPlatforms[1]] : ["twitter"],
-        caption: `72 hours to go. "${title}" — coming LIVE to your screen. Set a reminder. Bring your questions. I won't hold back.`,
-        hashtags: ["#LiveNG", "#AreaFada"],
-      },
-      {
-        hoursBeforeLive: 48,
-        platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"],
-        caption: `48 hours. Here's a teaser of what we'll discuss LIVE: the things people are afraid to say out loud. "${title}" — ${liveDate.toLocaleDateString("en-NG", { weekday: "long", month: "short", day: "numeric" })} on ${platformList}. 🎙`,
-        hashtags: ["#Teaser", "#AreaFada"],
-      },
-      {
-        hoursBeforeLive: 24,
-        platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"],
-        caption: `TOMORROW! 🔥 "${title}" goes LIVE in 24 hours. Everything is set. Are you ready? Drop a 🔴 below if you're coming through.`,
-        hashtags: ["#AreaFada", "#LiveNG"],
-      },
-      {
-        hoursBeforeLive: 6,
-        platforms: sessionPlatforms.length > 1 ? [sessionPlatforms[1]] : ["twitter"],
-        caption: `⏰ 6 HOURS. "${title}" is happening TONIGHT. Set your reminder RIGHT NOW. No excuses. I'll be waiting. 🎙`,
-        hashtags: ["#LiveNG", "#CharlyBoy"],
-      },
-      {
-        hoursBeforeLive: 1,
-        platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"],
-        caption: `🔴 WE GO LIVE IN 1 HOUR!\n\n"${title}"\n\nGo to ${platformList} NOW and hit the notification bell. Don't be late!`,
-        hashtags: ["#LiveNow", "#AreaFada"],
-      },
-      {
-        hoursBeforeLive: 0.25,
-        platforms: sessionPlatforms.length > 1 ? [sessionPlatforms[1]] : ["twitter"],
-        caption: `🔴 LIVE IN 15 MINUTES — "${title}". Join me NOW on ${platformList}. This is the moment. 🎬`,
-        hashtags: ["#LiveNow"],
-      },
-    ];
-
-    // Persist each hype post to postsTable as a scheduled draft
-    const created: Array<{ postId: number; scheduledAt: string; hoursBeforeLive: number; platforms: string[] }> = [];
-    for (const t of templates) {
-      const scheduledAt = new Date(liveDate.getTime() - t.hoursBeforeLive * 3600 * 1000);
-      // Only schedule future posts (skip if scheduled time already passed)
-      if (scheduledAt <= new Date()) continue;
-      const [post] = await db.insert(postsTable).values({
-        userId: user.id,
-        caption: t.caption,
-        platforms: t.platforms as any,
-        hashtags: t.hashtags,
-        mediaUrls: [],
-        status: "scheduled",
-        scheduledAt,
-      }).returning({ id: postsTable.id });
-      created.push({ postId: post.id, scheduledAt: scheduledAt.toISOString(), hoursBeforeLive: t.hoursBeforeLive, platforms: t.platforms });
-    }
-
+    const created = await generateHypeSchedule(session, user.id);
     res.json({
       message: `Hype schedule created — ${created.length} post${created.length !== 1 ? "s" : ""} added to the post scheduler`,
       posts: created,
@@ -772,7 +753,7 @@ router.post("/live-chat/:id/check-moderation", ...requireLive, async (req: any, 
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const [message] = await db.select().from(liveChatMessagesTable)
-      .where(eq(liveChatMessagesTable.id, Number(req.params.id)));
+      .where(and(eq(liveChatMessagesTable.id, Number(req.params.id)), eq(liveChatMessagesTable.userId, user.id)));
     if (!message) { res.status(404).json({ error: "Message not found" }); return; }
     const rules = await db.select().from(liveModerationRulesTable)
       .where(and(eq(liveModerationRulesTable.userId, user.id), eq(liveModerationRulesTable.active, true)));
