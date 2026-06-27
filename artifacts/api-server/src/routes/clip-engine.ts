@@ -561,12 +561,15 @@ router.post("/clips/:id/collab", ...requireClip, async (req: any, res): Promise<
       collabAccountId: clip.accountId,
     }).returning();
 
-    if (scheduledAt && clip.accountId) {
-      await db.insert(clipSchedulesTable).values([
-        { userId: user.id, clipId: clip.id, accountId: clip.accountId, scheduledAt: new Date(scheduledAt), status: "scheduled" },
-        { userId: user.id, clipId: collabClip[0].id, accountId: collabAccountId, scheduledAt: new Date(scheduledAt), status: "scheduled" },
-      ]);
+    // Always queue both posts simultaneously — use provided scheduledAt or default to 1 hour from now
+    const postAt = scheduledAt ? new Date(scheduledAt) : new Date(Date.now() + 60 * 60 * 1000);
+    const scheduleRows: Array<{ userId: number; clipId: number; accountId: number; scheduledAt: Date; status: string }> = [
+      { userId: user.id, clipId: collabClip[0].id, accountId: collabAccountId, scheduledAt: postAt, status: "scheduled" },
+    ];
+    if (clip.accountId) {
+      scheduleRows.push({ userId: user.id, clipId: clip.id, accountId: clip.accountId, scheduledAt: postAt, status: "scheduled" });
     }
+    await db.insert(clipSchedulesTable).values(scheduleRows);
 
     res.json({ message: "Collab mode enabled", originalClipId: clip.id, collabClipId: collabClip[0].id, collabAccount: collabAccount.name });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to set up collab" }); }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { TierGuard } from "@/components/TierGuard";
@@ -328,7 +328,7 @@ function ClipsTab({ accounts }: { accounts: ClipAccount[] }) {
   });
 
   const accountMap = Object.fromEntries(accounts.map(a => [a.id, a]));
-  const [collabTarget, setCollabTarget] = useState<{ clipId: number; accountId: string } | null>(null);
+  const [collabTarget, setCollabTarget] = useState<{ clipId: number; accountId: string; scheduledAt: string } | null>(null);
 
   return (
     <div className="space-y-4">
@@ -380,7 +380,7 @@ function ClipsTab({ accounts }: { accounts: ClipAccount[] }) {
                       </Button>
                       {!clip.collabEnabled && (
                         <Button size="sm" variant="outline" className="h-7 text-xs text-amber-700 border-amber-300 hover:bg-amber-50"
-                          onClick={() => setCollabTarget({ clipId: clip.id, accountId: "" })}>
+                          onClick={() => setCollabTarget({ clipId: clip.id, accountId: "", scheduledAt: "" })}>
                           🤝 Collab
                         </Button>
                       )}
@@ -411,10 +411,14 @@ function ClipsTab({ accounts }: { accounts: ClipAccount[] }) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label>Schedule At <span className="text-muted-foreground font-normal">(optional — defaults to 1 hour from now)</span></Label>
+              <Input type="datetime-local" value={collabTarget.scheduledAt} onChange={e => setCollabTarget(t => t ? { ...t, scheduledAt: e.target.value } : null)} />
+            </div>
             <div className="flex gap-2 mt-3 justify-end">
               <Button variant="outline" size="sm" onClick={() => setCollabTarget(null)}>Cancel</Button>
               <Button size="sm" disabled={!collabTarget.accountId || setCollab.isPending}
-                onClick={() => setCollab.mutate({ id: collabTarget.clipId, collabAccountId: Number(collabTarget.accountId) }, { onSuccess: () => setCollabTarget(null) })}>
+                onClick={() => setCollab.mutate({ id: collabTarget.clipId, collabAccountId: Number(collabTarget.accountId), ...(collabTarget.scheduledAt ? { scheduledAt: new Date(collabTarget.scheduledAt).toISOString() } : {}) }, { onSuccess: () => setCollabTarget(null) })}>
                 {setCollab.isPending ? "Setting up…" : "Enable Collab"}
               </Button>
             </div>
@@ -506,6 +510,7 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
     return schedules;
   }
 
+  const accountMap = Object.fromEntries(accounts.map(a => [a.id, a]));
   const days: Date[] = Array.from({ length: 30 }, (_, i) => new Date(today.getTime() + i * 86400000));
 
   return (
@@ -603,33 +608,67 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
         </Card>
       )}
 
-      <div className="space-y-1">
+      <div className="space-y-2">
         <p className="text-sm font-medium">30-Day Content Calendar</p>
-        <div className="overflow-x-auto">
-          <div className="min-w-max">
-            {days.map(day => {
-              const dayKey = day.toISOString().slice(0, 10);
-              const dayItems = calData.filter(c => c.schedule.scheduledAt.slice(0, 10) === dayKey);
-              if (dayItems.length === 0) return null;
+        <p className="text-xs text-muted-foreground">Drag a clip from the left panel onto any day to schedule it instantly.</p>
+        <div className="flex gap-4">
+          {/* Draggable clip pool */}
+          <div className="w-44 shrink-0 space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Clips</p>
+            {clips.length === 0 && <p className="text-xs text-muted-foreground">No clips yet.</p>}
+            {clips.map(c => {
+              const acct = c.accountId ? accountMap[c.accountId] : null;
               return (
-                <div key={dayKey} className="flex items-start gap-3 py-2 border-b last:border-0">
-                  <div className="w-20 shrink-0 text-xs font-medium text-muted-foreground pt-1">
-                    {day.toLocaleDateString("en-NG", { weekday: "short", month: "short", day: "numeric" })}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {dayItems.map(item => (
-                      <div key={item.schedule.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs text-white font-medium" style={{ backgroundColor: item.account?.color ?? "#6b7280" }}>
-                        <span>{item.clip?.label ?? "Clip"}</span>
-                        <span className="opacity-75">·</span>
-                        <span className="opacity-75">{item.schedule.scheduledAt.slice(11, 16)}</span>
-                        <button onClick={() => delSchedule.mutate(item.schedule.id)} className="ml-1 opacity-75 hover:opacity-100">×</button>
-                      </div>
-                    ))}
-                  </div>
+                <div key={c.id} draggable
+                  onDragStart={e => { e.dataTransfer.setData("clipId", String(c.id)); e.dataTransfer.setData("accountId", String(c.accountId ?? "")); e.dataTransfer.effectAllowed = "copy"; }}
+                  className="px-2 py-1.5 rounded-lg border text-xs font-medium cursor-grab active:cursor-grabbing select-none flex items-center gap-1.5"
+                  style={{ borderColor: acct?.color ?? "#e2e8f0", backgroundColor: acct ? `${acct.color}18` : undefined }}>
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: acct?.color ?? "#94a3b8" }} />
+                  <span className="truncate">{c.label}</span>
                 </div>
               );
             })}
-            {calData.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No clips scheduled in the next 30 days. Add some above.</p>}
+          </div>
+
+          {/* Calendar days with drop zones */}
+          <div className="flex-1 overflow-x-auto">
+            <div className="min-w-[500px] space-y-0">
+              {days.map(day => {
+                const dayKey = day.toISOString().slice(0, 10);
+                const dayItems = calData.filter(c => c.schedule.scheduledAt.slice(0, 10) === dayKey);
+                return (
+                  <div key={dayKey}
+                    className="flex items-start gap-2 py-1.5 border-b last:border-0 min-h-[36px] transition-colors"
+                    onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add("bg-primary/5"); }}
+                    onDragLeave={e => e.currentTarget.classList.remove("bg-primary/5")}
+                    onDrop={e => {
+                      e.preventDefault();
+                      e.currentTarget.classList.remove("bg-primary/5");
+                      const clipId = Number(e.dataTransfer.getData("clipId"));
+                      const rawAcctId = e.dataTransfer.getData("accountId");
+                      const accountId = rawAcctId ? Number(rawAcctId) : (accounts[0]?.id ?? 0);
+                      if (!clipId || !accountId) return;
+                      const scheduledAt = new Date(`${dayKey}T10:00:00`).toISOString();
+                      addSchedule.mutate({ clipId, accountId, scheduledAt });
+                    }}>
+                    <div className="w-20 shrink-0 text-xs font-medium text-muted-foreground pt-0.5">
+                      {day.toLocaleDateString("en-NG", { weekday: "short", month: "short", day: "numeric" })}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 flex-1">
+                      {dayItems.length === 0 && <span className="text-xs text-muted-foreground/40 italic">drop here</span>}
+                      {dayItems.map(item => (
+                        <div key={item.schedule.id} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-white font-medium" style={{ backgroundColor: item.account?.color ?? "#6b7280" }}>
+                          <span>{item.clip?.label ?? "Clip"}</span>
+                          <span className="opacity-75">·</span>
+                          <span className="opacity-75">{item.schedule.scheduledAt.slice(11, 16)}</span>
+                          <button onClick={() => delSchedule.mutate(item.schedule.id)} className="ml-0.5 opacity-75 hover:opacity-100">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -651,6 +690,18 @@ function OverlayTab({ accounts }: { accounts: ClipAccount[] }) {
 
   const existing = configs.find(c => c.accountId === selectedAccount);
 
+  // Reliably hydrate form whenever configs refetches after account switch
+  useEffect(() => {
+    const cfg = configs.find(c => c.accountId === selectedAccount);
+    if (cfg) {
+      setEditingId(cfg.id);
+      setForm({ watermarkUrl: cfg.watermarkUrl ?? "", watermarkPosition: cfg.watermarkPosition, watermarkOpacity: cfg.watermarkOpacity, introBumperUrl: cfg.introBumperUrl ?? "", endCardTemplate: cfg.endCardTemplate, endCardText: cfg.endCardText ?? "" });
+    } else {
+      setEditingId(null);
+      setForm({ watermarkUrl: "", watermarkPosition: "bottom_right", watermarkOpacity: "0.80", introBumperUrl: "", endCardTemplate: "minimal", endCardText: "" });
+    }
+  }, [configs, selectedAccount]);
+
   const save = useMutation({
     mutationFn: (body: Record<string, unknown>) => editingId
       ? apiFetch(`/brand-overlay-configs/${editingId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
@@ -661,9 +712,7 @@ function OverlayTab({ accounts }: { accounts: ClipAccount[] }) {
 
   function selectAccount(id: number) {
     setSelectedAccount(id);
-    const cfg = configs.find(c => c.accountId === id);
-    if (cfg) { setEditingId(cfg.id); setForm({ watermarkUrl: cfg.watermarkUrl ?? "", watermarkPosition: cfg.watermarkPosition, watermarkOpacity: cfg.watermarkOpacity, introBumperUrl: cfg.introBumperUrl ?? "", endCardTemplate: cfg.endCardTemplate, endCardText: cfg.endCardText ?? "" }); }
-    else { setEditingId(null); setForm({ watermarkUrl: "", watermarkPosition: "bottom_right", watermarkOpacity: "0.80", introBumperUrl: "", endCardTemplate: "minimal", endCardText: "" }); }
+    // Form state will hydrate via useEffect once configs refetches for the new account
   }
 
   return (
