@@ -73,7 +73,7 @@ export const outreachEmailLogsTable = pgTable("outreach_email_logs", {
 });
 
 // ─── Partner Directory Entries ────────────────────────────────────────────────
-// Curated African / diaspora media partners target list
+// Curated African / diaspora media partners target list (shared, no tenant scoping)
 export const partnerDirectoryEntriesTable = pgTable("partner_directory_entries", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -83,10 +83,20 @@ export const partnerDirectoryEntriesTable = pgTable("partner_directory_entries",
   website: text("website"),
   email: text("email"),
   description: text("description"),
+  isFeatured: boolean("is_featured").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ─── Per-Tenant Directory Outreach State ──────────────────────────────────────
+// Tracks each agency tenant's outreach status/notes per directory entry.
+// Isolates pipeline state so one tenant's actions never overwrite another's.
+export const partnerDirectoryOutreachTable = pgTable("partner_directory_outreach", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  directoryEntryId: integer("directory_entry_id").notNull(),
   outreachStatus: text("outreach_status").notNull().default("not_contacted"), // not_contacted | invited | in_talks | onboarded | declined
   inviteId: integer("invite_id"),
   notes: text("notes"),
-  isFeatured: boolean("is_featured").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

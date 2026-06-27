@@ -5,6 +5,7 @@ import {
   partnerProfilesTable,
   outreachEmailLogsTable,
   partnerDirectoryEntriesTable,
+  partnerDirectoryOutreachTable,
   usersTable,
 } from "@workspace/db";
 import { eq, and, desc, ilike, or, sql, count } from "drizzle-orm";
@@ -366,9 +367,29 @@ router.post("/partner-invites/:id/convert", ...requireAgency, async (req: any, r
   const rows = await db.select().from(partnerInvitesTable)
     .where(and(eq(partnerInvitesTable.id, Number(req.params.id)), eq(partnerInvitesTable.userId, user.id))).limit(1);
   if (!rows.length) { res.status(404).json({ error: "Not found" }); return; }
+  const invite = rows[0];
   const [updated] = await db.update(partnerInvitesTable).set({
     status: "converted", convertedAt: new Date(), updatedAt: new Date(),
   }).where(eq(partnerInvitesTable.id, Number(req.params.id))).returning();
+
+  // Auto-link a partner profile if one doesn't exist yet for this invite
+  const existingProfile = await db.select().from(partnerProfilesTable)
+    .where(and(eq(partnerProfilesTable.userId, user.id), eq(partnerProfilesTable.inviteId as any, invite.id))).limit(1);
+  if (!existingProfile.length) {
+    await db.insert(partnerProfilesTable).values({
+      userId: user.id,
+      inviteId: invite.id,
+      orgName: invite.orgName,
+      contactName: invite.contactName,
+      email: invite.email,
+      partnerType: invite.partnerType,
+      tier: invite.tierPreset,
+      region: "Nigeria",
+      country: "NG",
+      activityLog: [{ action: "converted", note: "Auto-created from invite conversion", at: new Date().toISOString() }],
+    }).onConflictDoNothing();
+  }
+
   res.json(updated);
 });
 
@@ -521,12 +542,13 @@ router.patch("/partner-profiles/:id", ...requireAgency, async (req: any, res) =>
 // ─── Partner Directory ────────────────────────────────────────────────────────
 
 router.get("/partner-directory", ...requireAgency, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   await seedDemoDirectory();
   const { orgType, region, search, outreachStatus } = req.query as Record<string, string>;
   let conditions: any[] = [];
   if (orgType) conditions.push(eq(partnerDirectoryEntriesTable.orgType, orgType));
   if (region) conditions.push(eq(partnerDirectoryEntriesTable.region, region));
-  if (outreachStatus) conditions.push(eq(partnerDirectoryEntriesTable.outreachStatus, outreachStatus));
   if (search) conditions.push(or(
     ilike(partnerDirectoryEntriesTable.name, `%${search}%`),
     ilike(partnerDirectoryEntriesTable.description, `%${search}%`),
@@ -535,7 +557,18 @@ router.get("/partner-directory", ...requireAgency, async (req: any, res) => {
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(partnerDirectoryEntriesTable.isFeatured), partnerDirectoryEntriesTable.name)
     .limit(200);
-  res.json(entries);
+  // Merge per-tenant outreach state
+  const outreachRows = await db.select().from(partnerDirectoryOutreachTable)
+    .where(eq(partnerDirectoryOutreachTable.userId, user.id));
+  const outreachMap = new Map(outreachRows.map(r => [r.directoryEntryId, r]));
+  let merged = entries.map(e => ({
+    ...e,
+    outreachStatus: outreachMap.get(e.id)?.outreachStatus ?? "not_contacted",
+    notes: outreachMap.get(e.id)?.notes ?? null,
+    inviteId: outreachMap.get(e.id)?.inviteId ?? null,
+  }));
+  if (outreachStatus) merged = merged.filter(e => e.outreachStatus === outreachStatus);
+  res.json(merged);
 });
 
 router.post("/partner-directory", ...requireAgency, async (req: any, res) => {
@@ -548,16 +581,59 @@ router.post("/partner-directory", ...requireAgency, async (req: any, res) => {
   res.status(201).json(entry);
 });
 
+// CSV import: POST /partner-directory/import-csv
+// Body: { rows: Array<{ name, orgType?, region?, country?, website?, email?, description? }> }
+router.post("/partner-directory/import-csv", ...requireAgency, async (req: any, res) => {
+  const { rows } = req.body;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    res.status(400).json({ error: "rows array required" }); return;
+  }
+  const valid = rows.filter((r: any) => r.name && typeof r.name === "string");
+  if (!valid.length) { res.status(400).json({ error: "No valid rows (name required)" }); return; }
+  const inserted = await db.insert(partnerDirectoryEntriesTable).values(
+    valid.map((r: any) => ({
+      name: r.name,
+      orgType: r.orgType ?? "media_house",
+      region: r.region ?? "West Africa",
+      country: r.country ?? "NG",
+      website: r.website ?? null,
+      email: r.email ?? null,
+      description: r.description ?? null,
+    }))
+  ).returning();
+  res.status(201).json({ inserted: inserted.length });
+});
+
 router.patch("/partner-directory/:id", ...requireAgency, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const entryId = Number(req.params.id);
+  // Verify directory entry exists
+  const entry = await db.select().from(partnerDirectoryEntriesTable)
+    .where(eq(partnerDirectoryEntriesTable.id, entryId)).limit(1);
+  if (!entry.length) { res.status(404).json({ error: "Not found" }); return; }
   const { outreachStatus, notes, inviteId } = req.body;
-  const [updated] = await db.update(partnerDirectoryEntriesTable).set({
-    ...(outreachStatus && { outreachStatus }),
-    ...(notes !== undefined && { notes }),
-    ...(inviteId && { inviteId }),
-    updatedAt: new Date(),
-  }).where(eq(partnerDirectoryEntriesTable.id, Number(req.params.id))).returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
-  res.json(updated);
+  // Upsert per-tenant outreach row
+  const existing = await db.select().from(partnerDirectoryOutreachTable)
+    .where(and(eq(partnerDirectoryOutreachTable.userId, user.id), eq(partnerDirectoryOutreachTable.directoryEntryId, entryId))).limit(1);
+  let outreachRow;
+  if (existing.length) {
+    [outreachRow] = await db.update(partnerDirectoryOutreachTable).set({
+      ...(outreachStatus && { outreachStatus }),
+      ...(notes !== undefined && { notes }),
+      ...(inviteId !== undefined && { inviteId }),
+      updatedAt: new Date(),
+    }).where(and(eq(partnerDirectoryOutreachTable.userId, user.id), eq(partnerDirectoryOutreachTable.directoryEntryId, entryId))).returning();
+  } else {
+    [outreachRow] = await db.insert(partnerDirectoryOutreachTable).values({
+      userId: user.id,
+      directoryEntryId: entryId,
+      outreachStatus: outreachStatus ?? "not_contacted",
+      notes: notes ?? null,
+      inviteId: inviteId ?? null,
+    }).returning();
+  }
+  res.json({ ...entry[0], outreachStatus: outreachRow.outreachStatus, notes: outreachRow.notes, inviteId: outreachRow.inviteId });
 });
 
 // ─── Outreach Email Logs ──────────────────────────────────────────────────────
@@ -580,14 +656,31 @@ router.post("/partner-outreach-emails/send", ...requireAgency, async (req: any, 
   const baseUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? "areafada.com"}`;
   let inviteUrl = `${baseUrl}/sign-up`;
   if (inviteId) {
-    const rows = await db.select().from(partnerInvitesTable).where(eq(partnerInvitesTable.id, Number(inviteId))).limit(1);
-    if (rows[0]) inviteUrl = `${baseUrl}/invite/${rows[0].token}`;
+    // Scope to current user to prevent cross-tenant IDOR
+    const rows = await db.select().from(partnerInvitesTable)
+      .where(and(eq(partnerInvitesTable.id, Number(inviteId)), eq(partnerInvitesTable.userId, user.id))).limit(1);
+    if (!rows[0]) { res.status(403).json({ error: "Invite not found or access denied" }); return; }
+    inviteUrl = `${baseUrl}/invite/${rows[0].token}`;
   }
   const logId = await sendOutreachEmail(user.id, inviteId ?? null, {
     toEmail, toName, orgName, partnerType: partnerType ?? "creator_partner",
     templateKey: templateKey ?? partnerType ?? "creator_partner", inviteUrl,
   });
   res.status(201).json({ logId, status: resend ? "sent" : "simulated" });
+});
+
+// Open-tracking pixel: GET /partner-outreach-emails/opened/:id
+// Embedded as a 1×1 tracking pixel in outreach emails; marks the email opened.
+router.get("/partner-outreach-emails/opened/:id", async (req: any, res) => {
+  const logId = Number(req.params.id);
+  if (!isNaN(logId)) {
+    await db.update(outreachEmailLogsTable).set({
+      openedAt: new Date(), status: "delivered",
+    }).where(and(eq(outreachEmailLogsTable.id, logId), sql`opened_at IS NULL`));
+  }
+  // 1×1 transparent GIF
+  const gif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+  res.setHeader("Content-Type", "image/gif").setHeader("Cache-Control", "no-store").send(gif);
 });
 
 // ─── Partner Analytics ────────────────────────────────────────────────────────
