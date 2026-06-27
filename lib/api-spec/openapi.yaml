@@ -2030,6 +2030,53 @@ paths:
               schema:
                 $ref: "#/components/schemas/HypeScheduleResponse"
 
+  /live-sessions/{id}/public:
+    get:
+      operationId: getPublicLiveSession
+      tags: [liveVideo]
+      summary: Get public session details for fan reminder sign-up page (no auth required)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Public session details
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, title, scheduledAt, status, platforms]
+                properties:
+                  id:
+                    type: integer
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  thumbnailUrl:
+                    type: string
+                  scheduledAt:
+                    type: string
+                    format: date-time
+                  endedAt:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+                  platforms:
+                    type: array
+                    items:
+                      type: string
+                  replayUrl:
+                    type: string
+                  totalViewers:
+                    type: integer
+        "404":
+          description: Session not found
+
   /live-sessions/{id}/revenue.csv:
     get:
       operationId: exportLiveRevenueCsv

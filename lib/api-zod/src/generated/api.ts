@@ -2502,6 +2502,27 @@ export const GenerateHypeScheduleResponse = zod.object({
 
 
 /**
+ * @summary Get public session details for fan reminder sign-up page (no auth required)
+ */
+export const GetPublicLiveSessionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPublicLiveSessionResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "thumbnailUrl": zod.string().optional(),
+  "scheduledAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().optional(),
+  "status": zod.string(),
+  "platforms": zod.array(zod.string()),
+  "replayUrl": zod.string().optional(),
+  "totalViewers": zod.number().optional()
+})
+
+
+/**
  * @summary Export live session revenue events as CSV
  */
 export const ExportLiveRevenueCsvParams = zod.object({

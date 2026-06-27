@@ -67,6 +67,7 @@ import type {
   GetGamificationConfigs200,
   GetPostPerformanceParams,
   GetPromoQrCodeParams,
+  GetPublicLiveSession200,
   GetRevenueWaterfallParams,
   GetTrendingHashtagsParams,
   HashtagItem,
@@ -7491,6 +7492,83 @@ export const useGenerateHypeSchedule = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getGenerateHypeScheduleMutationOptions(options));
     }
+
+export const getGetPublicLiveSessionUrl = (id: number,) => {
+
+
+
+
+  return `/api/live-sessions/${id}/public`
+}
+
+/**
+ * @summary Get public session details for fan reminder sign-up page (no auth required)
+ */
+export const getPublicLiveSession = async (id: number, options?: RequestInit): Promise<GetPublicLiveSession200> => {
+
+  return customFetch<GetPublicLiveSession200>(getGetPublicLiveSessionUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicLiveSessionQueryKey = (id: number,) => {
+    return [
+    `/api/live-sessions/${id}/public`
+    ] as const;
+    }
+
+
+export const getGetPublicLiveSessionQueryOptions = <TData = Awaited<ReturnType<typeof getPublicLiveSession>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicLiveSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicLiveSessionQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicLiveSession>>> = ({ signal }) => getPublicLiveSession(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicLiveSession>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicLiveSessionQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicLiveSession>>>
+export type GetPublicLiveSessionQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get public session details for fan reminder sign-up page (no auth required)
+ */
+
+export function useGetPublicLiveSession<TData = Awaited<ReturnType<typeof getPublicLiveSession>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicLiveSession>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicLiveSessionQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getExportLiveRevenueCsvUrl = (id: number,) => {
 

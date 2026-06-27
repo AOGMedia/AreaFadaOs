@@ -1345,6 +1345,19 @@ export type SendLiveReminders200 = {
   count?: number;
 };
 
+export type GetPublicLiveSession200 = {
+  id: number;
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  scheduledAt: string;
+  endedAt?: string;
+  status: string;
+  platforms: string[];
+  replayUrl?: string;
+  totalViewers?: number;
+};
+
 export type QueueReplayDistributionBody = {
   replayUrl?: string;
   platforms?: string[];

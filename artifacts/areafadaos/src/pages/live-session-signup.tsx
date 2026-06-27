@@ -47,12 +47,7 @@ export function LiveSessionSignupPage({ sessionId }: Props) {
 
   const { data: session, isLoading, error } = useQuery<LiveSession>({
     queryKey: ["public-live-session", sessionId],
-    queryFn: async () => {
-      const sessions = await apiFetch("/live-sessions");
-      const found = (sessions as LiveSession[]).find((s: LiveSession) => s.id === sessionId);
-      if (!found) throw new Error("Session not found");
-      return found;
-    },
+    queryFn: () => apiFetch(`/live-sessions/${sessionId}/public`),
     retry: false,
   });
 

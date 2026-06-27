@@ -116,6 +116,27 @@ async function seedLiveData(userId: number) {
   ]);
 }
 
+// ─── GET /live-sessions/:id/public (unauthenticated — fan page) ──────────────
+router.get("/live-sessions/:id/public", async (req: any, res): Promise<void> => {
+  try {
+    const [session] = await db.select({
+      id: liveSessionsTable.id,
+      title: liveSessionsTable.title,
+      description: liveSessionsTable.description,
+      thumbnailUrl: liveSessionsTable.thumbnailUrl,
+      scheduledAt: liveSessionsTable.scheduledAt,
+      endedAt: liveSessionsTable.endedAt,
+      status: liveSessionsTable.status,
+      platforms: liveSessionsTable.platforms,
+      replayUrl: liveSessionsTable.replayUrl,
+      totalViewers: liveSessionsTable.totalViewers,
+    }).from(liveSessionsTable).where(eq(liveSessionsTable.id, Number(req.params.id)));
+
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+    res.json(session);
+  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to load session" }); }
+});
+
 // ─── GET /live-sessions ──────────────────────────────────────────────────────
 router.get("/live-sessions", ...requireLive, async (req: any, res): Promise<void> => {
   try {
