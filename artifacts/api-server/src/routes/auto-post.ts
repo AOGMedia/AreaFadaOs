@@ -553,7 +553,7 @@ router.post("/auto-post/account-groups/:id/publish", ...requirePost, async (req:
     const members = await db.select().from(accountGroupMembersTable).where(eq(accountGroupMembersTable.groupId, group.id));
     if (members.length === 0) { res.status(400).json({ error: "Group has no members" }); return; }
 
-    const { draftId, sourceCaption, scheduledAt, platformVariants, platformHashtags } = req.body;
+    const { draftId, sourceCaption, scheduledAt, platformVariants, platformHashtags, memberCaptions } = req.body;
     if (!draftId && !sourceCaption) { res.status(400).json({ error: "draftId or sourceCaption required" }); return; }
 
     let draft: typeof postDraftsTable.$inferSelect | null = null;
@@ -565,22 +565,35 @@ router.post("/auto-post/account-groups/:id/publish", ...requirePost, async (req:
 
     const variants = (platformVariants ?? draft?.platformVariants ?? {}) as Record<string, string>;
     const hashtags = (platformHashtags ?? draft?.platformHashtags ?? {}) as Record<string, string[]>;
-    const caption = sourceCaption ?? draft?.sourceCaption ?? "";
+    const baseCaption = sourceCaption ?? draft?.sourceCaption ?? "";
+    // memberCaptions: { [memberDbId]: customCaption } — per-account overrides
+    const perMemberCaptions = (memberCaptions ?? {}) as Record<string, string>;
 
-    const jobs = members.map(m => ({
-      userId: user.id,
-      draftId: draft?.id ?? 0,
-      platform: m.platform,
-      platformAccountId: m.platformAccountId ?? undefined,
-      caption: variants[m.platform] ?? caption,
-      mediaUrls: draft?.mediaUrls as string[] ?? [],
-      hashtags: hashtags[m.platform] ?? [],
-      status: "pending" as const,
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
-    }));
+    const truncationWarnings: string[] = [];
+    const jobs = members.map(m => {
+      const memberOverride = perMemberCaptions[m.id]?.trim();
+      const rawCaption = memberOverride || variants[m.platform] || baseCaption;
+      const { caption, truncated } = enforceCharLimit(rawCaption, m.platform);
+      if (truncated) truncationWarnings.push(`${m.handle}/${m.platform}: truncated`);
+      return {
+        userId: user.id,
+        draftId: draft?.id ?? 0,
+        platform: m.platform,
+        platformAccountId: m.platformAccountId ?? undefined,
+        caption,
+        mediaUrls: (draft?.mediaUrls as string[]) ?? [],
+        hashtags: hashtags[m.platform] ?? [],
+        status: "pending" as const,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+      };
+    });
 
     const created = await db.insert(publishJobsTable).values(jobs).returning();
-    res.status(201).json({ message: `${created.length} jobs created for group "${group.name}"`, jobs: created });
+    res.status(201).json({
+      message: `${created.length} jobs created for group "${group.name}".${truncationWarnings.length ? " Truncated: " + truncationWarnings.join(", ") + "." : ""}`,
+      jobs: created,
+      truncationWarnings,
+    });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to publish to group" }); }
 });
 
@@ -590,10 +603,85 @@ router.get("/auto-post/posting-time-recommendations", ...requirePost, async (req
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const { platform } = req.query;
-    const recommendations = platform
-      ? { [String(platform)]: OPTIMAL_TIMES[String(platform)] ?? OPTIMAL_TIMES.instagram }
-      : OPTIMAL_TIMES;
-    res.json({ recommendations, note: "Times are in WAT (West Africa Time, UTC+1). Based on Nigerian audience engagement patterns." });
+
+    // Fetch user's platform accounts for per-account signals
+    const accounts = await db.select().from(platformAccountsTable)
+      .where(eq(platformAccountsTable.userId, user.id));
+
+    // Look at historical publish jobs (last 90 days) to compute when the user posts successfully
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const historicalJobs = await db.select().from(publishJobsTable)
+      .where(and(
+        eq(publishJobsTable.userId, user.id),
+        eq(publishJobsTable.status, "published"),
+        lte(publishJobsTable.publishedAt, since),
+      ))
+      .limit(200);
+
+    // Aggregate hours per platform from historical data (WAT = UTC+1)
+    const platformHourCounts: Record<string, Record<number, number>> = {};
+    for (const job of historicalJobs) {
+      if (!job.publishedAt) continue;
+      const watHour = (job.publishedAt.getUTCHours() + 1) % 24;
+      if (!platformHourCounts[job.platform]) platformHourCounts[job.platform] = {};
+      platformHourCounts[job.platform][watHour] = (platformHourCounts[job.platform][watHour] ?? 0) + 1;
+    }
+
+    // Build per-platform recommendations blending historical + curated optimal times
+    const platformsToReturn = platform ? [String(platform)] : Object.keys(OPTIMAL_TIMES);
+    const recommendations: Record<string, { slots: string[]; timezone: string; explanation: string; dataSource: string; perAccount: Array<{ accountId: number; username: string; platform: string; bestSlots: string[] }> }> = {};
+
+    for (const plat of platformsToReturn) {
+      const curated = OPTIMAL_TIMES[plat] ?? OPTIMAL_TIMES.instagram;
+      const historicalCounts = platformHourCounts[plat];
+      let slots: string[];
+      let dataSource: string;
+      let explanation: string;
+
+      if (historicalCounts && Object.keys(historicalCounts).length >= 3) {
+        // Have enough history — derive top 3 hours from actual publish data
+        const sorted = Object.entries(historicalCounts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([hour]) => {
+            const h = Number(hour);
+            const period = h < 12 ? "AM" : "PM";
+            const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+            return `${display}:00 ${period} WAT`;
+          });
+        slots = sorted;
+        dataSource = "historical";
+        explanation = `Based on your last ${historicalJobs.filter(j => j.platform === plat).length} published posts — your audience responds best at these times.`;
+      } else {
+        slots = curated.slots;
+        dataSource = "curated";
+        explanation = `No sufficient posting history yet — using curated optimal times for Nigerian ${plat} audiences. ${curated.explanation}`;
+      }
+
+      // Per-account breakdown for accounts on this platform
+      const platformAccounts = accounts.filter(a => a.platform === plat);
+      const perAccount = platformAccounts.map(a => ({
+        accountId: a.id,
+        username: a.handle,
+        platform: a.platform,
+        bestSlots: slots, // Per-account data would come from real analytics API
+      }));
+
+      recommendations[plat] = {
+        slots,
+        timezone: "WAT (UTC+1)",
+        explanation,
+        dataSource,
+        perAccount,
+      };
+    }
+
+    res.json({
+      recommendations,
+      accountCount: accounts.length,
+      historicalJobCount: historicalJobs.length,
+      note: `Times in WAT (West Africa Time, UTC+1). ${historicalJobs.length > 0 ? `Derived from ${historicalJobs.length} historical posts.` : "Connect platform accounts and publish posts to get personalised recommendations."}`,
+    });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to fetch recommendations" }); }
 });
 

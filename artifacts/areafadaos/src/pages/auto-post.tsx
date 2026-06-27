@@ -223,7 +223,7 @@ function ComposerTab() {
     onError: (e: Error) => { setShowPublishDialog(false); toast({ title: "Error", description: e.message, variant: "destructive" }); },
   });
 
-  const PLATFORM_CHAR_LIMITS: Record<string, number> = { x: 280, instagram: 2200, tiktok: 300, facebook: 500, youtube: 1000, threads: 500 };
+  const PLATFORM_CHAR_LIMITS: Record<string, number> = { x: 280, instagram: 2200, tiktok: 300, facebook: 63206, youtube: 5000, threads: 500 };
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -324,7 +324,7 @@ function ComposerTab() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button onClick={() => saveDraft.mutate({ title: title || undefined, sourceCaption, selectedPlatforms, scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined, approvalRequired })}
+              <Button onClick={() => saveDraft.mutate({ title: title || undefined, sourceCaption, selectedPlatforms, scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined, approvalRequired, mediaUrls: mediaDataUrl ? [mediaDataUrl] : [] })}
                 disabled={saveDraft.isPending || !sourceCaption.trim()} size="sm">
                 {saveDraft.isPending ? "Saving…" : "Save Draft"}
               </Button>
@@ -550,6 +550,9 @@ function AccountGroupsTab() {
   const [newMember, setNewMember] = useState({ platform: "instagram", handle: "", displayName: "" });
   const [publishGroupId, setPublishGroupId] = useState<number | null>(null);
   const [publishCaption, setPublishCaption] = useState("");
+  const [publishDraftId, setPublishDraftId] = useState<number | null>(null);
+  const [memberCaptions, setMemberCaptions] = useState<Record<number, string>>({});
+  const [showPerMemberCustomize, setShowPerMemberCustomize] = useState(false);
 
   const { data: groups = [] } = useQuery<AccountGroup[]>({
     queryKey: ["account-groups"],
@@ -670,37 +673,81 @@ function AccountGroupsTab() {
         </DialogContent>
       </Dialog>
 
-      {publishGroupId !== null && (
-        <Dialog open onOpenChange={() => setPublishGroupId(null)}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader><DialogTitle>Publish to Group</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label>Use existing draft (optional)</Label>
-                <Select onValueChange={v => { const d = drafts.find(d => d.id === Number(v)); if (d) setPublishCaption(d.sourceCaption); }}>
-                  <SelectTrigger><SelectValue placeholder="Select a draft…" /></SelectTrigger>
-                  <SelectContent>
-                    {drafts.filter(d => d.status === "draft" || d.status === "approved").map(d => (
-                      <SelectItem key={d.id} value={String(d.id)}>{d.title || "Untitled"}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      {publishGroupId !== null && (() => {
+        const grp = groups.find(g => g.id === publishGroupId);
+        return (
+          <Dialog open onOpenChange={() => { setPublishGroupId(null); setPublishDraftId(null); setPublishCaption(""); setMemberCaptions({}); setShowPerMemberCustomize(false); }}>
+            <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>Publish to Group: {grp?.name}</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label>Use existing draft</Label>
+                  <Select value={publishDraftId ? String(publishDraftId) : ""} onValueChange={v => {
+                    const d = drafts.find(d => d.id === Number(v));
+                    if (d) { setPublishDraftId(d.id); setPublishCaption(d.sourceCaption); }
+                  }}>
+                    <SelectTrigger><SelectValue placeholder="Select a draft (uses its variants + media)…" /></SelectTrigger>
+                    <SelectContent>
+                      {drafts.filter(d => d.status === "draft" || d.status === "approved" || d.status === "published").map(d => (
+                        <SelectItem key={d.id} value={String(d.id)}>{d.title || "Untitled"} — {d.selectedPlatforms.join(", ")}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {publishDraftId && <p className="text-xs text-green-600">✓ Draft selected — platform variants and media will be used automatically.</p>}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Caption {publishDraftId ? "(overrides draft source caption)" : ""}</Label>
+                  <Textarea value={publishCaption} onChange={e => setPublishCaption(e.target.value)} placeholder="Caption for all accounts (platform variants from draft take priority)…" className="min-h-16 resize-none text-sm" />
+                </div>
+
+                {/* Per-account caption customization */}
+                {grp && grp.members.length > 0 && (
+                  <div className="space-y-2">
+                    <button className="flex items-center gap-1.5 text-xs text-primary font-medium hover:underline"
+                      onClick={() => setShowPerMemberCustomize(v => !v)}>
+                      {showPerMemberCustomize ? "▼" : "▶"} Per-account caption customization ({grp.members.length} accounts)
+                    </button>
+                    {showPerMemberCustomize && (
+                      <div className="space-y-2 pl-2 border-l-2 border-muted">
+                        {grp.members.map(m => (
+                          <div key={m.id} className="space-y-1">
+                            <Label className="text-xs flex items-center gap-1">
+                              <span>{PLATFORM_ICONS[m.platform]}</span>
+                              <span className="font-medium">{m.handle}</span>
+                              <span className="text-muted-foreground font-normal">— leave blank to use group caption</span>
+                            </Label>
+                            <Textarea
+                              value={memberCaptions[m.id] ?? ""}
+                              onChange={e => setMemberCaptions(prev => ({ ...prev, [m.id]: e.target.value }))}
+                              placeholder={`Custom caption for ${m.handle}…`}
+                              className="text-xs min-h-14 resize-none" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => { setPublishGroupId(null); setPublishDraftId(null); setPublishCaption(""); setMemberCaptions({}); setShowPerMemberCustomize(false); }}>Cancel</Button>
+                  <Button size="sm" disabled={(!publishCaption.trim() && !publishDraftId) || publishGroup.isPending}
+                    onClick={() => publishGroup.mutate({
+                      groupId: publishGroupId!,
+                      body: {
+                        ...(publishDraftId ? { draftId: publishDraftId } : {}),
+                        sourceCaption: publishCaption || undefined,
+                        memberCaptions: Object.keys(memberCaptions).length > 0 ? memberCaptions : undefined,
+                      }
+                    })}>
+                    {publishGroup.isPending ? "Publishing…" : `Publish to ${grp?.members.length ?? 0} accounts`}
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>Or enter caption directly</Label>
-                <Textarea value={publishCaption} onChange={e => setPublishCaption(e.target.value)} placeholder="Your caption…" className="min-h-20 resize-none" />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" size="sm" onClick={() => setPublishGroupId(null)}>Cancel</Button>
-                <Button size="sm" disabled={!publishCaption.trim() || publishGroup.isPending}
-                  onClick={() => publishGroup.mutate({ groupId: publishGroupId!, body: { sourceCaption: publishCaption } })}>
-                  {publishGroup.isPending ? "Publishing…" : "Publish"}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
     </div>
   );
 }
