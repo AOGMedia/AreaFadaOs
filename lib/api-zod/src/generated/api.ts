@@ -3424,3 +3424,599 @@ export const GetClipPerformanceSummaryResponse = zod.object({
 })
 
 
+/**
+ * @summary List post drafts for current user
+ */
+export const ListPostDraftsResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "title": zod.string().nullish(),
+  "sourceCaption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "selectedPlatforms": zod.array(zod.string()).optional(),
+  "selectedAccountIds": zod.array(zod.number()).optional(),
+  "selectedGroupId": zod.number().nullish(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "approvalRequired": zod.boolean().optional(),
+  "complianceChecked": zod.boolean().optional(),
+  "complianceScore": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListPostDraftsResponse = zod.array(ListPostDraftsResponseItem)
+
+
+/**
+ * @summary Create a new post draft
+ */
+export const CreatePostDraftBody = zod.object({
+  "title": zod.string().optional(),
+  "sourceCaption": zod.string(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "selectedPlatforms": zod.array(zod.string()).optional(),
+  "selectedAccountIds": zod.array(zod.number()).optional(),
+  "selectedGroupId": zod.number().optional(),
+  "scheduledAt": zod.coerce.date().optional(),
+  "approvalRequired": zod.boolean().optional()
+})
+
+export const CreatePostDraftResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "title": zod.string().nullish(),
+  "sourceCaption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "selectedPlatforms": zod.array(zod.string()).optional(),
+  "selectedAccountIds": zod.array(zod.number()).optional(),
+  "selectedGroupId": zod.number().nullish(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "approvalRequired": zod.boolean().optional(),
+  "complianceChecked": zod.boolean().optional(),
+  "complianceScore": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Get a draft with its publish jobs
+ */
+export const GetPostDraftParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPostDraftResponse = zod.object({
+  "draft": zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "title": zod.string().nullish(),
+  "sourceCaption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "selectedPlatforms": zod.array(zod.string()).optional(),
+  "selectedAccountIds": zod.array(zod.number()).optional(),
+  "selectedGroupId": zod.number().nullish(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "approvalRequired": zod.boolean().optional(),
+  "complianceChecked": zod.boolean().optional(),
+  "complianceScore": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).optional(),
+  "jobs": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "draftId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "platformAccountId": zod.number().nullish(),
+  "caption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "status": zod.string().optional(),
+  "attemptCount": zod.number().optional(),
+  "maxAttempts": zod.number().optional(),
+  "errorMessage": zod.string().nullish(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "lastAttemptAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})).optional()
+})
+
+
+/**
+ * @summary Update a post draft
+ */
+export const UpdatePostDraftParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePostDraftBody = zod.object({
+  "title": zod.string().optional(),
+  "sourceCaption": zod.string().optional(),
+  "selectedPlatforms": zod.array(zod.string()).optional(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional(),
+  "scheduledAt": zod.coerce.date().optional(),
+  "approvalRequired": zod.boolean().optional(),
+  "status": zod.string().optional()
+})
+
+export const UpdatePostDraftResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "title": zod.string().nullish(),
+  "sourceCaption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "selectedPlatforms": zod.array(zod.string()).optional(),
+  "selectedAccountIds": zod.array(zod.number()).optional(),
+  "selectedGroupId": zod.number().nullish(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "approvalRequired": zod.boolean().optional(),
+  "complianceChecked": zod.boolean().optional(),
+  "complianceScore": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Delete a post draft
+ */
+export const DeletePostDraftParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePostDraftResponse = zod.void()
+
+
+/**
+ * @summary Generate AI caption variants per platform
+ */
+export const GeneratePostVariantsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GeneratePostVariantsBody = zod.object({
+  "platforms": zod.array(zod.string()).optional()
+})
+
+export const GeneratePostVariantsResponse = zod.object({
+  "variants": zod.record(zod.string(), zod.object({
+  "caption": zod.string().optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "charCount": zod.number().optional()
+})).optional(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional()
+})
+
+
+/**
+ * @summary Run AI compliance scan on draft caption
+ */
+export const CheckPostComplianceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CheckPostComplianceResponse = zod.object({
+  "id": zod.number().optional(),
+  "draftId": zod.number().optional(),
+  "overallScore": zod.number().optional(),
+  "flags": zod.array(zod.object({
+  "type": zod.string().optional(),
+  "severity": zod.string().optional(),
+  "message": zod.string().optional(),
+  "guideline": zod.string().optional()
+})).optional(),
+  "recommendation": zod.string().nullish(),
+  "checkedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Publish draft — creates per-platform publish jobs
+ */
+export const PublishPostDraftParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PublishPostDraftBody = zod.object({
+  "scheduledAt": zod.coerce.date().optional(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional()
+})
+
+export const PublishPostDraftResponse = zod.object({
+  "message": zod.string().optional(),
+  "jobs": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "draftId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "platformAccountId": zod.number().nullish(),
+  "caption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "status": zod.string().optional(),
+  "attemptCount": zod.number().optional(),
+  "maxAttempts": zod.number().optional(),
+  "errorMessage": zod.string().nullish(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "lastAttemptAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})).optional()
+})
+
+
+/**
+ * @summary List publish jobs
+ */
+export const ListPublishJobsQueryParams = zod.object({
+  "draftId": zod.coerce.number().optional(),
+  "status": zod.coerce.string().optional()
+})
+
+export const ListPublishJobsResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "draftId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "platformAccountId": zod.number().nullish(),
+  "caption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "status": zod.string().optional(),
+  "attemptCount": zod.number().optional(),
+  "maxAttempts": zod.number().optional(),
+  "errorMessage": zod.string().nullish(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "lastAttemptAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})
+export const ListPublishJobsResponse = zod.array(ListPublishJobsResponseItem)
+
+
+/**
+ * @summary Retry a failed publish job
+ */
+export const RetryPublishJobParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RetryPublishJobResponse = zod.object({
+  "message": zod.string().optional(),
+  "job": zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "draftId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "platformAccountId": zod.number().nullish(),
+  "caption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "status": zod.string().optional(),
+  "attemptCount": zod.number().optional(),
+  "maxAttempts": zod.number().optional(),
+  "errorMessage": zod.string().nullish(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "lastAttemptAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional()
+}).optional()
+})
+
+
+/**
+ * @summary List account groups with members
+ */
+export const ListAccountGroupsResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "color": zod.string().optional(),
+  "members": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "groupId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "displayName": zod.string().nullish(),
+  "platformAccountId": zod.number().nullish()
+})).optional(),
+  "createdAt": zod.coerce.date().optional()
+})
+export const ListAccountGroupsResponse = zod.array(ListAccountGroupsResponseItem)
+
+
+/**
+ * @summary Create an account group
+ */
+export const CreateAccountGroupBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "color": zod.string().optional(),
+  "members": zod.array(zod.object({
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "displayName": zod.string().optional()
+})).optional()
+})
+
+export const CreateAccountGroupResponse = zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "color": zod.string().optional(),
+  "members": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "groupId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "displayName": zod.string().nullish(),
+  "platformAccountId": zod.number().nullish()
+})).optional(),
+  "createdAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Update an account group
+ */
+export const UpdateAccountGroupParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateAccountGroupBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "color": zod.string().optional(),
+  "members": zod.array(zod.object({
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "displayName": zod.string().optional()
+})).optional()
+})
+
+export const UpdateAccountGroupResponse = zod.object({
+  "id": zod.number().optional(),
+  "name": zod.string().optional(),
+  "description": zod.string().nullish(),
+  "color": zod.string().optional(),
+  "members": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "groupId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "displayName": zod.string().nullish(),
+  "platformAccountId": zod.number().nullish()
+})).optional(),
+  "createdAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Delete an account group
+ */
+export const DeleteAccountGroupParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAccountGroupResponse = zod.void()
+
+
+/**
+ * @summary Publish to all accounts in a group
+ */
+export const PublishToAccountGroupParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PublishToAccountGroupBody = zod.object({
+  "draftId": zod.number().optional(),
+  "sourceCaption": zod.string().optional(),
+  "scheduledAt": zod.coerce.date().optional(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional()
+})
+
+export const PublishToAccountGroupResponse = zod.object({
+  "message": zod.string().optional(),
+  "jobs": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "draftId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "platformAccountId": zod.number().nullish(),
+  "caption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "status": zod.string().optional(),
+  "attemptCount": zod.number().optional(),
+  "maxAttempts": zod.number().optional(),
+  "errorMessage": zod.string().nullish(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "lastAttemptAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional()
+})).optional()
+})
+
+
+/**
+ * @summary Get optimal posting times per platform (WAT timezone)
+ */
+export const GetPostingTimeRecommendationsQueryParams = zod.object({
+  "platform": zod.coerce.string().optional()
+})
+
+export const GetPostingTimeRecommendationsResponse = zod.object({
+  "recommendations": zod.record(zod.string(), zod.object({
+  "slots": zod.array(zod.string()).optional(),
+  "timezone": zod.string().optional(),
+  "explanation": zod.string().optional()
+})).optional(),
+  "note": zod.string().optional()
+})
+
+
+/**
+ * @summary Get hashtag suggestions per platform, region, and niche
+ */
+export const getHashtagSuggestionsQueryPlatformDefault = `instagram`;
+export const getHashtagSuggestionsQueryRegionDefault = `NG`;
+
+export const GetHashtagSuggestionsQueryParams = zod.object({
+  "platform": zod.coerce.string().default(getHashtagSuggestionsQueryPlatformDefault),
+  "region": zod.coerce.string().default(getHashtagSuggestionsQueryRegionDefault),
+  "niche": zod.coerce.string().optional()
+})
+
+export const GetHashtagSuggestionsResponse = zod.object({
+  "platform": zod.string().optional(),
+  "region": zod.string().optional(),
+  "niche": zod.string().nullish(),
+  "dbTags": zod.array(zod.object({
+  "hashtag": zod.string().optional(),
+  "trendScore": zod.number().optional(),
+  "category": zod.string().nullish()
+})).optional(),
+  "curatedTags": zod.array(zod.string()).optional(),
+  "allSuggestions": zod.array(zod.string()).optional()
+})
+
+
+/**
+ * @summary List approval requests
+ */
+export const ListApprovalRequestsQueryParams = zod.object({
+  "status": zod.coerce.string().optional()
+})
+
+export const ListApprovalRequestsResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "draftId": zod.number().optional(),
+  "requestedByUserId": zod.number().optional(),
+  "status": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "reviewNote": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional(),
+  "draft": zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "title": zod.string().nullish(),
+  "sourceCaption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "selectedPlatforms": zod.array(zod.string()).optional(),
+  "selectedAccountIds": zod.array(zod.number()).optional(),
+  "selectedGroupId": zod.number().nullish(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "approvalRequired": zod.boolean().optional(),
+  "complianceChecked": zod.boolean().optional(),
+  "complianceScore": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).optional()
+})
+export const ListApprovalRequestsResponse = zod.array(ListApprovalRequestsResponseItem)
+
+
+/**
+ * @summary Submit a draft for approval
+ */
+export const CreateApprovalRequestBody = zod.object({
+  "draftId": zod.number()
+})
+
+export const CreateApprovalRequestResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "draftId": zod.number().optional(),
+  "requestedByUserId": zod.number().optional(),
+  "status": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "reviewNote": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional(),
+  "draft": zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "title": zod.string().nullish(),
+  "sourceCaption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "selectedPlatforms": zod.array(zod.string()).optional(),
+  "selectedAccountIds": zod.array(zod.number()).optional(),
+  "selectedGroupId": zod.number().nullish(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "approvalRequired": zod.boolean().optional(),
+  "complianceChecked": zod.boolean().optional(),
+  "complianceScore": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).optional()
+})
+
+
+/**
+ * @summary Approve, reject, or request edit on an approval request
+ */
+export const ReviewApprovalRequestParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReviewApprovalRequestBody = zod.object({
+  "status": zod.enum(['approved', 'rejected', 'edited']),
+  "reviewNote": zod.string().optional()
+})
+
+export const ReviewApprovalRequestResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "draftId": zod.number().optional(),
+  "requestedByUserId": zod.number().optional(),
+  "status": zod.string().optional(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "reviewNote": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional(),
+  "draft": zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "title": zod.string().nullish(),
+  "sourceCaption": zod.string().optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "selectedPlatforms": zod.array(zod.string()).optional(),
+  "selectedAccountIds": zod.array(zod.number()).optional(),
+  "selectedGroupId": zod.number().nullish(),
+  "platformVariants": zod.record(zod.string(), zod.string()).optional(),
+  "platformHashtags": zod.record(zod.string(), zod.array(zod.string())).optional(),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "approvalRequired": zod.boolean().optional(),
+  "complianceChecked": zod.boolean().optional(),
+  "complianceScore": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).optional()
+})
+
+

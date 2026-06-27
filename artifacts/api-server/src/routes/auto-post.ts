@@ -13,7 +13,7 @@ import {
   usersTable,
   activityLogTable,
 } from "@workspace/db";
-import { eq, desc, and, lte, inArray } from "drizzle-orm";
+import { eq, desc, and, lte, isNull, inArray } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
 
@@ -355,6 +355,20 @@ Return ONLY valid JSON:
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to run compliance check" }); }
 });
 
+// Per-platform hard character limits (platform enforced maximums)
+const PLATFORM_CHAR_LIMITS: Record<string, number> = {
+  x: 280, instagram: 2200, tiktok: 300,
+  facebook: 63206, youtube: 5000, threads: 500,
+};
+
+function enforceCharLimit(caption: string, platform: string): { caption: string; truncated: boolean } {
+  const limit = PLATFORM_CHAR_LIMITS[platform];
+  if (!limit || caption.length <= limit) return { caption, truncated: false };
+  // Truncate at last word boundary before the limit, appending ellipsis
+  const cutoff = caption.lastIndexOf(" ", limit - 1);
+  return { caption: (cutoff > 0 ? caption.slice(0, cutoff) : caption.slice(0, limit - 1)) + "…", truncated: true };
+}
+
 // ─── Publish Draft ─────────────────────────────────────────────────────────────
 router.post("/auto-post/drafts/:id/publish", ...requirePost, async (req: any, res): Promise<void> => {
   try {
@@ -385,16 +399,22 @@ router.post("/auto-post/drafts/:id/publish", ...requirePost, async (req: any, re
       }).where(eq(postDraftsTable.id, draft.id));
     }
 
-    const jobs = platforms.map(platform => ({
-      userId: user.id,
-      draftId: draft.id,
-      platform,
-      caption: resolvedVariants[platform] ?? draft.sourceCaption,
-      mediaUrls: draft.mediaUrls as string[],
-      hashtags: resolvedHashtags[platform] ?? [],
-      status: "pending" as const,
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
-    }));
+    const truncationWarnings: string[] = [];
+    const jobs = platforms.map(platform => {
+      const rawCaption = resolvedVariants[platform] ?? draft.sourceCaption;
+      const { caption, truncated } = enforceCharLimit(rawCaption, platform);
+      if (truncated) truncationWarnings.push(`${platform}: truncated to ${PLATFORM_CHAR_LIMITS[platform]} chars`);
+      return {
+        userId: user.id,
+        draftId: draft.id,
+        platform,
+        caption,
+        mediaUrls: draft.mediaUrls as string[],
+        hashtags: resolvedHashtags[platform] ?? [],
+        status: "pending" as const,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+      };
+    });
 
     const created = await db.insert(publishJobsTable).values(jobs).returning();
 
@@ -404,8 +424,9 @@ router.post("/auto-post/drafts/:id/publish", ...requirePost, async (req: any, re
     }).where(eq(postDraftsTable.id, draft.id));
 
     res.status(201).json({
-      message: `${created.length} publish job(s) created. Actual push stubbed — connect platform accounts to enable live posting.`,
+      message: `${created.length} publish job(s) created.${truncationWarnings.length ? " Captions auto-truncated: " + truncationWarnings.join("; ") + "." : ""} Actual push stubbed — connect platform accounts to enable live posting.`,
       jobs: created,
+      truncationWarnings,
     });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to publish draft" }); }
 });
@@ -698,7 +719,10 @@ async function processPendingPublishJobs() {
 
     // Also process unscheduled pending jobs (scheduledAt IS NULL)
     const unscheduled = await db.select().from(publishJobsTable)
-      .where(eq(publishJobsTable.status, "pending"))
+      .where(and(
+        eq(publishJobsTable.status, "pending"),
+        isNull(publishJobsTable.scheduledAt),
+      ))
       .limit(20);
 
     const toProcess = [...new Map([...pending, ...unscheduled].map(j => [j.id, j])).values()];

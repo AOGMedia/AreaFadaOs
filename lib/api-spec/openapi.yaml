@@ -5859,6 +5859,7 @@ components:
               avgScore:
                 type: number
         totalClips:
+          type: integer
 
     PostDraft:
       type: object
@@ -6236,6 +6237,4 @@ components:
           type: string
           format: date-time
         draft:
-          nullable: true
-          allOf:
-            - $ref: "#/components/schemas/PostDraft"
+          $ref: "#/components/schemas/PostDraft"

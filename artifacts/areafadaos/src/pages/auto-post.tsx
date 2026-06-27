@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { TierGuard } from "@/components/TierGuard";
@@ -64,6 +64,16 @@ interface ApprovalRequest {
 
 const ALL_PLATFORMS = ["instagram", "x", "tiktok", "facebook", "youtube", "threads"];
 
+// Aspect ratios each platform crops to (width/height expressed as CSS aspect-ratio)
+const PLATFORM_CROP_RATIOS: Record<string, string> = {
+  instagram: "4/5", x: "16/9", tiktok: "9/16",
+  facebook: "16/9", youtube: "16/9", threads: "1/1",
+};
+const PLATFORM_CROP_LABELS: Record<string, string> = {
+  instagram: "4:5 portrait", x: "16:9 landscape", tiktok: "9:16 vertical",
+  facebook: "16:9 landscape", youtube: "16:9 landscape", threads: "1:1 square",
+};
+
 export function AutoPostPage() {
   return (
     <AppShell>
@@ -107,6 +117,9 @@ function ComposerTab() {
   const [approvalRequired, setApprovalRequired] = useState(false);
   const [variants, setVariants] = useState<Record<string, { caption: string; hashtags: string[]; charCount: number }>>({});
   const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [mediaDataUrl, setMediaDataUrl] = useState<string | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: drafts = [] } = useQuery<PostDraft[]>({
     queryKey: ["auto-post-drafts"],
@@ -132,7 +145,14 @@ function ComposerTab() {
   function resetForm() {
     setSelectedDraftId(null); setTitle(""); setSourceCaption("");
     setSelectedPlatforms(["instagram", "x", "tiktok"]); setScheduledAt("");
-    setApprovalRequired(false); setVariants({});
+    setApprovalRequired(false); setVariants({}); setMediaDataUrl(null);
+  }
+
+  function handleImageFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = e => setMediaDataUrl(e.target?.result as string);
+    reader.readAsDataURL(file);
   }
 
   const saveDraft = useMutation({
@@ -249,6 +269,34 @@ function ComposerTab() {
               <p className="text-xs text-muted-foreground text-right">{sourceCaption.length} chars</p>
             </div>
 
+            {/* Image Upload with per-platform crop preview */}
+            <div className="space-y-2">
+              <Label>Media <span className="text-muted-foreground font-normal text-xs">— optional image attachment</span></Label>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }} />
+              {!mediaDataUrl ? (
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDraggingFile ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30"}`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); setIsDraggingFile(true); }}
+                  onDragLeave={() => setIsDraggingFile(false)}
+                  onDrop={e => { e.preventDefault(); setIsDraggingFile(false); const f = e.dataTransfer.files[0]; if (f) handleImageFile(f); }}>
+                  <p className="text-2xl mb-1">🖼️</p>
+                  <p className="text-sm font-medium">Drop an image here or click to upload</p>
+                  <p className="text-xs text-muted-foreground mt-1">JPG, PNG, GIF, WebP — crop previews shown per platform below</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="relative inline-block">
+                    <img src={mediaDataUrl} alt="Uploaded" className="h-24 w-auto rounded-lg object-cover border" />
+                    <button onClick={() => setMediaDataUrl(null)}
+                      className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-bold shadow">×</button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Click × to remove. Crop previews appear in each platform variant card below.</p>
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Target Platforms</Label>
               <div className="flex flex-wrap gap-2">
@@ -311,13 +359,37 @@ function ComposerTab() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm">{PLATFORM_ICONS[platform]}</span>
                       <span className="text-sm font-medium capitalize">{platform}</span>
-                      <span className={`text-xs ml-auto font-mono ${overLimit ? "text-red-500" : "text-muted-foreground"}`}>
+                      <span className={`text-xs ml-auto font-mono ${overLimit ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
                         {v.caption.length}/{limit}
+                        {overLimit && <span className="ml-1 text-red-500">⚠ over limit</span>}
                       </span>
                     </div>
-                    <Textarea value={v.caption}
-                      onChange={e => setVariants(prev => ({ ...prev, [platform]: { ...prev[platform], caption: e.target.value, charCount: e.target.value.length } }))}
-                      className="text-sm min-h-20 resize-none" />
+                    {/* Per-platform crop preview */}
+                    {mediaDataUrl && (
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0">
+                          <div
+                            className="overflow-hidden rounded-md border bg-muted"
+                            style={{
+                              aspectRatio: PLATFORM_CROP_RATIOS[platform] ?? "1/1",
+                              width: platform === "tiktok" ? 48 : 80,
+                              maxHeight: 120,
+                            }}>
+                            <img src={mediaDataUrl} alt={`${platform} crop`}
+                              className="w-full h-full object-cover" />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground text-center mt-0.5">{PLATFORM_CROP_LABELS[platform]}</p>
+                        </div>
+                        <Textarea value={v.caption}
+                          onChange={e => setVariants(prev => ({ ...prev, [platform]: { ...prev[platform], caption: e.target.value, charCount: e.target.value.length } }))}
+                          className="text-sm min-h-20 resize-none flex-1" />
+                      </div>
+                    )}
+                    {!mediaDataUrl && (
+                      <Textarea value={v.caption}
+                        onChange={e => setVariants(prev => ({ ...prev, [platform]: { ...prev[platform], caption: e.target.value, charCount: e.target.value.length } }))}
+                        className="text-sm min-h-20 resize-none" />
+                    )}
                     {v.hashtags?.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {v.hashtags.map(h => (

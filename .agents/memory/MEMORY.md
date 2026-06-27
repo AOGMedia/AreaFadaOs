@@ -1,6 +1,6 @@
 - [AreaFada OS Stack](areafada-stack.md) — full-stack foundation: React+Vite frontend, Express 5 backend, PostgreSQL+Drizzle, Clerk auth, pnpm workspaces.
 - [Clerk Auth Setup](clerk-auth-setup.md) — Clerk provisioned (not_configured→managed); canonical wiring patterns and pitfalls for this project.
 - [DB Schema](db-schema.md) — users, activity_log, posts, campaigns, platform_accounts, hashtag_cache; typed column casting gotcha; orval index.ts patch.
-- [Ambassador CRM](ambassador-crm.md) — Task #5: 8 tables, 18 API routes, 6-tab frontend; requireTier("agency"); seed auto-fires when table empty in non-prod.
+- [Ambassador CRM](ambassador-crm.md) — 8 tables, 18 API routes, 6-tab frontend; requireTier("agency"); seed auto-fires when table empty in non-prod.
 - [DB Project References](db-project-references.md) — adding schema files to lib/db requires rebuilding dist/ before api-server can see new exports.
 - [Live Video Module](live-video-module.md) — 6 DB tables, 16 API routes, public fan signup page at /live/:id; PATCH /live-chat/:id must use patch-object pattern to avoid overwriting unset fields.

@@ -1542,6 +1542,187 @@ export interface ClipPerformanceSummary {
   totalClips: number;
 }
 
+export type PostDraftPlatformVariants = {[key: string]: string};
+
+export type PostDraftPlatformHashtags = {[key: string]: string[]};
+
+export interface PostDraft {
+  id?: number;
+  userId?: number;
+  title?: string | null;
+  sourceCaption?: string;
+  mediaUrls?: string[];
+  selectedPlatforms?: string[];
+  selectedAccountIds?: number[];
+  selectedGroupId?: number | null;
+  platformVariants?: PostDraftPlatformVariants;
+  platformHashtags?: PostDraftPlatformHashtags;
+  scheduledAt?: string | null;
+  status?: string;
+  approvalRequired?: boolean;
+  complianceChecked?: boolean;
+  complianceScore?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreatePostDraftBody {
+  title?: string;
+  sourceCaption: string;
+  mediaUrls?: string[];
+  selectedPlatforms?: string[];
+  selectedAccountIds?: number[];
+  selectedGroupId?: number;
+  scheduledAt?: string;
+  approvalRequired?: boolean;
+}
+
+export type UpdatePostDraftBodyPlatformVariants = {[key: string]: string};
+
+export type UpdatePostDraftBodyPlatformHashtags = {[key: string]: string[]};
+
+export interface UpdatePostDraftBody {
+  title?: string;
+  sourceCaption?: string;
+  selectedPlatforms?: string[];
+  platformVariants?: UpdatePostDraftBodyPlatformVariants;
+  platformHashtags?: UpdatePostDraftBodyPlatformHashtags;
+  scheduledAt?: string;
+  approvalRequired?: boolean;
+  status?: string;
+}
+
+export interface PublishJob {
+  id?: number;
+  userId?: number;
+  draftId?: number;
+  platform?: string;
+  platformAccountId?: number | null;
+  caption?: string;
+  mediaUrls?: string[];
+  hashtags?: string[];
+  status?: string;
+  attemptCount?: number;
+  maxAttempts?: number;
+  errorMessage?: string | null;
+  scheduledAt?: string | null;
+  publishedAt?: string | null;
+  lastAttemptAt?: string | null;
+  createdAt?: string;
+}
+
+export interface PostDraftWithJobs {
+  draft?: PostDraft;
+  jobs?: PublishJob[];
+}
+
+export type GenerateVariantsResponseVariants = {[key: string]: {
+  caption?: string;
+  hashtags?: string[];
+  charCount?: number;
+}};
+
+export type GenerateVariantsResponsePlatformVariants = {[key: string]: string};
+
+export type GenerateVariantsResponsePlatformHashtags = {[key: string]: string[]};
+
+export interface GenerateVariantsResponse {
+  variants?: GenerateVariantsResponseVariants;
+  platformVariants?: GenerateVariantsResponsePlatformVariants;
+  platformHashtags?: GenerateVariantsResponsePlatformHashtags;
+}
+
+export type ComplianceFlagFlagsItem = {
+  type?: string;
+  severity?: string;
+  message?: string;
+  guideline?: string;
+};
+
+export interface ComplianceFlag {
+  id?: number;
+  draftId?: number;
+  overallScore?: number;
+  flags?: ComplianceFlagFlagsItem[];
+  recommendation?: string | null;
+  checkedAt?: string;
+}
+
+export interface PublishResult {
+  message?: string;
+  jobs?: PublishJob[];
+}
+
+export interface AccountGroupMember {
+  id?: number;
+  groupId?: number;
+  platform?: string;
+  handle?: string;
+  displayName?: string | null;
+  platformAccountId?: number | null;
+}
+
+export interface AccountGroup {
+  id?: number;
+  name?: string;
+  description?: string | null;
+  color?: string;
+  members?: AccountGroupMember[];
+  createdAt?: string;
+}
+
+export type CreateAccountGroupBodyMembersItem = {
+  platform?: string;
+  handle?: string;
+  displayName?: string;
+};
+
+export interface CreateAccountGroupBody {
+  name: string;
+  description?: string;
+  color?: string;
+  members?: CreateAccountGroupBodyMembersItem[];
+}
+
+export type PostingTimeRecommendationsRecommendations = {[key: string]: {
+  slots?: string[];
+  timezone?: string;
+  explanation?: string;
+}};
+
+export interface PostingTimeRecommendations {
+  recommendations?: PostingTimeRecommendationsRecommendations;
+  note?: string;
+}
+
+export type HashtagEngineResponseDbTagsItem = {
+  hashtag?: string;
+  trendScore?: number;
+  category?: string | null;
+};
+
+export interface HashtagEngineResponse {
+  platform?: string;
+  region?: string;
+  niche?: string | null;
+  dbTags?: HashtagEngineResponseDbTagsItem[];
+  curatedTags?: string[];
+  allSuggestions?: string[];
+}
+
+export interface ApprovalRequest {
+  id?: number;
+  userId?: number;
+  draftId?: number;
+  requestedByUserId?: number;
+  status?: string;
+  reviewedAt?: string | null;
+  reviewNote?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  draft?: PostDraft;
+}
+
 export type ListPostsParams = {
 status?: ListPostsStatus;
 campaignId?: number;
@@ -1844,5 +2025,70 @@ accountId?: number;
 export type ListClipPerformanceParams = {
 clipId?: number;
 accountId?: number;
+};
+
+export type GeneratePostVariantsBody = {
+  platforms?: string[];
+};
+
+export type PublishPostDraftBodyPlatformVariants = {[key: string]: string};
+
+export type PublishPostDraftBodyPlatformHashtags = {[key: string]: string[]};
+
+export type PublishPostDraftBody = {
+  scheduledAt?: string;
+  platformVariants?: PublishPostDraftBodyPlatformVariants;
+  platformHashtags?: PublishPostDraftBodyPlatformHashtags;
+};
+
+export type ListPublishJobsParams = {
+draftId?: number;
+status?: string;
+};
+
+export type RetryPublishJob200 = {
+  message?: string;
+  job?: PublishJob;
+};
+
+export type PublishToAccountGroupBodyPlatformVariants = {[key: string]: string};
+
+export type PublishToAccountGroupBody = {
+  draftId?: number;
+  sourceCaption?: string;
+  scheduledAt?: string;
+  platformVariants?: PublishToAccountGroupBodyPlatformVariants;
+};
+
+export type GetPostingTimeRecommendationsParams = {
+platform?: string;
+};
+
+export type GetHashtagSuggestionsParams = {
+platform?: string;
+region?: string;
+niche?: string;
+};
+
+export type ListApprovalRequestsParams = {
+status?: string;
+};
+
+export type CreateApprovalRequestBody = {
+  draftId: number;
+};
+
+export type ReviewApprovalRequestBodyStatus = typeof ReviewApprovalRequestBodyStatus[keyof typeof ReviewApprovalRequestBodyStatus];
+
+
+export const ReviewApprovalRequestBodyStatus = {
+  approved: 'approved',
+  rejected: 'rejected',
+  edited: 'edited',
+} as const;
+
+export type ReviewApprovalRequestBody = {
+  status: ReviewApprovalRequestBodyStatus;
+  reviewNote?: string;
 };
 

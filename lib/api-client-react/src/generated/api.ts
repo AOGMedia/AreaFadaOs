@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AccountGroup,
   ActivityItem,
   AddLiveChatMessageBody,
   AddLiveRevenueEventBody,
@@ -30,6 +31,7 @@ import type {
   AnalyticsReport,
   AnalyticsSummary,
   AnalyzeVideoResponse,
+  ApprovalRequest,
   AudienceGeography,
   AwardPoints200,
   AwardPointsBody,
@@ -53,10 +55,13 @@ import type {
   CollabResponse,
   CompleteAmbassadorTask200,
   CompleteAmbassadorTaskBody,
+  ComplianceFlag,
+  CreateAccountGroupBody,
   CreateAffiliateBody,
   CreateAffiliateLinkBody,
   CreateAmbassadorBody,
   CreateAmbassadorTaskBody,
+  CreateApprovalRequestBody,
   CreateBrandDealBody,
   CreateBrandOverlayConfigRequest,
   CreateCampaignBody,
@@ -70,6 +75,7 @@ import type {
   CreateMicroInfluencerBody,
   CreateModerationRuleBody,
   CreatePostBody,
+  CreatePostDraftBody,
   CreatePromoCampaignBody,
   CreatePromoLinkBody,
   CreateSourceVideoRequest,
@@ -85,16 +91,21 @@ import type {
   GenerateOutreach200,
   GenerateOutreachBody,
   GeneratePaymentLinkBody,
+  GeneratePostVariantsBody,
   GenerateReportBody,
+  GenerateVariantsResponse,
   GetAudienceGeographyParams,
   GetBestPostTimesParams,
   GetClipScheduleCalendarParams,
   GetGamificationConfigs200,
+  GetHashtagSuggestionsParams,
   GetPostPerformanceParams,
+  GetPostingTimeRecommendationsParams,
   GetPromoQrCodeParams,
   GetPublicLiveSession200,
   GetRevenueWaterfallParams,
   GetTrendingHashtagsParams,
+  HashtagEngineResponse,
   HashtagItem,
   HealthStatus,
   HypeScheduleResponse,
@@ -102,6 +113,7 @@ import type {
   InvoiceDetail,
   ListAffiliateCommissionsParams,
   ListAmbassadorsParams,
+  ListApprovalRequestsParams,
   ListBrandDealsParams,
   ListBrandOverlayConfigsParams,
   ListClipPerformanceParams,
@@ -111,6 +123,7 @@ import type {
   ListMicroInfluencersParams,
   ListNotificationEventsParams,
   ListPostsParams,
+  ListPublishJobsParams,
   ListPurchaseVerificationsParams,
   LiveChatMessage,
   LiveModerationRule,
@@ -129,19 +142,28 @@ import type {
   PlatformAccount,
   PlatformComparisonItem,
   Post,
+  PostDraft,
+  PostDraftWithJobs,
   PostLiveClip,
   PostPerformanceItem,
   PostRevision,
+  PostingTimeRecommendations,
   PromoCampaign,
   PromoFunnelData,
   PromoLink,
+  PublishJob,
+  PublishPostDraftBody,
+  PublishResult,
+  PublishToAccountGroupBody,
   PurchaseVerification,
   QueueReplayDistribution200,
   QueueReplayDistributionBody,
   RecyclePostBody,
   RegisterLiveReminder201,
   RegisterLiveReminderBody,
+  RetryPublishJob200,
   RevenueWaterfall,
+  ReviewApprovalRequestBody,
   ReviewVerificationBody,
   SendLiveReminders200,
   SourceVideo,
@@ -154,6 +176,7 @@ import type {
   UpdateLiveSessionBody,
   UpdateModerationRuleBody,
   UpdatePostBody,
+  UpdatePostDraftBody,
   UserProfile,
   UserProfileUpdate,
   WeeklyDigest,
@@ -10275,4 +10298,1487 @@ export function useGetClipPerformanceSummary<TData = Awaited<ReturnType<typeof g
 
 
 
+
+export const getListPostDraftsUrl = () => {
+
+
+
+
+  return `/api/auto-post/drafts`
+}
+
+/**
+ * @summary List post drafts for current user
+ */
+export const listPostDrafts = async ( options?: RequestInit): Promise<PostDraft[]> => {
+
+  return customFetch<PostDraft[]>(getListPostDraftsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPostDraftsQueryKey = () => {
+    return [
+    `/api/auto-post/drafts`
+    ] as const;
+    }
+
+
+export const getListPostDraftsQueryOptions = <TData = Awaited<ReturnType<typeof listPostDrafts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPostDrafts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPostDraftsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPostDrafts>>> = ({ signal }) => listPostDrafts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPostDrafts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPostDraftsQueryResult = NonNullable<Awaited<ReturnType<typeof listPostDrafts>>>
+export type ListPostDraftsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List post drafts for current user
+ */
+
+export function useListPostDrafts<TData = Awaited<ReturnType<typeof listPostDrafts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPostDrafts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPostDraftsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePostDraftUrl = () => {
+
+
+
+
+  return `/api/auto-post/drafts`
+}
+
+/**
+ * @summary Create a new post draft
+ */
+export const createPostDraft = async (createPostDraftBody: CreatePostDraftBody, options?: RequestInit): Promise<PostDraft> => {
+
+  return customFetch<PostDraft>(getCreatePostDraftUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPostDraftBody)
+  }
+);}
+
+
+
+
+export const getCreatePostDraftMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPostDraft>>, TError,{data: BodyType<CreatePostDraftBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPostDraft>>, TError,{data: BodyType<CreatePostDraftBody>}, TContext> => {
+
+const mutationKey = ['createPostDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPostDraft>>, {data: BodyType<CreatePostDraftBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPostDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePostDraftMutationResult = NonNullable<Awaited<ReturnType<typeof createPostDraft>>>
+    export type CreatePostDraftMutationBody = BodyType<CreatePostDraftBody>
+    export type CreatePostDraftMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new post draft
+ */
+export const useCreatePostDraft = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPostDraft>>, TError,{data: BodyType<CreatePostDraftBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPostDraft>>,
+        TError,
+        {data: BodyType<CreatePostDraftBody>},
+        TContext
+      > => {
+      return useMutation(getCreatePostDraftMutationOptions(options));
+    }
+
+export const getGetPostDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/drafts/${id}`
+}
+
+/**
+ * @summary Get a draft with its publish jobs
+ */
+export const getPostDraft = async (id: number, options?: RequestInit): Promise<PostDraftWithJobs> => {
+
+  return customFetch<PostDraftWithJobs>(getGetPostDraftUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPostDraftQueryKey = (id: number,) => {
+    return [
+    `/api/auto-post/drafts/${id}`
+    ] as const;
+    }
+
+
+export const getGetPostDraftQueryOptions = <TData = Awaited<ReturnType<typeof getPostDraft>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPostDraft>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPostDraftQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPostDraft>>> = ({ signal }) => getPostDraft(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPostDraft>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPostDraftQueryResult = NonNullable<Awaited<ReturnType<typeof getPostDraft>>>
+export type GetPostDraftQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a draft with its publish jobs
+ */
+
+export function useGetPostDraft<TData = Awaited<ReturnType<typeof getPostDraft>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPostDraft>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPostDraftQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePostDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/drafts/${id}`
+}
+
+/**
+ * @summary Update a post draft
+ */
+export const updatePostDraft = async (id: number,
+    updatePostDraftBody: UpdatePostDraftBody, options?: RequestInit): Promise<PostDraft> => {
+
+  return customFetch<PostDraft>(getUpdatePostDraftUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updatePostDraftBody)
+  }
+);}
+
+
+
+
+export const getUpdatePostDraftMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePostDraft>>, TError,{id: number;data: BodyType<UpdatePostDraftBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePostDraft>>, TError,{id: number;data: BodyType<UpdatePostDraftBody>}, TContext> => {
+
+const mutationKey = ['updatePostDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePostDraft>>, {id: number;data: BodyType<UpdatePostDraftBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePostDraft(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePostDraftMutationResult = NonNullable<Awaited<ReturnType<typeof updatePostDraft>>>
+    export type UpdatePostDraftMutationBody = BodyType<UpdatePostDraftBody>
+    export type UpdatePostDraftMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a post draft
+ */
+export const useUpdatePostDraft = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePostDraft>>, TError,{id: number;data: BodyType<UpdatePostDraftBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePostDraft>>,
+        TError,
+        {id: number;data: BodyType<UpdatePostDraftBody>},
+        TContext
+      > => {
+      return useMutation(getUpdatePostDraftMutationOptions(options));
+    }
+
+export const getDeletePostDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/drafts/${id}`
+}
+
+/**
+ * @summary Delete a post draft
+ */
+export const deletePostDraft = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeletePostDraftUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeletePostDraftMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePostDraft>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePostDraft>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deletePostDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePostDraft>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePostDraft(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePostDraftMutationResult = NonNullable<Awaited<ReturnType<typeof deletePostDraft>>>
+
+    export type DeletePostDraftMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a post draft
+ */
+export const useDeletePostDraft = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePostDraft>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePostDraft>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeletePostDraftMutationOptions(options));
+    }
+
+export const getGeneratePostVariantsUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/drafts/${id}/generate-variants`
+}
+
+/**
+ * @summary Generate AI caption variants per platform
+ */
+export const generatePostVariants = async (id: number,
+    generatePostVariantsBody: GeneratePostVariantsBody, options?: RequestInit): Promise<GenerateVariantsResponse> => {
+
+  return customFetch<GenerateVariantsResponse>(getGeneratePostVariantsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(generatePostVariantsBody)
+  }
+);}
+
+
+
+
+export const getGeneratePostVariantsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generatePostVariants>>, TError,{id: number;data: BodyType<GeneratePostVariantsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generatePostVariants>>, TError,{id: number;data: BodyType<GeneratePostVariantsBody>}, TContext> => {
+
+const mutationKey = ['generatePostVariants'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generatePostVariants>>, {id: number;data: BodyType<GeneratePostVariantsBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  generatePostVariants(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GeneratePostVariantsMutationResult = NonNullable<Awaited<ReturnType<typeof generatePostVariants>>>
+    export type GeneratePostVariantsMutationBody = BodyType<GeneratePostVariantsBody>
+    export type GeneratePostVariantsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate AI caption variants per platform
+ */
+export const useGeneratePostVariants = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generatePostVariants>>, TError,{id: number;data: BodyType<GeneratePostVariantsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generatePostVariants>>,
+        TError,
+        {id: number;data: BodyType<GeneratePostVariantsBody>},
+        TContext
+      > => {
+      return useMutation(getGeneratePostVariantsMutationOptions(options));
+    }
+
+export const getCheckPostComplianceUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/drafts/${id}/compliance-check`
+}
+
+/**
+ * @summary Run AI compliance scan on draft caption
+ */
+export const checkPostCompliance = async (id: number, options?: RequestInit): Promise<ComplianceFlag> => {
+
+  return customFetch<ComplianceFlag>(getCheckPostComplianceUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCheckPostComplianceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPostCompliance>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkPostCompliance>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['checkPostCompliance'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkPostCompliance>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  checkPostCompliance(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckPostComplianceMutationResult = NonNullable<Awaited<ReturnType<typeof checkPostCompliance>>>
+
+    export type CheckPostComplianceMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Run AI compliance scan on draft caption
+ */
+export const useCheckPostCompliance = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkPostCompliance>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkPostCompliance>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getCheckPostComplianceMutationOptions(options));
+    }
+
+export const getPublishPostDraftUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/drafts/${id}/publish`
+}
+
+/**
+ * @summary Publish draft — creates per-platform publish jobs
+ */
+export const publishPostDraft = async (id: number,
+    publishPostDraftBody?: PublishPostDraftBody, options?: RequestInit): Promise<PublishResult> => {
+
+  return customFetch<PublishResult>(getPublishPostDraftUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(publishPostDraftBody)
+  }
+);}
+
+
+
+
+export const getPublishPostDraftMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishPostDraft>>, TError,{id: number;data?: BodyType<PublishPostDraftBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishPostDraft>>, TError,{id: number;data?: BodyType<PublishPostDraftBody>}, TContext> => {
+
+const mutationKey = ['publishPostDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishPostDraft>>, {id: number;data?: BodyType<PublishPostDraftBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  publishPostDraft(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishPostDraftMutationResult = NonNullable<Awaited<ReturnType<typeof publishPostDraft>>>
+    export type PublishPostDraftMutationBody = BodyType<PublishPostDraftBody> | undefined
+    export type PublishPostDraftMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Publish draft — creates per-platform publish jobs
+ */
+export const usePublishPostDraft = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishPostDraft>>, TError,{id: number;data?: BodyType<PublishPostDraftBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof publishPostDraft>>,
+        TError,
+        {id: number;data?: BodyType<PublishPostDraftBody>},
+        TContext
+      > => {
+      return useMutation(getPublishPostDraftMutationOptions(options));
+    }
+
+export const getListPublishJobsUrl = (params?: ListPublishJobsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auto-post/publish-jobs?${stringifiedParams}` : `/api/auto-post/publish-jobs`
+}
+
+/**
+ * @summary List publish jobs
+ */
+export const listPublishJobs = async (params?: ListPublishJobsParams, options?: RequestInit): Promise<PublishJob[]> => {
+
+  return customFetch<PublishJob[]>(getListPublishJobsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPublishJobsQueryKey = (params?: ListPublishJobsParams,) => {
+    return [
+    `/api/auto-post/publish-jobs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPublishJobsQueryOptions = <TData = Awaited<ReturnType<typeof listPublishJobs>>, TError = ErrorType<unknown>>(params?: ListPublishJobsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPublishJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPublishJobsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPublishJobs>>> = ({ signal }) => listPublishJobs(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPublishJobs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPublishJobsQueryResult = NonNullable<Awaited<ReturnType<typeof listPublishJobs>>>
+export type ListPublishJobsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List publish jobs
+ */
+
+export function useListPublishJobs<TData = Awaited<ReturnType<typeof listPublishJobs>>, TError = ErrorType<unknown>>(
+ params?: ListPublishJobsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPublishJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPublishJobsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRetryPublishJobUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/publish-jobs/${id}/retry`
+}
+
+/**
+ * @summary Retry a failed publish job
+ */
+export const retryPublishJob = async (id: number, options?: RequestInit): Promise<RetryPublishJob200> => {
+
+  return customFetch<RetryPublishJob200>(getRetryPublishJobUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRetryPublishJobMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryPublishJob>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retryPublishJob>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['retryPublishJob'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retryPublishJob>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  retryPublishJob(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetryPublishJobMutationResult = NonNullable<Awaited<ReturnType<typeof retryPublishJob>>>
+
+    export type RetryPublishJobMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Retry a failed publish job
+ */
+export const useRetryPublishJob = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retryPublishJob>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retryPublishJob>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getRetryPublishJobMutationOptions(options));
+    }
+
+export const getListAccountGroupsUrl = () => {
+
+
+
+
+  return `/api/auto-post/account-groups`
+}
+
+/**
+ * @summary List account groups with members
+ */
+export const listAccountGroups = async ( options?: RequestInit): Promise<AccountGroup[]> => {
+
+  return customFetch<AccountGroup[]>(getListAccountGroupsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAccountGroupsQueryKey = () => {
+    return [
+    `/api/auto-post/account-groups`
+    ] as const;
+    }
+
+
+export const getListAccountGroupsQueryOptions = <TData = Awaited<ReturnType<typeof listAccountGroups>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAccountGroups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAccountGroupsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAccountGroups>>> = ({ signal }) => listAccountGroups({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAccountGroups>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAccountGroupsQueryResult = NonNullable<Awaited<ReturnType<typeof listAccountGroups>>>
+export type ListAccountGroupsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List account groups with members
+ */
+
+export function useListAccountGroups<TData = Awaited<ReturnType<typeof listAccountGroups>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAccountGroups>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAccountGroupsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAccountGroupUrl = () => {
+
+
+
+
+  return `/api/auto-post/account-groups`
+}
+
+/**
+ * @summary Create an account group
+ */
+export const createAccountGroup = async (createAccountGroupBody: CreateAccountGroupBody, options?: RequestInit): Promise<AccountGroup> => {
+
+  return customFetch<AccountGroup>(getCreateAccountGroupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAccountGroupBody)
+  }
+);}
+
+
+
+
+export const getCreateAccountGroupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountGroup>>, TError,{data: BodyType<CreateAccountGroupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAccountGroup>>, TError,{data: BodyType<CreateAccountGroupBody>}, TContext> => {
+
+const mutationKey = ['createAccountGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAccountGroup>>, {data: BodyType<CreateAccountGroupBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAccountGroup(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAccountGroupMutationResult = NonNullable<Awaited<ReturnType<typeof createAccountGroup>>>
+    export type CreateAccountGroupMutationBody = BodyType<CreateAccountGroupBody>
+    export type CreateAccountGroupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create an account group
+ */
+export const useCreateAccountGroup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAccountGroup>>, TError,{data: BodyType<CreateAccountGroupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAccountGroup>>,
+        TError,
+        {data: BodyType<CreateAccountGroupBody>},
+        TContext
+      > => {
+      return useMutation(getCreateAccountGroupMutationOptions(options));
+    }
+
+export const getUpdateAccountGroupUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/account-groups/${id}`
+}
+
+/**
+ * @summary Update an account group
+ */
+export const updateAccountGroup = async (id: number,
+    createAccountGroupBody: CreateAccountGroupBody, options?: RequestInit): Promise<AccountGroup> => {
+
+  return customFetch<AccountGroup>(getUpdateAccountGroupUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAccountGroupBody)
+  }
+);}
+
+
+
+
+export const getUpdateAccountGroupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccountGroup>>, TError,{id: number;data: BodyType<CreateAccountGroupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAccountGroup>>, TError,{id: number;data: BodyType<CreateAccountGroupBody>}, TContext> => {
+
+const mutationKey = ['updateAccountGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAccountGroup>>, {id: number;data: BodyType<CreateAccountGroupBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAccountGroup(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAccountGroupMutationResult = NonNullable<Awaited<ReturnType<typeof updateAccountGroup>>>
+    export type UpdateAccountGroupMutationBody = BodyType<CreateAccountGroupBody>
+    export type UpdateAccountGroupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update an account group
+ */
+export const useUpdateAccountGroup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAccountGroup>>, TError,{id: number;data: BodyType<CreateAccountGroupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAccountGroup>>,
+        TError,
+        {id: number;data: BodyType<CreateAccountGroupBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateAccountGroupMutationOptions(options));
+    }
+
+export const getDeleteAccountGroupUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/account-groups/${id}`
+}
+
+/**
+ * @summary Delete an account group
+ */
+export const deleteAccountGroup = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteAccountGroupUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAccountGroupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAccountGroup>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAccountGroup>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAccountGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAccountGroup>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAccountGroup(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAccountGroupMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAccountGroup>>>
+
+    export type DeleteAccountGroupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete an account group
+ */
+export const useDeleteAccountGroup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAccountGroup>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAccountGroup>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAccountGroupMutationOptions(options));
+    }
+
+export const getPublishToAccountGroupUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/account-groups/${id}/publish`
+}
+
+/**
+ * @summary Publish to all accounts in a group
+ */
+export const publishToAccountGroup = async (id: number,
+    publishToAccountGroupBody: PublishToAccountGroupBody, options?: RequestInit): Promise<PublishResult> => {
+
+  return customFetch<PublishResult>(getPublishToAccountGroupUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(publishToAccountGroupBody)
+  }
+);}
+
+
+
+
+export const getPublishToAccountGroupMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishToAccountGroup>>, TError,{id: number;data: BodyType<PublishToAccountGroupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof publishToAccountGroup>>, TError,{id: number;data: BodyType<PublishToAccountGroupBody>}, TContext> => {
+
+const mutationKey = ['publishToAccountGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof publishToAccountGroup>>, {id: number;data: BodyType<PublishToAccountGroupBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  publishToAccountGroup(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PublishToAccountGroupMutationResult = NonNullable<Awaited<ReturnType<typeof publishToAccountGroup>>>
+    export type PublishToAccountGroupMutationBody = BodyType<PublishToAccountGroupBody>
+    export type PublishToAccountGroupMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Publish to all accounts in a group
+ */
+export const usePublishToAccountGroup = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof publishToAccountGroup>>, TError,{id: number;data: BodyType<PublishToAccountGroupBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof publishToAccountGroup>>,
+        TError,
+        {id: number;data: BodyType<PublishToAccountGroupBody>},
+        TContext
+      > => {
+      return useMutation(getPublishToAccountGroupMutationOptions(options));
+    }
+
+export const getGetPostingTimeRecommendationsUrl = (params?: GetPostingTimeRecommendationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auto-post/posting-time-recommendations?${stringifiedParams}` : `/api/auto-post/posting-time-recommendations`
+}
+
+/**
+ * @summary Get optimal posting times per platform (WAT timezone)
+ */
+export const getPostingTimeRecommendations = async (params?: GetPostingTimeRecommendationsParams, options?: RequestInit): Promise<PostingTimeRecommendations> => {
+
+  return customFetch<PostingTimeRecommendations>(getGetPostingTimeRecommendationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPostingTimeRecommendationsQueryKey = (params?: GetPostingTimeRecommendationsParams,) => {
+    return [
+    `/api/auto-post/posting-time-recommendations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPostingTimeRecommendationsQueryOptions = <TData = Awaited<ReturnType<typeof getPostingTimeRecommendations>>, TError = ErrorType<unknown>>(params?: GetPostingTimeRecommendationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPostingTimeRecommendations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPostingTimeRecommendationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPostingTimeRecommendations>>> = ({ signal }) => getPostingTimeRecommendations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPostingTimeRecommendations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPostingTimeRecommendationsQueryResult = NonNullable<Awaited<ReturnType<typeof getPostingTimeRecommendations>>>
+export type GetPostingTimeRecommendationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get optimal posting times per platform (WAT timezone)
+ */
+
+export function useGetPostingTimeRecommendations<TData = Awaited<ReturnType<typeof getPostingTimeRecommendations>>, TError = ErrorType<unknown>>(
+ params?: GetPostingTimeRecommendationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPostingTimeRecommendations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPostingTimeRecommendationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetHashtagSuggestionsUrl = (params?: GetHashtagSuggestionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auto-post/hashtag-engine?${stringifiedParams}` : `/api/auto-post/hashtag-engine`
+}
+
+/**
+ * @summary Get hashtag suggestions per platform, region, and niche
+ */
+export const getHashtagSuggestions = async (params?: GetHashtagSuggestionsParams, options?: RequestInit): Promise<HashtagEngineResponse> => {
+
+  return customFetch<HashtagEngineResponse>(getGetHashtagSuggestionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHashtagSuggestionsQueryKey = (params?: GetHashtagSuggestionsParams,) => {
+    return [
+    `/api/auto-post/hashtag-engine`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetHashtagSuggestionsQueryOptions = <TData = Awaited<ReturnType<typeof getHashtagSuggestions>>, TError = ErrorType<unknown>>(params?: GetHashtagSuggestionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHashtagSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHashtagSuggestionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHashtagSuggestions>>> = ({ signal }) => getHashtagSuggestions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHashtagSuggestions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHashtagSuggestionsQueryResult = NonNullable<Awaited<ReturnType<typeof getHashtagSuggestions>>>
+export type GetHashtagSuggestionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get hashtag suggestions per platform, region, and niche
+ */
+
+export function useGetHashtagSuggestions<TData = Awaited<ReturnType<typeof getHashtagSuggestions>>, TError = ErrorType<unknown>>(
+ params?: GetHashtagSuggestionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHashtagSuggestions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHashtagSuggestionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListApprovalRequestsUrl = (params?: ListApprovalRequestsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auto-post/approval-requests?${stringifiedParams}` : `/api/auto-post/approval-requests`
+}
+
+/**
+ * @summary List approval requests
+ */
+export const listApprovalRequests = async (params?: ListApprovalRequestsParams, options?: RequestInit): Promise<ApprovalRequest[]> => {
+
+  return customFetch<ApprovalRequest[]>(getListApprovalRequestsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListApprovalRequestsQueryKey = (params?: ListApprovalRequestsParams,) => {
+    return [
+    `/api/auto-post/approval-requests`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListApprovalRequestsQueryOptions = <TData = Awaited<ReturnType<typeof listApprovalRequests>>, TError = ErrorType<unknown>>(params?: ListApprovalRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApprovalRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListApprovalRequestsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listApprovalRequests>>> = ({ signal }) => listApprovalRequests(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listApprovalRequests>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListApprovalRequestsQueryResult = NonNullable<Awaited<ReturnType<typeof listApprovalRequests>>>
+export type ListApprovalRequestsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List approval requests
+ */
+
+export function useListApprovalRequests<TData = Awaited<ReturnType<typeof listApprovalRequests>>, TError = ErrorType<unknown>>(
+ params?: ListApprovalRequestsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listApprovalRequests>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListApprovalRequestsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateApprovalRequestUrl = () => {
+
+
+
+
+  return `/api/auto-post/approval-requests`
+}
+
+/**
+ * @summary Submit a draft for approval
+ */
+export const createApprovalRequest = async (createApprovalRequestBody: CreateApprovalRequestBody, options?: RequestInit): Promise<ApprovalRequest> => {
+
+  return customFetch<ApprovalRequest>(getCreateApprovalRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createApprovalRequestBody)
+  }
+);}
+
+
+
+
+export const getCreateApprovalRequestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApprovalRequest>>, TError,{data: BodyType<CreateApprovalRequestBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createApprovalRequest>>, TError,{data: BodyType<CreateApprovalRequestBody>}, TContext> => {
+
+const mutationKey = ['createApprovalRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createApprovalRequest>>, {data: BodyType<CreateApprovalRequestBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createApprovalRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateApprovalRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createApprovalRequest>>>
+    export type CreateApprovalRequestMutationBody = BodyType<CreateApprovalRequestBody>
+    export type CreateApprovalRequestMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit a draft for approval
+ */
+export const useCreateApprovalRequest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createApprovalRequest>>, TError,{data: BodyType<CreateApprovalRequestBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createApprovalRequest>>,
+        TError,
+        {data: BodyType<CreateApprovalRequestBody>},
+        TContext
+      > => {
+      return useMutation(getCreateApprovalRequestMutationOptions(options));
+    }
+
+export const getReviewApprovalRequestUrl = (id: number,) => {
+
+
+
+
+  return `/api/auto-post/approval-requests/${id}`
+}
+
+/**
+ * @summary Approve, reject, or request edit on an approval request
+ */
+export const reviewApprovalRequest = async (id: number,
+    reviewApprovalRequestBody: ReviewApprovalRequestBody, options?: RequestInit): Promise<ApprovalRequest> => {
+
+  return customFetch<ApprovalRequest>(getReviewApprovalRequestUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reviewApprovalRequestBody)
+  }
+);}
+
+
+
+
+export const getReviewApprovalRequestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewApprovalRequest>>, TError,{id: number;data: BodyType<ReviewApprovalRequestBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewApprovalRequest>>, TError,{id: number;data: BodyType<ReviewApprovalRequestBody>}, TContext> => {
+
+const mutationKey = ['reviewApprovalRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewApprovalRequest>>, {id: number;data: BodyType<ReviewApprovalRequestBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewApprovalRequest(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewApprovalRequestMutationResult = NonNullable<Awaited<ReturnType<typeof reviewApprovalRequest>>>
+    export type ReviewApprovalRequestMutationBody = BodyType<ReviewApprovalRequestBody>
+    export type ReviewApprovalRequestMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve, reject, or request edit on an approval request
+ */
+export const useReviewApprovalRequest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewApprovalRequest>>, TError,{id: number;data: BodyType<ReviewApprovalRequestBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewApprovalRequest>>,
+        TError,
+        {id: number;data: BodyType<ReviewApprovalRequestBody>},
+        TContext
+      > => {
+      return useMutation(getReviewApprovalRequestMutationOptions(options));
+    }
 
