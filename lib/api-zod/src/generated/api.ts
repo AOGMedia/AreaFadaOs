@@ -4636,3 +4636,547 @@ export const GetContentVelocityRecommendationsResponse = zod.object({
 })
 
 
+/**
+ * @summary List all fan profiles (admin view)
+ */
+export const ListFanProfilesQueryParams = zod.object({
+  "tier": zod.coerce.number().optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const ListFanProfilesResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "email": zod.string(),
+  "displayName": zod.string(),
+  "phone": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "instagramHandle": zod.string().nullish(),
+  "twitterHandle": zod.string().nullish(),
+  "tiktokHandle": zod.string().nullish(),
+  "referralCode": zod.string(),
+  "referredByCode": zod.string().nullish(),
+  "fanTier": zod.number(),
+  "totalPoints": zod.number(),
+  "referralCount": zod.number(),
+  "purchaseVerified": zod.boolean(),
+  "joinedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})
+export const ListFanProfilesResponse = zod.array(ListFanProfilesResponseItem)
+
+
+/**
+ * @summary Register a new fan profile
+ */
+export const RegisterFanProfileBody = zod.object({
+  "email": zod.string(),
+  "displayName": zod.string(),
+  "phone": zod.string().optional(),
+  "state": zod.string().optional(),
+  "instagramHandle": zod.string().optional(),
+  "twitterHandle": zod.string().optional(),
+  "tiktokHandle": zod.string().optional(),
+  "referredByCode": zod.string().optional()
+})
+
+export const RegisterFanProfileResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "email": zod.string(),
+  "displayName": zod.string(),
+  "phone": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "instagramHandle": zod.string().nullish(),
+  "twitterHandle": zod.string().nullish(),
+  "tiktokHandle": zod.string().nullish(),
+  "referralCode": zod.string(),
+  "referredByCode": zod.string().nullish(),
+  "fanTier": zod.number(),
+  "totalPoints": zod.number(),
+  "referralCount": zod.number(),
+  "purchaseVerified": zod.boolean(),
+  "joinedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get my fan profile
+ */
+export const GetMyFanProfileResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "email": zod.string(),
+  "displayName": zod.string(),
+  "phone": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "instagramHandle": zod.string().nullish(),
+  "twitterHandle": zod.string().nullish(),
+  "tiktokHandle": zod.string().nullish(),
+  "referralCode": zod.string(),
+  "referredByCode": zod.string().nullish(),
+  "fanTier": zod.number(),
+  "totalPoints": zod.number(),
+  "referralCount": zod.number(),
+  "purchaseVerified": zod.boolean(),
+  "joinedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a fan profile (admin — e.g. verify purchase, force tier)
+ */
+export const UpdateFanProfileParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateFanProfileBody = zod.object({
+  "purchaseVerified": zod.boolean().optional(),
+  "fanTier": zod.number().optional(),
+  "state": zod.string().optional(),
+  "phone": zod.string().optional(),
+  "instagramHandle": zod.string().optional(),
+  "twitterHandle": zod.string().optional(),
+  "tiktokHandle": zod.string().optional()
+})
+
+export const UpdateFanProfileResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "email": zod.string(),
+  "displayName": zod.string(),
+  "phone": zod.string().nullish(),
+  "state": zod.string().nullish(),
+  "instagramHandle": zod.string().nullish(),
+  "twitterHandle": zod.string().nullish(),
+  "tiktokHandle": zod.string().nullish(),
+  "referralCode": zod.string(),
+  "referredByCode": zod.string().nullish(),
+  "fanTier": zod.number(),
+  "totalPoints": zod.number(),
+  "referralCount": zod.number(),
+  "purchaseVerified": zod.boolean(),
+  "joinedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get public fan leaderboard ranked by score
+ */
+export const GetFanLeaderboardResponseItem = zod.object({
+  "rank": zod.number(),
+  "fanProfileId": zod.number(),
+  "displayName": zod.string(),
+  "state": zod.string().nullish(),
+  "fanTier": zod.number(),
+  "totalPoints": zod.number(),
+  "referralCount": zod.number(),
+  "purchaseVerified": zod.boolean()
+})
+export const GetFanLeaderboardResponse = zod.array(GetFanLeaderboardResponseItem)
+
+
+/**
+ * @summary List fan challenges
+ */
+export const ListFanChallengesQueryParams = zod.object({
+  "status": zod.coerce.string().optional()
+})
+
+export const ListFanChallengesResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "pointValue": zod.number(),
+  "deadline": zod.coerce.date().nullish(),
+  "proofType": zod.string(),
+  "status": zod.string(),
+  "participantCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListFanChallengesResponse = zod.array(ListFanChallengesResponseItem)
+
+
+/**
+ * @summary Create a fan challenge / mission (admin)
+ */
+export const CreateFanChallengeBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "pointValue": zod.number().optional(),
+  "deadline": zod.coerce.date().optional(),
+  "proofType": zod.string().optional(),
+  "status": zod.string().optional()
+})
+
+export const CreateFanChallengeResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "pointValue": zod.number(),
+  "deadline": zod.coerce.date().nullish(),
+  "proofType": zod.string(),
+  "status": zod.string(),
+  "participantCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a fan challenge (admin)
+ */
+export const UpdateFanChallengeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateFanChallengeBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "pointValue": zod.number().optional(),
+  "deadline": zod.coerce.date().optional(),
+  "proofType": zod.string().optional(),
+  "status": zod.string().optional()
+})
+
+export const UpdateFanChallengeResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "pointValue": zod.number(),
+  "deadline": zod.coerce.date().nullish(),
+  "proofType": zod.string(),
+  "status": zod.string(),
+  "participantCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a fan challenge (admin)
+ */
+export const DeleteFanChallengeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteFanChallengeResponse = zod.void()
+
+
+/**
+ * @summary Submit proof for a fan challenge
+ */
+export const SubmitChallengeProofParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SubmitChallengeProofBody = zod.object({
+  "proofText": zod.string().optional(),
+  "proofUrl": zod.string().optional(),
+  "fanProfileId": zod.number().optional()
+})
+
+export const SubmitChallengeProofResponse = zod.object({
+  "id": zod.number(),
+  "challengeId": zod.number(),
+  "fanProfileId": zod.number(),
+  "userId": zod.number(),
+  "fanDisplayName": zod.string().nullish(),
+  "challengeTitle": zod.string().nullish(),
+  "proofText": zod.string().nullish(),
+  "proofUrl": zod.string().nullish(),
+  "status": zod.string(),
+  "reviewNote": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List all challenge submissions (admin approval queue)
+ */
+export const ListChallengeSubmissionsQueryParams = zod.object({
+  "status": zod.coerce.string().optional()
+})
+
+export const ListChallengeSubmissionsResponseItem = zod.object({
+  "id": zod.number(),
+  "challengeId": zod.number(),
+  "fanProfileId": zod.number(),
+  "userId": zod.number(),
+  "fanDisplayName": zod.string().nullish(),
+  "challengeTitle": zod.string().nullish(),
+  "proofText": zod.string().nullish(),
+  "proofUrl": zod.string().nullish(),
+  "status": zod.string(),
+  "reviewNote": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListChallengeSubmissionsResponse = zod.array(ListChallengeSubmissionsResponseItem)
+
+
+/**
+ * @summary Approve or reject a submission (admin)
+ */
+export const ReviewChallengeSubmissionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReviewChallengeSubmissionBody = zod.object({
+  "status": zod.enum(['approved', 'rejected']),
+  "reviewNote": zod.string().optional()
+})
+
+export const ReviewChallengeSubmissionResponse = zod.object({
+  "id": zod.number(),
+  "challengeId": zod.number(),
+  "fanProfileId": zod.number(),
+  "userId": zod.number(),
+  "fanDisplayName": zod.string().nullish(),
+  "challengeTitle": zod.string().nullish(),
+  "proofText": zod.string().nullish(),
+  "proofUrl": zod.string().nullish(),
+  "status": zod.string(),
+  "reviewNote": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List content vault items (filtered by fan tier)
+ */
+export const ListVaultItemsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "contentType": zod.string(),
+  "accessTier": zod.number(),
+  "contentUrl": zod.string().nullish(),
+  "thumbnailUrl": zod.string().nullish(),
+  "fileSize": zod.string().nullish(),
+  "downloadCount": zod.number(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+export const ListVaultItemsResponse = zod.array(ListVaultItemsResponseItem)
+
+
+/**
+ * @summary Add a content vault item (admin)
+ */
+export const CreateVaultItemBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "contentType": zod.string(),
+  "accessTier": zod.number(),
+  "contentUrl": zod.string().optional(),
+  "thumbnailUrl": zod.string().optional(),
+  "fileSize": zod.string().optional(),
+  "active": zod.boolean().optional()
+})
+
+export const CreateVaultItemResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "contentType": zod.string(),
+  "accessTier": zod.number(),
+  "contentUrl": zod.string().nullish(),
+  "thumbnailUrl": zod.string().nullish(),
+  "fileSize": zod.string().nullish(),
+  "downloadCount": zod.number(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a vault item (admin)
+ */
+export const UpdateVaultItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateVaultItemBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "contentType": zod.string(),
+  "accessTier": zod.number(),
+  "contentUrl": zod.string().optional(),
+  "thumbnailUrl": zod.string().optional(),
+  "fileSize": zod.string().optional(),
+  "active": zod.boolean().optional()
+})
+
+export const UpdateVaultItemResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "contentType": zod.string(),
+  "accessTier": zod.number(),
+  "contentUrl": zod.string().nullish(),
+  "thumbnailUrl": zod.string().nullish(),
+  "fileSize": zod.string().nullish(),
+  "downloadCount": zod.number(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a vault item (admin)
+ */
+export const DeleteVaultItemParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteVaultItemResponse = zod.void()
+
+
+/**
+ * @summary List merch discount codes (admin)
+ */
+export const ListMerchCodesResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "fanProfileId": zod.number(),
+  "fanDisplayName": zod.string().nullish(),
+  "code": zod.string(),
+  "discountPercent": zod.number(),
+  "used": zod.boolean(),
+  "usedAt": zod.coerce.date().nullish(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListMerchCodesResponse = zod.array(ListMerchCodesResponseItem)
+
+
+/**
+ * @summary Generate a merch discount code for a Tier 3+ fan (admin)
+ */
+export const GenerateMerchCodeBody = zod.object({
+  "fanProfileId": zod.number(),
+  "discountPercent": zod.number().optional(),
+  "expiresAt": zod.coerce.date().optional()
+})
+
+export const GenerateMerchCodeResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "fanProfileId": zod.number(),
+  "fanDisplayName": zod.string().nullish(),
+  "code": zod.string(),
+  "discountPercent": zod.number(),
+  "used": zod.boolean(),
+  "usedAt": zod.coerce.date().nullish(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List OG invite list (admin)
+ */
+export const ListOgInvitesResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "fanProfileId": zod.number(),
+  "fanDisplayName": zod.string().nullish(),
+  "fanTier": zod.number().nullish(),
+  "totalPoints": zod.number().nullish(),
+  "status": zod.string(),
+  "inviteLink": zod.string().nullish(),
+  "invitedAt": zod.coerce.date().nullish(),
+  "lastActiveAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListOgInvitesResponse = zod.array(ListOgInvitesResponseItem)
+
+
+/**
+ * @summary Generate personal invite link for a top fan (admin)
+ */
+export const InviteOgMemberBody = zod.object({
+  "fanProfileId": zod.number(),
+  "notes": zod.string().optional()
+})
+
+export const InviteOgMemberResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "fanProfileId": zod.number(),
+  "fanDisplayName": zod.string().nullish(),
+  "fanTier": zod.number().nullish(),
+  "totalPoints": zod.number().nullish(),
+  "status": zod.string(),
+  "inviteLink": zod.string().nullish(),
+  "invitedAt": zod.coerce.date().nullish(),
+  "lastActiveAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update OG invite status / notes (admin)
+ */
+export const UpdateOgInviteParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateOgInviteBody = zod.object({
+  "status": zod.string().optional(),
+  "notes": zod.string().optional(),
+  "lastActiveAt": zod.coerce.date().optional()
+})
+
+export const UpdateOgInviteResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "fanProfileId": zod.number(),
+  "fanDisplayName": zod.string().nullish(),
+  "fanTier": zod.number().nullish(),
+  "totalPoints": zod.number().nullish(),
+  "status": zod.string(),
+  "inviteLink": zod.string().nullish(),
+  "invitedAt": zod.coerce.date().nullish(),
+  "lastActiveAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Fan Hub analytics overview (admin)
+ */
+export const GetFanHubAnalyticsResponse = zod.object({
+  "totalFans": zod.number(),
+  "fansByTier": zod.record(zod.string(), zod.number()),
+  "weeklySignups": zod.array(zod.object({
+  "week": zod.string(),
+  "count": zod.number()
+})),
+  "topChallenges": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "participantCount": zod.number()
+})),
+  "popularVaultItems": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "downloadCount": zod.number()
+})),
+  "referralConversionRate": zod.string()
+})
+
+

@@ -11,6 +11,7 @@ import liveVideoRouter from "./live-video";
 import clipEngineRouter from "./clip-engine";
 import autoPostRouter from "./auto-post";
 import trafficRouter from "./traffic";
+import fanHubRouter from "./fan-hub";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(liveVideoRouter);
 router.use(clipEngineRouter);
 router.use(autoPostRouter);
 router.use(trafficRouter);
+router.use(fanHubRouter);
 
 export default router;

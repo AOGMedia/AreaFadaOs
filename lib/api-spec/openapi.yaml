@@ -35,6 +35,9 @@ tags:
   - name: traffic
     description: Traffic Generator & Traffic Engine — campaign management, multi-channel activation, Meta Ads Africa presets, WhatsApp blasts, influencer activation, growth snapshots, viral hook library, SEO content engine, content velocity recommender
 
+  - name: fanHub
+    description: Charly Boy Area Fada Fan Hub — fan profiles, tier qualification, leaderboard, challenges, content vault, merch codes, OG invites, fan analytics
+
 paths:
   /healthz:
     get:
@@ -3794,6 +3797,430 @@ paths:
               schema:
                 $ref: "#/components/schemas/ContentVelocityReport"
 
+  # ─── Fan Hub ─────────────────────────────────────────────────────────────────
+
+  /fan-hub/profiles:
+    get:
+      operationId: listFanProfiles
+      tags: [fanHub]
+      summary: List all fan profiles (admin view)
+      parameters:
+        - name: tier
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Fan profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FanProfile"
+    post:
+      operationId: registerFanProfile
+      tags: [fanHub]
+      summary: Register a new fan profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterFanBody"
+      responses:
+        "201":
+          description: Created fan profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanProfile"
+
+  /fan-hub/profiles/me:
+    get:
+      operationId: getMyFanProfile
+      tags: [fanHub]
+      summary: Get my fan profile
+      responses:
+        "200":
+          description: My fan profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanProfile"
+        "404":
+          description: Not registered
+
+  /fan-hub/profiles/{id}:
+    patch:
+      operationId: updateFanProfile
+      tags: [fanHub]
+      summary: Update a fan profile (admin — e.g. verify purchase, force tier)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFanProfileBody"
+      responses:
+        "200":
+          description: Updated fan profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanProfile"
+
+  /fan-hub/leaderboard:
+    get:
+      operationId: getFanLeaderboard
+      tags: [fanHub]
+      summary: Get public fan leaderboard ranked by score
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FanLeaderboardEntry"
+
+  /fan-hub/challenges:
+    get:
+      operationId: listFanChallenges
+      tags: [fanHub]
+      summary: List fan challenges
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Challenges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FanChallenge"
+    post:
+      operationId: createFanChallenge
+      tags: [fanHub]
+      summary: Create a fan challenge / mission (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFanChallengeBody"
+      responses:
+        "201":
+          description: Created challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanChallenge"
+
+  /fan-hub/challenges/{id}:
+    patch:
+      operationId: updateFanChallenge
+      tags: [fanHub]
+      summary: Update a fan challenge (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFanChallengeBody"
+      responses:
+        "200":
+          description: Updated challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanChallenge"
+    delete:
+      operationId: deleteFanChallenge
+      tags: [fanHub]
+      summary: Delete a fan challenge (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /fan-hub/challenges/{id}/submit:
+    post:
+      operationId: submitChallengeProof
+      tags: [fanHub]
+      summary: Submit proof for a fan challenge
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitChallengeProofBody"
+      responses:
+        "201":
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeSubmission"
+
+  /fan-hub/submissions:
+    get:
+      operationId: listChallengeSubmissions
+      tags: [fanHub]
+      summary: List all challenge submissions (admin approval queue)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChallengeSubmission"
+
+  /fan-hub/submissions/{id}/review:
+    patch:
+      operationId: reviewChallengeSubmission
+      tags: [fanHub]
+      summary: Approve or reject a submission (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewSubmissionBody"
+      responses:
+        "200":
+          description: Reviewed submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeSubmission"
+
+  /fan-hub/vault:
+    get:
+      operationId: listVaultItems
+      tags: [fanHub]
+      summary: List content vault items (filtered by fan tier)
+      responses:
+        "200":
+          description: Vault items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VaultItem"
+    post:
+      operationId: createVaultItem
+      tags: [fanHub]
+      summary: Add a content vault item (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVaultItemBody"
+      responses:
+        "201":
+          description: Created vault item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultItem"
+
+  /fan-hub/vault/{id}:
+    patch:
+      operationId: updateVaultItem
+      tags: [fanHub]
+      summary: Update a vault item (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVaultItemBody"
+      responses:
+        "200":
+          description: Updated vault item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultItem"
+    delete:
+      operationId: deleteVaultItem
+      tags: [fanHub]
+      summary: Delete a vault item (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /fan-hub/merch-codes:
+    get:
+      operationId: listMerchCodes
+      tags: [fanHub]
+      summary: List merch discount codes (admin)
+      responses:
+        "200":
+          description: Merch codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MerchDiscountCode"
+
+  /fan-hub/merch-codes/generate:
+    post:
+      operationId: generateMerchCode
+      tags: [fanHub]
+      summary: Generate a merch discount code for a Tier 3+ fan (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateMerchCodeBody"
+      responses:
+        "201":
+          description: Generated code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchDiscountCode"
+
+  /fan-hub/og-list:
+    get:
+      operationId: listOgInvites
+      tags: [fanHub]
+      summary: List OG invite list (admin)
+      responses:
+        "200":
+          description: OG invite list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OgInvite"
+
+  /fan-hub/og-list/invite:
+    post:
+      operationId: inviteOgMember
+      tags: [fanHub]
+      summary: Generate personal invite link for a top fan (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteOgMemberBody"
+      responses:
+        "201":
+          description: OG invite created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OgInvite"
+
+  /fan-hub/og-list/{id}:
+    patch:
+      operationId: updateOgInvite
+      tags: [fanHub]
+      summary: Update OG invite status / notes (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOgInviteBody"
+      responses:
+        "200":
+          description: Updated OG invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OgInvite"
+
+  /fan-hub/analytics:
+    get:
+      operationId: getFanHubAnalytics
+      tags: [fanHub]
+      summary: Fan Hub analytics overview (admin)
+      responses:
+        "200":
+          description: Fan analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanHubAnalytics"
+
+
+
+
+
+
 components:
   schemas:
     HealthStatus:
@@ -7177,3 +7604,420 @@ components:
         generatedAt:
           type: string
           format: date-time
+    # ─── Fan Hub Schemas ────────────────────────────────────────────────────────
+
+    FanProfile:
+      type: object
+      required: [id, userId, email, displayName, referralCode, fanTier, totalPoints, referralCount, purchaseVerified, joinedAt, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        email:
+          type: string
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        instagramHandle:
+          type: string
+          nullable: true
+        twitterHandle:
+          type: string
+          nullable: true
+        tiktokHandle:
+          type: string
+          nullable: true
+        referralCode:
+          type: string
+        referredByCode:
+          type: string
+          nullable: true
+        fanTier:
+          type: integer
+        totalPoints:
+          type: integer
+        referralCount:
+          type: integer
+        purchaseVerified:
+          type: boolean
+        joinedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    RegisterFanBody:
+      type: object
+      required: [email, displayName]
+      properties:
+        email:
+          type: string
+        displayName:
+          type: string
+        phone:
+          type: string
+        state:
+          type: string
+        instagramHandle:
+          type: string
+        twitterHandle:
+          type: string
+        tiktokHandle:
+          type: string
+        referredByCode:
+          type: string
+
+    UpdateFanProfileBody:
+      type: object
+      properties:
+        purchaseVerified:
+          type: boolean
+        fanTier:
+          type: integer
+        state:
+          type: string
+        phone:
+          type: string
+        instagramHandle:
+          type: string
+        twitterHandle:
+          type: string
+        tiktokHandle:
+          type: string
+
+    FanLeaderboardEntry:
+      type: object
+      required: [rank, fanProfileId, displayName, fanTier, totalPoints, referralCount, purchaseVerified]
+      properties:
+        rank:
+          type: integer
+        fanProfileId:
+          type: integer
+        displayName:
+          type: string
+        state:
+          type: string
+          nullable: true
+        fanTier:
+          type: integer
+        totalPoints:
+          type: integer
+        referralCount:
+          type: integer
+        purchaseVerified:
+          type: boolean
+
+    FanChallenge:
+      type: object
+      required: [id, userId, title, pointValue, proofType, status, participantCount, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        pointValue:
+          type: integer
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        proofType:
+          type: string
+        status:
+          type: string
+        participantCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateFanChallengeBody:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        pointValue:
+          type: integer
+        deadline:
+          type: string
+          format: date-time
+        proofType:
+          type: string
+        status:
+          type: string
+
+    ChallengeSubmission:
+      type: object
+      required: [id, challengeId, fanProfileId, userId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        challengeId:
+          type: integer
+        fanProfileId:
+          type: integer
+        userId:
+          type: integer
+        fanDisplayName:
+          type: string
+          nullable: true
+        challengeTitle:
+          type: string
+          nullable: true
+        proofText:
+          type: string
+          nullable: true
+        proofUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+        reviewNote:
+          type: string
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    SubmitChallengeProofBody:
+      type: object
+      properties:
+        proofText:
+          type: string
+        proofUrl:
+          type: string
+        fanProfileId:
+          type: integer
+
+    ReviewSubmissionBody:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+        reviewNote:
+          type: string
+
+    VaultItem:
+      type: object
+      required: [id, userId, title, contentType, accessTier, downloadCount, active, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        contentType:
+          type: string
+        accessTier:
+          type: integer
+        contentUrl:
+          type: string
+          nullable: true
+        thumbnailUrl:
+          type: string
+          nullable: true
+        fileSize:
+          type: string
+          nullable: true
+        downloadCount:
+          type: integer
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateVaultItemBody:
+      type: object
+      required: [title, contentType, accessTier]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        contentType:
+          type: string
+        accessTier:
+          type: integer
+        contentUrl:
+          type: string
+        thumbnailUrl:
+          type: string
+        fileSize:
+          type: string
+        active:
+          type: boolean
+
+    MerchDiscountCode:
+      type: object
+      required: [id, userId, fanProfileId, code, discountPercent, used, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        fanProfileId:
+          type: integer
+        fanDisplayName:
+          type: string
+          nullable: true
+        code:
+          type: string
+        discountPercent:
+          type: integer
+        used:
+          type: boolean
+        usedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    GenerateMerchCodeBody:
+      type: object
+      required: [fanProfileId]
+      properties:
+        fanProfileId:
+          type: integer
+        discountPercent:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+
+    OgInvite:
+      type: object
+      required: [id, userId, fanProfileId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        fanProfileId:
+          type: integer
+        fanDisplayName:
+          type: string
+          nullable: true
+        fanTier:
+          type: integer
+          nullable: true
+        totalPoints:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        inviteLink:
+          type: string
+          nullable: true
+        invitedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastActiveAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    InviteOgMemberBody:
+      type: object
+      required: [fanProfileId]
+      properties:
+        fanProfileId:
+          type: integer
+        notes:
+          type: string
+
+    UpdateOgInviteBody:
+      type: object
+      properties:
+        status:
+          type: string
+        notes:
+          type: string
+        lastActiveAt:
+          type: string
+          format: date-time
+
+    FanHubAnalytics:
+      type: object
+      required: [totalFans, fansByTier, weeklySignups, topChallenges, popularVaultItems, referralConversionRate]
+      properties:
+        totalFans:
+          type: integer
+        fansByTier:
+          type: object
+          additionalProperties:
+            type: integer
+        weeklySignups:
+          type: array
+          items:
+            type: object
+            required: [week, count]
+            properties:
+              week:
+                type: string
+              count:
+                type: integer
+        topChallenges:
+          type: array
+          items:
+            type: object
+            required: [id, title, participantCount]
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              participantCount:
+                type: integer
+        popularVaultItems:
+          type: array
+          items:
+            type: object
+            required: [id, title, downloadCount]
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              downloadCount:
+                type: integer
+        referralConversionRate:
+          type: string

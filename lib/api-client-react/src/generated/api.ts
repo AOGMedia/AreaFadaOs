@@ -45,6 +45,7 @@ import type {
   CalendarEntry,
   Campaign,
   CampaignChannel,
+  ChallengeSubmission,
   CheckChatModeration200,
   Clip,
   ClipAccount,
@@ -70,6 +71,7 @@ import type {
   CreateClipAccountRequest,
   CreateClipRequest,
   CreateClipScheduleRequest,
+  CreateFanChallengeBody,
   CreateGamificationConfigBody,
   CreateGrowthSnapshotBody,
   CreateHookEntryBody,
@@ -86,15 +88,21 @@ import type {
   CreateSourceVideoRequest,
   CreateTrafficCampaignBody,
   CreateTrafficEventBody,
+  CreateVaultItemBody,
   DashboardSummary,
   DistributeVideoRequest,
   DistributeVideoResponse,
   DripScheduleResult,
+  FanChallenge,
+  FanHubAnalytics,
+  FanLeaderboardEntry,
+  FanProfile,
   GamificationConfig,
   GenerateCaptionResponse,
   GenerateCaptionsBody,
   GenerateCaptionsResponse,
   GenerateClipCaptionBody,
+  GenerateMerchCodeBody,
   GenerateOutreach200,
   GenerateOutreachBody,
   GeneratePaymentLinkBody,
@@ -120,6 +128,7 @@ import type {
   HypeScheduleResponse,
   InfluencerActivation,
   InfluencerActivationRecord,
+  InviteOgMemberBody,
   Invoice,
   InvoiceDetail,
   ListAffiliateCommissionsParams,
@@ -127,9 +136,12 @@ import type {
   ListApprovalRequestsParams,
   ListBrandDealsParams,
   ListBrandOverlayConfigsParams,
+  ListChallengeSubmissionsParams,
   ListClipPerformanceParams,
   ListClipSchedulesParams,
   ListClipsParams,
+  ListFanChallengesParams,
+  ListFanProfilesParams,
   ListGrowthSnapshotsParams,
   ListHookLibraryParams,
   ListInvoicesParams,
@@ -148,9 +160,11 @@ import type {
   LiveSession,
   LogBroadcastBody,
   LogClipPerformanceRequest,
+  MerchDiscountCode,
   MetaAudiencePreset,
   MicroInfluencer,
   ModerateLiveChatMessageBody,
+  OgInvite,
   PaymentLinkResponse,
   PaymentReminder,
   PlatformAccount,
@@ -175,15 +189,18 @@ import type {
   QueueReplayDistribution200,
   QueueReplayDistributionBody,
   RecyclePostBody,
+  RegisterFanBody,
   RegisterLiveReminder201,
   RegisterLiveReminderBody,
   RetryPublishJob200,
   RevenueWaterfall,
   ReviewApprovalRequestBody,
+  ReviewSubmissionBody,
   ReviewVerificationBody,
   SendLiveReminders200,
   SeoContentPiece,
   SourceVideo,
+  SubmitChallengeProofBody,
   SubmitPurchaseVerification201,
   SubmitVerificationBody,
   TierInfo,
@@ -193,16 +210,19 @@ import type {
   UpdateCampaignChannelBody,
   UpdateClipRequest,
   UpdateClipScheduleRequest,
+  UpdateFanProfileBody,
   UpdateGrowthSnapshotAlertBody,
   UpdateInfluencerActivationBody,
   UpdateLivePlatformConfigBody,
   UpdateLiveSessionBody,
   UpdateModerationRuleBody,
+  UpdateOgInviteBody,
   UpdatePostBody,
   UpdatePostDraftBody,
   UpdateTrafficCampaignBody,
   UserProfile,
   UserProfileUpdate,
+  VaultItem,
   WeeklyDigest,
   WhatsappBroadcast
 } from './api.schemas';
@@ -13421,6 +13441,1636 @@ export function useGetContentVelocityRecommendations<TData = Awaited<ReturnType<
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetContentVelocityRecommendationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListFanProfilesUrl = (params?: ListFanProfilesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/fan-hub/profiles?${stringifiedParams}` : `/api/fan-hub/profiles`
+}
+
+/**
+ * @summary List all fan profiles (admin view)
+ */
+export const listFanProfiles = async (params?: ListFanProfilesParams, options?: RequestInit): Promise<FanProfile[]> => {
+
+  return customFetch<FanProfile[]>(getListFanProfilesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFanProfilesQueryKey = (params?: ListFanProfilesParams,) => {
+    return [
+    `/api/fan-hub/profiles`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListFanProfilesQueryOptions = <TData = Awaited<ReturnType<typeof listFanProfiles>>, TError = ErrorType<unknown>>(params?: ListFanProfilesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFanProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFanProfilesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFanProfiles>>> = ({ signal }) => listFanProfiles(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFanProfiles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFanProfilesQueryResult = NonNullable<Awaited<ReturnType<typeof listFanProfiles>>>
+export type ListFanProfilesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all fan profiles (admin view)
+ */
+
+export function useListFanProfiles<TData = Awaited<ReturnType<typeof listFanProfiles>>, TError = ErrorType<unknown>>(
+ params?: ListFanProfilesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFanProfiles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFanProfilesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRegisterFanProfileUrl = () => {
+
+
+
+
+  return `/api/fan-hub/profiles`
+}
+
+/**
+ * @summary Register a new fan profile
+ */
+export const registerFanProfile = async (registerFanBody: RegisterFanBody, options?: RequestInit): Promise<FanProfile> => {
+
+  return customFetch<FanProfile>(getRegisterFanProfileUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(registerFanBody)
+  }
+);}
+
+
+
+
+export const getRegisterFanProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerFanProfile>>, TError,{data: BodyType<RegisterFanBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerFanProfile>>, TError,{data: BodyType<RegisterFanBody>}, TContext> => {
+
+const mutationKey = ['registerFanProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerFanProfile>>, {data: BodyType<RegisterFanBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerFanProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterFanProfileMutationResult = NonNullable<Awaited<ReturnType<typeof registerFanProfile>>>
+    export type RegisterFanProfileMutationBody = BodyType<RegisterFanBody>
+    export type RegisterFanProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Register a new fan profile
+ */
+export const useRegisterFanProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerFanProfile>>, TError,{data: BodyType<RegisterFanBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof registerFanProfile>>,
+        TError,
+        {data: BodyType<RegisterFanBody>},
+        TContext
+      > => {
+      return useMutation(getRegisterFanProfileMutationOptions(options));
+    }
+
+export const getGetMyFanProfileUrl = () => {
+
+
+
+
+  return `/api/fan-hub/profiles/me`
+}
+
+/**
+ * @summary Get my fan profile
+ */
+export const getMyFanProfile = async ( options?: RequestInit): Promise<FanProfile> => {
+
+  return customFetch<FanProfile>(getGetMyFanProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMyFanProfileQueryKey = () => {
+    return [
+    `/api/fan-hub/profiles/me`
+    ] as const;
+    }
+
+
+export const getGetMyFanProfileQueryOptions = <TData = Awaited<ReturnType<typeof getMyFanProfile>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyFanProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMyFanProfileQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyFanProfile>>> = ({ signal }) => getMyFanProfile({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyFanProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMyFanProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getMyFanProfile>>>
+export type GetMyFanProfileQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get my fan profile
+ */
+
+export function useGetMyFanProfile<TData = Awaited<ReturnType<typeof getMyFanProfile>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMyFanProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMyFanProfileQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateFanProfileUrl = (id: number,) => {
+
+
+
+
+  return `/api/fan-hub/profiles/${id}`
+}
+
+/**
+ * @summary Update a fan profile (admin — e.g. verify purchase, force tier)
+ */
+export const updateFanProfile = async (id: number,
+    updateFanProfileBody: UpdateFanProfileBody, options?: RequestInit): Promise<FanProfile> => {
+
+  return customFetch<FanProfile>(getUpdateFanProfileUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateFanProfileBody)
+  }
+);}
+
+
+
+
+export const getUpdateFanProfileMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFanProfile>>, TError,{id: number;data: BodyType<UpdateFanProfileBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFanProfile>>, TError,{id: number;data: BodyType<UpdateFanProfileBody>}, TContext> => {
+
+const mutationKey = ['updateFanProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFanProfile>>, {id: number;data: BodyType<UpdateFanProfileBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateFanProfile(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFanProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateFanProfile>>>
+    export type UpdateFanProfileMutationBody = BodyType<UpdateFanProfileBody>
+    export type UpdateFanProfileMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a fan profile (admin — e.g. verify purchase, force tier)
+ */
+export const useUpdateFanProfile = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFanProfile>>, TError,{id: number;data: BodyType<UpdateFanProfileBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFanProfile>>,
+        TError,
+        {id: number;data: BodyType<UpdateFanProfileBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateFanProfileMutationOptions(options));
+    }
+
+export const getGetFanLeaderboardUrl = () => {
+
+
+
+
+  return `/api/fan-hub/leaderboard`
+}
+
+/**
+ * @summary Get public fan leaderboard ranked by score
+ */
+export const getFanLeaderboard = async ( options?: RequestInit): Promise<FanLeaderboardEntry[]> => {
+
+  return customFetch<FanLeaderboardEntry[]>(getGetFanLeaderboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFanLeaderboardQueryKey = () => {
+    return [
+    `/api/fan-hub/leaderboard`
+    ] as const;
+    }
+
+
+export const getGetFanLeaderboardQueryOptions = <TData = Awaited<ReturnType<typeof getFanLeaderboard>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFanLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFanLeaderboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFanLeaderboard>>> = ({ signal }) => getFanLeaderboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFanLeaderboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFanLeaderboardQueryResult = NonNullable<Awaited<ReturnType<typeof getFanLeaderboard>>>
+export type GetFanLeaderboardQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get public fan leaderboard ranked by score
+ */
+
+export function useGetFanLeaderboard<TData = Awaited<ReturnType<typeof getFanLeaderboard>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFanLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFanLeaderboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListFanChallengesUrl = (params?: ListFanChallengesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/fan-hub/challenges?${stringifiedParams}` : `/api/fan-hub/challenges`
+}
+
+/**
+ * @summary List fan challenges
+ */
+export const listFanChallenges = async (params?: ListFanChallengesParams, options?: RequestInit): Promise<FanChallenge[]> => {
+
+  return customFetch<FanChallenge[]>(getListFanChallengesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFanChallengesQueryKey = (params?: ListFanChallengesParams,) => {
+    return [
+    `/api/fan-hub/challenges`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListFanChallengesQueryOptions = <TData = Awaited<ReturnType<typeof listFanChallenges>>, TError = ErrorType<unknown>>(params?: ListFanChallengesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFanChallenges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFanChallengesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFanChallenges>>> = ({ signal }) => listFanChallenges(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFanChallenges>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFanChallengesQueryResult = NonNullable<Awaited<ReturnType<typeof listFanChallenges>>>
+export type ListFanChallengesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List fan challenges
+ */
+
+export function useListFanChallenges<TData = Awaited<ReturnType<typeof listFanChallenges>>, TError = ErrorType<unknown>>(
+ params?: ListFanChallengesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFanChallenges>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFanChallengesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateFanChallengeUrl = () => {
+
+
+
+
+  return `/api/fan-hub/challenges`
+}
+
+/**
+ * @summary Create a fan challenge / mission (admin)
+ */
+export const createFanChallenge = async (createFanChallengeBody: CreateFanChallengeBody, options?: RequestInit): Promise<FanChallenge> => {
+
+  return customFetch<FanChallenge>(getCreateFanChallengeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createFanChallengeBody)
+  }
+);}
+
+
+
+
+export const getCreateFanChallengeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFanChallenge>>, TError,{data: BodyType<CreateFanChallengeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFanChallenge>>, TError,{data: BodyType<CreateFanChallengeBody>}, TContext> => {
+
+const mutationKey = ['createFanChallenge'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFanChallenge>>, {data: BodyType<CreateFanChallengeBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createFanChallenge(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFanChallengeMutationResult = NonNullable<Awaited<ReturnType<typeof createFanChallenge>>>
+    export type CreateFanChallengeMutationBody = BodyType<CreateFanChallengeBody>
+    export type CreateFanChallengeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a fan challenge / mission (admin)
+ */
+export const useCreateFanChallenge = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFanChallenge>>, TError,{data: BodyType<CreateFanChallengeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createFanChallenge>>,
+        TError,
+        {data: BodyType<CreateFanChallengeBody>},
+        TContext
+      > => {
+      return useMutation(getCreateFanChallengeMutationOptions(options));
+    }
+
+export const getUpdateFanChallengeUrl = (id: number,) => {
+
+
+
+
+  return `/api/fan-hub/challenges/${id}`
+}
+
+/**
+ * @summary Update a fan challenge (admin)
+ */
+export const updateFanChallenge = async (id: number,
+    createFanChallengeBody: CreateFanChallengeBody, options?: RequestInit): Promise<FanChallenge> => {
+
+  return customFetch<FanChallenge>(getUpdateFanChallengeUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createFanChallengeBody)
+  }
+);}
+
+
+
+
+export const getUpdateFanChallengeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFanChallenge>>, TError,{id: number;data: BodyType<CreateFanChallengeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateFanChallenge>>, TError,{id: number;data: BodyType<CreateFanChallengeBody>}, TContext> => {
+
+const mutationKey = ['updateFanChallenge'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateFanChallenge>>, {id: number;data: BodyType<CreateFanChallengeBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateFanChallenge(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateFanChallengeMutationResult = NonNullable<Awaited<ReturnType<typeof updateFanChallenge>>>
+    export type UpdateFanChallengeMutationBody = BodyType<CreateFanChallengeBody>
+    export type UpdateFanChallengeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a fan challenge (admin)
+ */
+export const useUpdateFanChallenge = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateFanChallenge>>, TError,{id: number;data: BodyType<CreateFanChallengeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateFanChallenge>>,
+        TError,
+        {id: number;data: BodyType<CreateFanChallengeBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateFanChallengeMutationOptions(options));
+    }
+
+export const getDeleteFanChallengeUrl = (id: number,) => {
+
+
+
+
+  return `/api/fan-hub/challenges/${id}`
+}
+
+/**
+ * @summary Delete a fan challenge (admin)
+ */
+export const deleteFanChallenge = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteFanChallengeUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteFanChallengeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFanChallenge>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFanChallenge>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteFanChallenge'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFanChallenge>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteFanChallenge(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFanChallengeMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFanChallenge>>>
+
+    export type DeleteFanChallengeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a fan challenge (admin)
+ */
+export const useDeleteFanChallenge = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFanChallenge>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFanChallenge>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteFanChallengeMutationOptions(options));
+    }
+
+export const getSubmitChallengeProofUrl = (id: number,) => {
+
+
+
+
+  return `/api/fan-hub/challenges/${id}/submit`
+}
+
+/**
+ * @summary Submit proof for a fan challenge
+ */
+export const submitChallengeProof = async (id: number,
+    submitChallengeProofBody: SubmitChallengeProofBody, options?: RequestInit): Promise<ChallengeSubmission> => {
+
+  return customFetch<ChallengeSubmission>(getSubmitChallengeProofUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submitChallengeProofBody)
+  }
+);}
+
+
+
+
+export const getSubmitChallengeProofMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitChallengeProof>>, TError,{id: number;data: BodyType<SubmitChallengeProofBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitChallengeProof>>, TError,{id: number;data: BodyType<SubmitChallengeProofBody>}, TContext> => {
+
+const mutationKey = ['submitChallengeProof'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitChallengeProof>>, {id: number;data: BodyType<SubmitChallengeProofBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  submitChallengeProof(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitChallengeProofMutationResult = NonNullable<Awaited<ReturnType<typeof submitChallengeProof>>>
+    export type SubmitChallengeProofMutationBody = BodyType<SubmitChallengeProofBody>
+    export type SubmitChallengeProofMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Submit proof for a fan challenge
+ */
+export const useSubmitChallengeProof = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitChallengeProof>>, TError,{id: number;data: BodyType<SubmitChallengeProofBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitChallengeProof>>,
+        TError,
+        {id: number;data: BodyType<SubmitChallengeProofBody>},
+        TContext
+      > => {
+      return useMutation(getSubmitChallengeProofMutationOptions(options));
+    }
+
+export const getListChallengeSubmissionsUrl = (params?: ListChallengeSubmissionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/fan-hub/submissions?${stringifiedParams}` : `/api/fan-hub/submissions`
+}
+
+/**
+ * @summary List all challenge submissions (admin approval queue)
+ */
+export const listChallengeSubmissions = async (params?: ListChallengeSubmissionsParams, options?: RequestInit): Promise<ChallengeSubmission[]> => {
+
+  return customFetch<ChallengeSubmission[]>(getListChallengeSubmissionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListChallengeSubmissionsQueryKey = (params?: ListChallengeSubmissionsParams,) => {
+    return [
+    `/api/fan-hub/submissions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListChallengeSubmissionsQueryOptions = <TData = Awaited<ReturnType<typeof listChallengeSubmissions>>, TError = ErrorType<unknown>>(params?: ListChallengeSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChallengeSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListChallengeSubmissionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listChallengeSubmissions>>> = ({ signal }) => listChallengeSubmissions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listChallengeSubmissions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListChallengeSubmissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listChallengeSubmissions>>>
+export type ListChallengeSubmissionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all challenge submissions (admin approval queue)
+ */
+
+export function useListChallengeSubmissions<TData = Awaited<ReturnType<typeof listChallengeSubmissions>>, TError = ErrorType<unknown>>(
+ params?: ListChallengeSubmissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChallengeSubmissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListChallengeSubmissionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReviewChallengeSubmissionUrl = (id: number,) => {
+
+
+
+
+  return `/api/fan-hub/submissions/${id}/review`
+}
+
+/**
+ * @summary Approve or reject a submission (admin)
+ */
+export const reviewChallengeSubmission = async (id: number,
+    reviewSubmissionBody: ReviewSubmissionBody, options?: RequestInit): Promise<ChallengeSubmission> => {
+
+  return customFetch<ChallengeSubmission>(getReviewChallengeSubmissionUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reviewSubmissionBody)
+  }
+);}
+
+
+
+
+export const getReviewChallengeSubmissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewChallengeSubmission>>, TError,{id: number;data: BodyType<ReviewSubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewChallengeSubmission>>, TError,{id: number;data: BodyType<ReviewSubmissionBody>}, TContext> => {
+
+const mutationKey = ['reviewChallengeSubmission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewChallengeSubmission>>, {id: number;data: BodyType<ReviewSubmissionBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewChallengeSubmission(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewChallengeSubmissionMutationResult = NonNullable<Awaited<ReturnType<typeof reviewChallengeSubmission>>>
+    export type ReviewChallengeSubmissionMutationBody = BodyType<ReviewSubmissionBody>
+    export type ReviewChallengeSubmissionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Approve or reject a submission (admin)
+ */
+export const useReviewChallengeSubmission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewChallengeSubmission>>, TError,{id: number;data: BodyType<ReviewSubmissionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewChallengeSubmission>>,
+        TError,
+        {id: number;data: BodyType<ReviewSubmissionBody>},
+        TContext
+      > => {
+      return useMutation(getReviewChallengeSubmissionMutationOptions(options));
+    }
+
+export const getListVaultItemsUrl = () => {
+
+
+
+
+  return `/api/fan-hub/vault`
+}
+
+/**
+ * @summary List content vault items (filtered by fan tier)
+ */
+export const listVaultItems = async ( options?: RequestInit): Promise<VaultItem[]> => {
+
+  return customFetch<VaultItem[]>(getListVaultItemsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListVaultItemsQueryKey = () => {
+    return [
+    `/api/fan-hub/vault`
+    ] as const;
+    }
+
+
+export const getListVaultItemsQueryOptions = <TData = Awaited<ReturnType<typeof listVaultItems>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVaultItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListVaultItemsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listVaultItems>>> = ({ signal }) => listVaultItems({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listVaultItems>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListVaultItemsQueryResult = NonNullable<Awaited<ReturnType<typeof listVaultItems>>>
+export type ListVaultItemsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List content vault items (filtered by fan tier)
+ */
+
+export function useListVaultItems<TData = Awaited<ReturnType<typeof listVaultItems>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listVaultItems>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListVaultItemsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateVaultItemUrl = () => {
+
+
+
+
+  return `/api/fan-hub/vault`
+}
+
+/**
+ * @summary Add a content vault item (admin)
+ */
+export const createVaultItem = async (createVaultItemBody: CreateVaultItemBody, options?: RequestInit): Promise<VaultItem> => {
+
+  return customFetch<VaultItem>(getCreateVaultItemUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createVaultItemBody)
+  }
+);}
+
+
+
+
+export const getCreateVaultItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVaultItem>>, TError,{data: BodyType<CreateVaultItemBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createVaultItem>>, TError,{data: BodyType<CreateVaultItemBody>}, TContext> => {
+
+const mutationKey = ['createVaultItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createVaultItem>>, {data: BodyType<CreateVaultItemBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createVaultItem(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateVaultItemMutationResult = NonNullable<Awaited<ReturnType<typeof createVaultItem>>>
+    export type CreateVaultItemMutationBody = BodyType<CreateVaultItemBody>
+    export type CreateVaultItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a content vault item (admin)
+ */
+export const useCreateVaultItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVaultItem>>, TError,{data: BodyType<CreateVaultItemBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createVaultItem>>,
+        TError,
+        {data: BodyType<CreateVaultItemBody>},
+        TContext
+      > => {
+      return useMutation(getCreateVaultItemMutationOptions(options));
+    }
+
+export const getUpdateVaultItemUrl = (id: number,) => {
+
+
+
+
+  return `/api/fan-hub/vault/${id}`
+}
+
+/**
+ * @summary Update a vault item (admin)
+ */
+export const updateVaultItem = async (id: number,
+    createVaultItemBody: CreateVaultItemBody, options?: RequestInit): Promise<VaultItem> => {
+
+  return customFetch<VaultItem>(getUpdateVaultItemUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createVaultItemBody)
+  }
+);}
+
+
+
+
+export const getUpdateVaultItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVaultItem>>, TError,{id: number;data: BodyType<CreateVaultItemBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateVaultItem>>, TError,{id: number;data: BodyType<CreateVaultItemBody>}, TContext> => {
+
+const mutationKey = ['updateVaultItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateVaultItem>>, {id: number;data: BodyType<CreateVaultItemBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateVaultItem(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateVaultItemMutationResult = NonNullable<Awaited<ReturnType<typeof updateVaultItem>>>
+    export type UpdateVaultItemMutationBody = BodyType<CreateVaultItemBody>
+    export type UpdateVaultItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a vault item (admin)
+ */
+export const useUpdateVaultItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateVaultItem>>, TError,{id: number;data: BodyType<CreateVaultItemBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateVaultItem>>,
+        TError,
+        {id: number;data: BodyType<CreateVaultItemBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateVaultItemMutationOptions(options));
+    }
+
+export const getDeleteVaultItemUrl = (id: number,) => {
+
+
+
+
+  return `/api/fan-hub/vault/${id}`
+}
+
+/**
+ * @summary Delete a vault item (admin)
+ */
+export const deleteVaultItem = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteVaultItemUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteVaultItemMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVaultItem>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteVaultItem>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteVaultItem'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteVaultItem>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteVaultItem(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteVaultItemMutationResult = NonNullable<Awaited<ReturnType<typeof deleteVaultItem>>>
+
+    export type DeleteVaultItemMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a vault item (admin)
+ */
+export const useDeleteVaultItem = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteVaultItem>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteVaultItem>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteVaultItemMutationOptions(options));
+    }
+
+export const getListMerchCodesUrl = () => {
+
+
+
+
+  return `/api/fan-hub/merch-codes`
+}
+
+/**
+ * @summary List merch discount codes (admin)
+ */
+export const listMerchCodes = async ( options?: RequestInit): Promise<MerchDiscountCode[]> => {
+
+  return customFetch<MerchDiscountCode[]>(getListMerchCodesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMerchCodesQueryKey = () => {
+    return [
+    `/api/fan-hub/merch-codes`
+    ] as const;
+    }
+
+
+export const getListMerchCodesQueryOptions = <TData = Awaited<ReturnType<typeof listMerchCodes>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMerchCodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMerchCodesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMerchCodes>>> = ({ signal }) => listMerchCodes({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMerchCodes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMerchCodesQueryResult = NonNullable<Awaited<ReturnType<typeof listMerchCodes>>>
+export type ListMerchCodesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List merch discount codes (admin)
+ */
+
+export function useListMerchCodes<TData = Awaited<ReturnType<typeof listMerchCodes>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMerchCodes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMerchCodesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGenerateMerchCodeUrl = () => {
+
+
+
+
+  return `/api/fan-hub/merch-codes/generate`
+}
+
+/**
+ * @summary Generate a merch discount code for a Tier 3+ fan (admin)
+ */
+export const generateMerchCode = async (generateMerchCodeBody: GenerateMerchCodeBody, options?: RequestInit): Promise<MerchDiscountCode> => {
+
+  return customFetch<MerchDiscountCode>(getGenerateMerchCodeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(generateMerchCodeBody)
+  }
+);}
+
+
+
+
+export const getGenerateMerchCodeMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateMerchCode>>, TError,{data: BodyType<GenerateMerchCodeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateMerchCode>>, TError,{data: BodyType<GenerateMerchCodeBody>}, TContext> => {
+
+const mutationKey = ['generateMerchCode'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateMerchCode>>, {data: BodyType<GenerateMerchCodeBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateMerchCode(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateMerchCodeMutationResult = NonNullable<Awaited<ReturnType<typeof generateMerchCode>>>
+    export type GenerateMerchCodeMutationBody = BodyType<GenerateMerchCodeBody>
+    export type GenerateMerchCodeMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate a merch discount code for a Tier 3+ fan (admin)
+ */
+export const useGenerateMerchCode = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateMerchCode>>, TError,{data: BodyType<GenerateMerchCodeBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateMerchCode>>,
+        TError,
+        {data: BodyType<GenerateMerchCodeBody>},
+        TContext
+      > => {
+      return useMutation(getGenerateMerchCodeMutationOptions(options));
+    }
+
+export const getListOgInvitesUrl = () => {
+
+
+
+
+  return `/api/fan-hub/og-list`
+}
+
+/**
+ * @summary List OG invite list (admin)
+ */
+export const listOgInvites = async ( options?: RequestInit): Promise<OgInvite[]> => {
+
+  return customFetch<OgInvite[]>(getListOgInvitesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOgInvitesQueryKey = () => {
+    return [
+    `/api/fan-hub/og-list`
+    ] as const;
+    }
+
+
+export const getListOgInvitesQueryOptions = <TData = Awaited<ReturnType<typeof listOgInvites>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOgInvites>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOgInvitesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOgInvites>>> = ({ signal }) => listOgInvites({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOgInvites>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOgInvitesQueryResult = NonNullable<Awaited<ReturnType<typeof listOgInvites>>>
+export type ListOgInvitesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List OG invite list (admin)
+ */
+
+export function useListOgInvites<TData = Awaited<ReturnType<typeof listOgInvites>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOgInvites>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOgInvitesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getInviteOgMemberUrl = () => {
+
+
+
+
+  return `/api/fan-hub/og-list/invite`
+}
+
+/**
+ * @summary Generate personal invite link for a top fan (admin)
+ */
+export const inviteOgMember = async (inviteOgMemberBody: InviteOgMemberBody, options?: RequestInit): Promise<OgInvite> => {
+
+  return customFetch<OgInvite>(getInviteOgMemberUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(inviteOgMemberBody)
+  }
+);}
+
+
+
+
+export const getInviteOgMemberMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inviteOgMember>>, TError,{data: BodyType<InviteOgMemberBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof inviteOgMember>>, TError,{data: BodyType<InviteOgMemberBody>}, TContext> => {
+
+const mutationKey = ['inviteOgMember'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof inviteOgMember>>, {data: BodyType<InviteOgMemberBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  inviteOgMember(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type InviteOgMemberMutationResult = NonNullable<Awaited<ReturnType<typeof inviteOgMember>>>
+    export type InviteOgMemberMutationBody = BodyType<InviteOgMemberBody>
+    export type InviteOgMemberMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate personal invite link for a top fan (admin)
+ */
+export const useInviteOgMember = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inviteOgMember>>, TError,{data: BodyType<InviteOgMemberBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof inviteOgMember>>,
+        TError,
+        {data: BodyType<InviteOgMemberBody>},
+        TContext
+      > => {
+      return useMutation(getInviteOgMemberMutationOptions(options));
+    }
+
+export const getUpdateOgInviteUrl = (id: number,) => {
+
+
+
+
+  return `/api/fan-hub/og-list/${id}`
+}
+
+/**
+ * @summary Update OG invite status / notes (admin)
+ */
+export const updateOgInvite = async (id: number,
+    updateOgInviteBody: UpdateOgInviteBody, options?: RequestInit): Promise<OgInvite> => {
+
+  return customFetch<OgInvite>(getUpdateOgInviteUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateOgInviteBody)
+  }
+);}
+
+
+
+
+export const getUpdateOgInviteMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOgInvite>>, TError,{id: number;data: BodyType<UpdateOgInviteBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOgInvite>>, TError,{id: number;data: BodyType<UpdateOgInviteBody>}, TContext> => {
+
+const mutationKey = ['updateOgInvite'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOgInvite>>, {id: number;data: BodyType<UpdateOgInviteBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateOgInvite(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOgInviteMutationResult = NonNullable<Awaited<ReturnType<typeof updateOgInvite>>>
+    export type UpdateOgInviteMutationBody = BodyType<UpdateOgInviteBody>
+    export type UpdateOgInviteMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update OG invite status / notes (admin)
+ */
+export const useUpdateOgInvite = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOgInvite>>, TError,{id: number;data: BodyType<UpdateOgInviteBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateOgInvite>>,
+        TError,
+        {id: number;data: BodyType<UpdateOgInviteBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateOgInviteMutationOptions(options));
+    }
+
+export const getGetFanHubAnalyticsUrl = () => {
+
+
+
+
+  return `/api/fan-hub/analytics`
+}
+
+/**
+ * @summary Fan Hub analytics overview (admin)
+ */
+export const getFanHubAnalytics = async ( options?: RequestInit): Promise<FanHubAnalytics> => {
+
+  return customFetch<FanHubAnalytics>(getGetFanHubAnalyticsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetFanHubAnalyticsQueryKey = () => {
+    return [
+    `/api/fan-hub/analytics`
+    ] as const;
+    }
+
+
+export const getGetFanHubAnalyticsQueryOptions = <TData = Awaited<ReturnType<typeof getFanHubAnalytics>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFanHubAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetFanHubAnalyticsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getFanHubAnalytics>>> = ({ signal }) => getFanHubAnalytics({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getFanHubAnalytics>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetFanHubAnalyticsQueryResult = NonNullable<Awaited<ReturnType<typeof getFanHubAnalytics>>>
+export type GetFanHubAnalyticsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Fan Hub analytics overview (admin)
+ */
+
+export function useGetFanHubAnalytics<TData = Awaited<ReturnType<typeof getFanHubAnalytics>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getFanHubAnalytics>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetFanHubAnalyticsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -1987,6 +1987,213 @@ export interface ContentVelocityReport {
   generatedAt?: string;
 }
 
+export interface FanProfile {
+  id: number;
+  userId: number;
+  email: string;
+  displayName: string;
+  phone?: string | null;
+  state?: string | null;
+  instagramHandle?: string | null;
+  twitterHandle?: string | null;
+  tiktokHandle?: string | null;
+  referralCode: string;
+  referredByCode?: string | null;
+  fanTier: number;
+  totalPoints: number;
+  referralCount: number;
+  purchaseVerified: boolean;
+  joinedAt: string;
+  createdAt: string;
+}
+
+export interface RegisterFanBody {
+  email: string;
+  displayName: string;
+  phone?: string;
+  state?: string;
+  instagramHandle?: string;
+  twitterHandle?: string;
+  tiktokHandle?: string;
+  referredByCode?: string;
+}
+
+export interface UpdateFanProfileBody {
+  purchaseVerified?: boolean;
+  fanTier?: number;
+  state?: string;
+  phone?: string;
+  instagramHandle?: string;
+  twitterHandle?: string;
+  tiktokHandle?: string;
+}
+
+export interface FanLeaderboardEntry {
+  rank: number;
+  fanProfileId: number;
+  displayName: string;
+  state?: string | null;
+  fanTier: number;
+  totalPoints: number;
+  referralCount: number;
+  purchaseVerified: boolean;
+}
+
+export interface FanChallenge {
+  id: number;
+  userId: number;
+  title: string;
+  description?: string | null;
+  pointValue: number;
+  deadline?: string | null;
+  proofType: string;
+  status: string;
+  participantCount: number;
+  createdAt: string;
+}
+
+export interface CreateFanChallengeBody {
+  title: string;
+  description?: string;
+  pointValue?: number;
+  deadline?: string;
+  proofType?: string;
+  status?: string;
+}
+
+export interface ChallengeSubmission {
+  id: number;
+  challengeId: number;
+  fanProfileId: number;
+  userId: number;
+  fanDisplayName?: string | null;
+  challengeTitle?: string | null;
+  proofText?: string | null;
+  proofUrl?: string | null;
+  status: string;
+  reviewNote?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+}
+
+export interface SubmitChallengeProofBody {
+  proofText?: string;
+  proofUrl?: string;
+  fanProfileId?: number;
+}
+
+export type ReviewSubmissionBodyStatus = typeof ReviewSubmissionBodyStatus[keyof typeof ReviewSubmissionBodyStatus];
+
+
+export const ReviewSubmissionBodyStatus = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface ReviewSubmissionBody {
+  status: ReviewSubmissionBodyStatus;
+  reviewNote?: string;
+}
+
+export interface VaultItem {
+  id: number;
+  userId: number;
+  title: string;
+  description?: string | null;
+  contentType: string;
+  accessTier: number;
+  contentUrl?: string | null;
+  thumbnailUrl?: string | null;
+  fileSize?: string | null;
+  downloadCount: number;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface CreateVaultItemBody {
+  title: string;
+  description?: string;
+  contentType: string;
+  accessTier: number;
+  contentUrl?: string;
+  thumbnailUrl?: string;
+  fileSize?: string;
+  active?: boolean;
+}
+
+export interface MerchDiscountCode {
+  id: number;
+  userId: number;
+  fanProfileId: number;
+  fanDisplayName?: string | null;
+  code: string;
+  discountPercent: number;
+  used: boolean;
+  usedAt?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+}
+
+export interface GenerateMerchCodeBody {
+  fanProfileId: number;
+  discountPercent?: number;
+  expiresAt?: string;
+}
+
+export interface OgInvite {
+  id: number;
+  userId: number;
+  fanProfileId: number;
+  fanDisplayName?: string | null;
+  fanTier?: number | null;
+  totalPoints?: number | null;
+  status: string;
+  inviteLink?: string | null;
+  invitedAt?: string | null;
+  lastActiveAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface InviteOgMemberBody {
+  fanProfileId: number;
+  notes?: string;
+}
+
+export interface UpdateOgInviteBody {
+  status?: string;
+  notes?: string;
+  lastActiveAt?: string;
+}
+
+export type FanHubAnalyticsFansByTier = {[key: string]: number};
+
+export type FanHubAnalyticsWeeklySignupsItem = {
+  week: string;
+  count: number;
+};
+
+export type FanHubAnalyticsTopChallengesItem = {
+  id: number;
+  title: string;
+  participantCount: number;
+};
+
+export type FanHubAnalyticsPopularVaultItemsItem = {
+  id: number;
+  title: string;
+  downloadCount: number;
+};
+
+export interface FanHubAnalytics {
+  totalFans: number;
+  fansByTier: FanHubAnalyticsFansByTier;
+  weeklySignups: FanHubAnalyticsWeeklySignupsItem[];
+  topChallenges: FanHubAnalyticsTopChallengesItem[];
+  popularVaultItems: FanHubAnalyticsPopularVaultItemsItem[];
+  referralConversionRate: string;
+}
+
 export type ListPostsParams = {
 status?: ListPostsStatus;
 campaignId?: number;
@@ -2393,5 +2600,18 @@ export type PublishSeoContentToCalendarBody = {
 export type PublishSeoContentToCalendar200 = {
   post?: Post;
   piece?: SeoContentPiece;
+};
+
+export type ListFanProfilesParams = {
+tier?: number;
+search?: string;
+};
+
+export type ListFanChallengesParams = {
+status?: string;
+};
+
+export type ListChallengeSubmissionsParams = {
+status?: string;
 };
 

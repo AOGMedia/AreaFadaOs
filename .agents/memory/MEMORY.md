@@ -4,3 +4,4 @@
 - [Ambassador CRM](ambassador-crm.md) — 8 tables, 18 API routes, 6-tab frontend; requireTier("agency"); seed auto-fires when table empty in non-prod.
 - [DB Project References](db-project-references.md) — adding schema files to lib/db requires rebuilding dist/ before api-server can see new exports.
 - [Live Video Module](live-video-module.md) — 6 DB tables, 16 API routes, public fan signup page at /live/:id; PATCH /live-chat/:id must use patch-object pattern to avoid overwriting unset fields.
+- [Fan Hub](fan-hub.md) — Area Fada Fan Hub: 8 tables, 18 routes, 7-tab frontend; requireTier("agency"); seed auto-fires when tables empty in non-prod.

@@ -21,6 +21,7 @@ import { LiveSessionSignupPage } from "@/pages/live-session-signup";
 import { ClipEnginePage } from "@/pages/clip-engine";
 import { AutoPostPage } from "@/pages/auto-post";
 import { TrafficPage } from "@/pages/traffic";
+import { FanHubPage } from "@/pages/fan-hub";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -92,15 +93,6 @@ const clerkAppearance = {
 };
 
 
-
-
-const FanHubPage = createModulePage({
-  title: "Fan Hub",
-  description: "Verify '999' book buyers, build a paid inner circle, and reward Area Fada's superfans with exclusive access.",
-  icon: "⭐",
-  moduleKey: "fanHub",
-  requiredTier: "agency",
-});
 
 const IntelligencePage = createModulePage({
   title: "Campaign Intelligence",
