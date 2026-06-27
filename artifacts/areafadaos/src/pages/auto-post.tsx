@@ -178,9 +178,23 @@ function ComposerTab() {
   });
 
   const publish = useMutation({
-    mutationFn: (body: Record<string, unknown>) => apiFetch(`/auto-post/drafts/${selectedDraftId}/publish`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-    }),
+    mutationFn: (body: Record<string, unknown>) => {
+      // Pass current edited variants so the server persists them before creating jobs
+      const editedVariants: Record<string, string> = {};
+      const editedHashtags: Record<string, string[]> = {};
+      for (const [platform, v] of Object.entries(variants)) {
+        editedVariants[platform] = v.caption;
+        if (v.hashtags?.length) editedHashtags[platform] = v.hashtags;
+      }
+      return apiFetch(`/auto-post/drafts/${selectedDraftId}/publish`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...body,
+          ...(Object.keys(editedVariants).length > 0 ? { platformVariants: editedVariants } : {}),
+          ...(Object.keys(editedHashtags).length > 0 ? { platformHashtags: editedHashtags } : {}),
+        }),
+      });
+    },
     onSuccess: (r: { message: string; jobs: PublishJob[] }) => {
       qc.invalidateQueries({ queryKey: ["auto-post-drafts", "auto-post-jobs"] });
       setShowPublishDialog(false);

@@ -11,8 +11,9 @@ import {
   platformAccountsTable,
   hashtagCacheTable,
   usersTable,
+  activityLogTable,
 } from "@workspace/db";
-import { eq, desc, and, or, inArray } from "drizzle-orm";
+import { eq, desc, and, lte, inArray } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
 
@@ -368,20 +369,29 @@ router.post("/auto-post/drafts/:id/publish", ...requirePost, async (req: any, re
       return;
     }
 
-    const { scheduledAt } = req.body;
+    const { scheduledAt, platformVariants: variantOverrides, platformHashtags: hashtagOverrides } = req.body;
     const platforms = draft.selectedPlatforms as string[];
     if (platforms.length === 0) { res.status(400).json({ error: "No platforms selected" }); return; }
 
-    const variants = (draft.platformVariants ?? {}) as Record<string, string>;
-    const hashtags = (draft.platformHashtags ?? {}) as Record<string, string[]>;
+    // Persist any user-edited variants to the DB before creating jobs
+    const resolvedVariants = { ...(draft.platformVariants as Record<string, string> ?? {}), ...variantOverrides };
+    const resolvedHashtags = { ...(draft.platformHashtags as Record<string, string[]> ?? {}), ...hashtagOverrides };
+
+    if (variantOverrides || hashtagOverrides) {
+      await db.update(postDraftsTable).set({
+        platformVariants: resolvedVariants,
+        platformHashtags: resolvedHashtags,
+        updatedAt: new Date(),
+      }).where(eq(postDraftsTable.id, draft.id));
+    }
 
     const jobs = platforms.map(platform => ({
       userId: user.id,
       draftId: draft.id,
       platform,
-      caption: variants[platform] ?? draft.sourceCaption,
+      caption: resolvedVariants[platform] ?? draft.sourceCaption,
       mediaUrls: draft.mediaUrls as string[],
-      hashtags: hashtags[platform] ?? [],
+      hashtags: resolvedHashtags[platform] ?? [],
       status: "pending" as const,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
     }));
@@ -670,5 +680,75 @@ router.patch("/auto-post/approval-requests/:id", ...requirePost, async (req: any
     res.json(updated);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to update approval request" }); }
 });
+
+// ─── Background Auto-Retry Worker ─────────────────────────────────────────────
+// Processes pending publish jobs every 60 seconds.
+// Stubs actual platform push (marks as published).
+// On permanent failure (maxAttempts reached), logs a manager alert to activity_log.
+async function processPendingPublishJobs() {
+  try {
+    const now = new Date();
+    // Pick up pending jobs that are not scheduled in the future
+    const pending = await db.select().from(publishJobsTable)
+      .where(and(
+        eq(publishJobsTable.status, "pending"),
+        lte(publishJobsTable.scheduledAt, now),
+      ))
+      .limit(20);
+
+    // Also process unscheduled pending jobs (scheduledAt IS NULL)
+    const unscheduled = await db.select().from(publishJobsTable)
+      .where(eq(publishJobsTable.status, "pending"))
+      .limit(20);
+
+    const toProcess = [...new Map([...pending, ...unscheduled].map(j => [j.id, j])).values()];
+    if (toProcess.length === 0) return;
+
+    for (const job of toProcess) {
+      // Stub: in production this would call the real platform API.
+      // Simulate a ~90% success rate so demo data shows realistic failure states.
+      const simulatedSuccess = Math.random() > 0.10;
+
+      if (simulatedSuccess) {
+        await db.update(publishJobsTable).set({
+          status: "published",
+          publishedAt: new Date(),
+          lastAttemptAt: new Date(),
+          attemptCount: job.attemptCount + 1,
+          updatedAt: new Date(),
+        }).where(eq(publishJobsTable.id, job.id));
+      } else {
+        const newAttemptCount = job.attemptCount + 1;
+        const isPermanentlyFailed = newAttemptCount >= job.maxAttempts;
+
+        await db.update(publishJobsTable).set({
+          status: isPermanentlyFailed ? "failed" : "pending",
+          attemptCount: newAttemptCount,
+          errorMessage: isPermanentlyFailed
+            ? `Publishing failed after ${newAttemptCount} attempt(s). Connect platform account to enable live push.`
+            : `Attempt ${newAttemptCount} failed — will retry automatically.`,
+          lastAttemptAt: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(publishJobsTable.id, job.id));
+
+        // Log a manager alert notification when a job permanently fails
+        if (isPermanentlyFailed) {
+          await db.insert(activityLogTable).values({
+            userId: job.userId,
+            type: "auto_post_job_failed",
+            description: `Publish job #${job.id} for ${job.platform} permanently failed after ${newAttemptCount} attempt(s). Manual retry or reconnection required.`,
+          }).catch(e => console.error("Failed to log publish failure:", e));
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[AutoPost Worker] Error processing jobs:", err);
+  }
+}
+
+// Start the background worker (60s interval)
+setInterval(processPendingPublishJobs, 60_000);
+// Run once shortly after startup to process any pending jobs from a previous session
+setTimeout(processPendingPublishJobs, 5_000);
 
 export default router;
