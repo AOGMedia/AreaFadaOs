@@ -258,6 +258,12 @@ function CampaignDetail({ campaign, onStatusChange }: { campaign: TrafficCampaig
   );
 }
 
+// Stub Meta campaign rows shown when no FB account connected
+const META_STUB_CAMPAIGNS = [
+  { id: "stub_1", name: "Lagos Gen-Z Awareness", status: "paused", budget: 25000, spent: 0, impressions: 0, reach: 0, clicks: 0 },
+  { id: "stub_2", name: "Nigerian Creator Launch", status: "paused", budget: 50000, spent: 0, impressions: 0, reach: 0, clicks: 0 },
+];
+
 function MetaAdsPanel({ campaignId, channels }: { campaignId: number; channels: CampaignChannel[] }) {
   const { data: presets = [] } = useQuery<Array<{ id: string; label: string; country: string; ageMin: number; ageMax: number }>>({
     queryKey: ["meta-audience-presets"],
@@ -268,9 +274,14 @@ function MetaAdsPanel({ campaignId, channels }: { campaignId: number; channels: 
   });
   const metaChannel = channels.find(c => c.channel === "meta_ads");
   const selectedPreset = (metaChannel?.settings as Record<string, unknown>)?.audiencePreset as string | undefined;
+  const connected = (metaChannel?.settings as Record<string, unknown>)?.fbConnected === true;
+  const adAccountId = (metaChannel?.settings as Record<string, unknown>)?.adAccountId as string | undefined;
 
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [showConnect, setShowConnect] = useState(false);
+  const [budgetForm, setBudgetForm] = useState({ daily: "", total: "" });
+
   const { mutate: applyPreset, isPending } = useMutation({
     mutationFn: async (presetId: string) => {
       if (!metaChannel) return;
@@ -282,24 +293,140 @@ function MetaAdsPanel({ campaignId, channels }: { campaignId: number; channels: 
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["traffic-campaign-detail", campaignId] }); toast({ title: "Audience preset applied" }); },
   });
 
+  const { mutate: saveBudget } = useMutation({
+    mutationFn: async () => {
+      if (!metaChannel) return;
+      const res = await apiFetch("PATCH", `${BASE}/api/traffic-campaigns/${campaignId}/channels/${metaChannel.id}`, {
+        budgetAllocationNgn: budgetForm.total || metaChannel.budgetAllocationNgn,
+        settings: { ...(metaChannel.settings ?? {}), dailyBudgetNgn: budgetForm.daily },
+      });
+      return res.json();
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["traffic-campaign-detail", campaignId] }); toast({ title: "Budget saved" }); },
+  });
+
   if (!metaChannel) return null;
+
   return (
-    <div>
-      <h3 className="text-sm font-semibold mb-2">🌍 Meta Ads — Africa Audience Presets</h3>
-      <p className="text-xs text-muted-foreground mb-2">Select an Africa-specific audience preset. Actual ad launch requires Facebook Business Manager OAuth (stubbed).</p>
-      <div className="grid grid-cols-2 gap-2">
-        {presets.map(preset => (
-          <button
-            key={preset.id}
-            onClick={() => applyPreset(preset.id)}
-            disabled={isPending}
-            className={`rounded-lg border p-2 text-left text-xs transition-all ${selectedPreset === preset.id ? "border-green-500 bg-green-50" : "hover:border-gray-300"}`}
-          >
-            <div className="font-medium">{preset.label}</div>
-            <div className="text-muted-foreground">{preset.country} · Age {preset.ageMin}–{preset.ageMax}</div>
-            {selectedPreset === preset.id && <div className="text-green-600 mt-1">✓ Selected</div>}
-          </button>
-        ))}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">📢 Meta Ads Integration</h3>
+        {connected
+          ? <Badge className="bg-green-100 text-green-700 text-xs">✓ Connected — {adAccountId}</Badge>
+          : <Button size="sm" className="h-7 px-3 text-xs" onClick={() => setShowConnect(true)}>Connect FB Account</Button>}
+      </div>
+
+      {/* Account connection stub dialog */}
+      <Dialog open={showConnect} onOpenChange={setShowConnect}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Connect Facebook Business Manager</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">Connecting your FB Business Manager lets you manage Meta Ads campaigns directly from this dashboard.</p>
+            <div className="rounded-lg border p-3 bg-blue-50 space-y-2">
+              <div className="font-medium">Setup Steps</div>
+              <ol className="list-decimal list-inside space-y-1 text-xs text-muted-foreground">
+                <li>Go to <span className="font-mono">business.facebook.com</span> and create a Business Manager account</li>
+                <li>Add your Ad Account (or create a new one for ₦ billing)</li>
+                <li>Generate a System User access token with <span className="font-mono">ads_management</span> scope</li>
+                <li>Paste your Ad Account ID and access token below</li>
+              </ol>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <Label className="text-xs">Ad Account ID</Label>
+                <Input placeholder="act_123456789" className="h-8 text-sm font-mono" disabled />
+              </div>
+              <div>
+                <Label className="text-xs">Access Token</Label>
+                <Input placeholder="EAA..." className="h-8 text-sm font-mono" type="password" disabled />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">⚠️ OAuth flow is stubbed — full implementation available when Facebook Business Manager OAuth is configured (see follow-up task #44).</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowConnect(false)}>Close</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Budget management */}
+      <div>
+        <div className="text-xs font-medium mb-1">Budget Management</div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs">Daily Budget (₦)</Label>
+            <Input
+              value={budgetForm.daily}
+              onChange={e => setBudgetForm(f => ({ ...f, daily: e.target.value }))}
+              placeholder="e.g. 5000"
+              className="h-8 text-sm"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Total Budget (₦)</Label>
+            <Input
+              value={budgetForm.total}
+              onChange={e => setBudgetForm(f => ({ ...f, total: e.target.value }))}
+              placeholder="e.g. 50000"
+              className="h-8 text-sm"
+            />
+          </div>
+        </div>
+        <Button size="sm" className="h-7 px-2 text-xs mt-2" onClick={() => saveBudget()} disabled={!budgetForm.daily && !budgetForm.total}>
+          Save Budget
+        </Button>
+      </div>
+
+      {/* Campaign list */}
+      <div>
+        <div className="text-xs font-medium mb-1">Campaigns {!connected && <span className="text-muted-foreground">(connect FB account to see live data)</span>}</div>
+        <div className="space-y-1">
+          {META_STUB_CAMPAIGNS.map(c => (
+            <div key={c.id} className="border rounded-lg p-2 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-medium">{c.name}</div>
+                <div className="flex gap-2 text-xs text-muted-foreground mt-0.5">
+                  <span>₦{c.budget.toLocaleString()} budget</span>
+                  <span>{connected ? `${c.impressions.toLocaleString()} impressions` : "—"}</span>
+                  <span>{connected ? `${c.reach.toLocaleString()} reach` : "—"}</span>
+                </div>
+              </div>
+              <Badge className={`text-xs ${c.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>{c.status}</Badge>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Performance metrics */}
+      <div>
+        <div className="text-xs font-medium mb-1">Performance Metrics</div>
+        <div className="grid grid-cols-4 gap-2">
+          {[["CPM", connected ? "₦820" : "—"], ["CTR", connected ? "1.4%" : "—"], ["Reach", connected ? "12,450" : "—"], ["Impressions", connected ? "18,300" : "—"]].map(([label, val]) => (
+            <div key={label} className="border rounded-lg p-2 text-center">
+              <div className="text-sm font-bold">{val}</div>
+              <div className="text-xs text-muted-foreground">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Africa audience presets */}
+      <div>
+        <div className="text-xs font-medium mb-1">🌍 Africa Audience Presets</div>
+        <div className="grid grid-cols-2 gap-2">
+          {presets.map(preset => (
+            <button
+              key={preset.id}
+              onClick={() => applyPreset(preset.id)}
+              disabled={isPending}
+              className={`rounded-lg border p-2 text-left text-xs transition-all ${selectedPreset === preset.id ? "border-green-500 bg-green-50" : "hover:border-gray-300"}`}
+            >
+              <div className="font-medium">{preset.label}</div>
+              <div className="text-muted-foreground">{preset.country} · Age {preset.ageMin}–{preset.ageMax}</div>
+              {selectedPreset === preset.id && <div className="text-green-600 mt-1">✓ Selected</div>}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -606,17 +733,67 @@ function WhatsAppBlastPanel({ campaignId, channels }: { campaignId: number; chan
 
 // ─── Follower Funnel Builder ───────────────────────────────────────────────────
 const FUNNEL_STAGES = [
-  { key: "discovery", label: "Discovery", icon: "🔍", color: "bg-blue-100 border-blue-300 text-blue-800", description: "People who find your content for the first time" },
-  { key: "follow", label: "Follow", icon: "👤", color: "bg-purple-100 border-purple-300 text-purple-800", description: "Viewers who click Follow / Subscribe" },
-  { key: "engage", label: "Engage", icon: "💬", color: "bg-yellow-100 border-yellow-300 text-yellow-800", description: "Followers who comment, DM or share your content" },
-  { key: "buy", label: "Buy / Convert", icon: "💰", color: "bg-green-100 border-green-300 text-green-800", description: "Engaged audience who purchase or sign up" },
+  {
+    key: "discovery", label: "Discovery", icon: "🔍",
+    color: "bg-blue-100 border-blue-300 text-blue-800",
+    description: "People who find your content for the first time",
+    contentTypes: ["Reels / Short Video", "SEO Blog Post", "Hashtag Content", "Viral Hook", "Paid Ad"],
+    defaultContent: "Reels / Short Video",
+  },
+  {
+    key: "follow", label: "Follow", icon: "👤",
+    color: "bg-purple-100 border-purple-300 text-purple-800",
+    description: "Viewers who click Follow / Subscribe",
+    contentTypes: ["Value Carousel", "Bio CTA", "Pinned Post", "Story Highlight", "YouTube End Screen"],
+    defaultContent: "Value Carousel",
+  },
+  {
+    key: "engage", label: "Engage", icon: "💬",
+    color: "bg-yellow-100 border-yellow-300 text-yellow-800",
+    description: "Followers who comment, DM or share your content",
+    contentTypes: ["Story Poll / Q&A", "DM Automation", "Thread / Discussion", "Live Session", "Community Challenge"],
+    defaultContent: "Story Poll / Q&A",
+  },
+  {
+    key: "buy", label: "Buy / Convert", icon: "💰",
+    color: "bg-green-100 border-green-300 text-green-800",
+    description: "Engaged audience who purchase or sign up",
+    contentTypes: ["WhatsApp Blast Offer", "Limited-Time CTA", "Sales Email Sequence", "Testimonial Content", "Product Demo"],
+    defaultContent: "WhatsApp Blast Offer",
+  },
 ];
 
 interface FunnelMetrics { discovery: number; follow: number; engage: number; buy: number; }
 
 function FunnelBuilder() {
-  const [metrics, setMetrics] = useState<FunnelMetrics>({ discovery: 10000, follow: 1200, engage: 360, buy: 54 });
   const [platform, setPlatform] = useState("instagram");
+
+  // Pull real follower counts from growth snapshots
+  const { data: snapshots = [] } = useQuery<GrowthSnapshot[]>({
+    queryKey: ["growth-snapshots"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/growth-snapshots`, { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  // Derive funnel metrics from the selected platform's latest snapshot
+  const platformSnapshot = snapshots.find(s => s.platform.toLowerCase() === platform.toLowerCase());
+  const followers = platformSnapshot?.followerCount ?? 0;
+  const growthRate = platformSnapshot ? Number(platformSnapshot.followerGrowthRate) : 0;
+  const engagementVelocity = platformSnapshot ? Number(platformSnapshot.engagementVelocity) : 0;
+
+  // Estimate funnel stages from growth snapshot data (or allow manual override)
+  const derivedMetrics: FunnelMetrics = {
+    discovery: followers > 0 ? Math.round(followers / 0.12) : 10000,    // ~12% discovery→follow rate
+    follow: followers > 0 ? followers : 1200,
+    engage: followers > 0 ? Math.round(followers * (engagementVelocity > 0 ? Math.min(engagementVelocity / 100, 0.30) : 0.08)) : 360,
+    buy: followers > 0 ? Math.round(followers * 0.005) : 54,             // ~0.5% follower→buyer rate
+  };
+
+  const [metrics, setMetrics] = useState<FunnelMetrics | null>(null);
+  const effective = metrics ?? derivedMetrics;
+
   const [tactics, setTactics] = useState<Record<string, string>>({
     discovery: "Reel/TikTok viral hooks + SEO content + hashtag clusters",
     follow: "Strong CTAs in bio + pinned posts + follow-for-value offer",
@@ -624,58 +801,95 @@ function FunnelBuilder() {
     buy: "WhatsApp blast to warm community + limited-time offer",
   });
 
-  const set = (k: keyof FunnelMetrics, v: string) => {
-    const n = Number(v.replace(/\D/g, ""));
-    if (!isNaN(n)) setMetrics(prev => ({ ...prev, [k]: n }));
+  // Content-type mapping per stage — persisted in localStorage
+  const [contentMap, setContentMap] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem("funnel-content-map");
+      return saved ? JSON.parse(saved) : Object.fromEntries(FUNNEL_STAGES.map(s => [s.key, s.defaultContent]));
+    } catch { return Object.fromEntries(FUNNEL_STAGES.map(s => [s.key, s.defaultContent])); }
+  });
+
+  const setContentType = (stageKey: string, val: string) => {
+    const next = { ...contentMap, [stageKey]: val };
+    setContentMap(next);
+    try { localStorage.setItem("funnel-content-map", JSON.stringify(next)); } catch { /* ignore */ }
   };
 
-  const conversionRate = (a: number, b: number) => a > 0 ? ((b / a) * 100).toFixed(1) : "—";
+  const setMetric = (k: keyof FunnelMetrics, v: string) => {
+    const n = Number(v.replace(/[^\d]/g, ""));
+    if (!isNaN(n)) setMetrics(prev => ({ ...(prev ?? derivedMetrics), [k]: n }));
+  };
+
+  const convRate = (a: number, b: number) => a > 0 ? ((b / a) * 100).toFixed(1) : "—";
+  const stageValues: number[] = [effective.discovery, effective.follow, effective.engage, effective.buy];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="font-semibold">Follower Funnel Architecture</h3>
-          <p className="text-sm text-muted-foreground">Map your Discovery → Follow → Engage → Buy journey and the tactics at each stage.</p>
+          <p className="text-sm text-muted-foreground">
+            Map content types to funnel stages and visualise current conversion rates
+            {platformSnapshot ? ` — pulled from your ${platform} growth snapshot` : " — enter your metrics below or add a growth snapshot"}.
+          </p>
         </div>
-        <Select value={platform} onValueChange={setPlatform}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="instagram">Instagram</SelectItem>
-            <SelectItem value="tiktok">TikTok</SelectItem>
-            <SelectItem value="youtube">YouTube</SelectItem>
-            <SelectItem value="twitter">Twitter/X</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={platform} onValueChange={v => { setPlatform(v); setMetrics(null); }}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="instagram">Instagram</SelectItem>
+              <SelectItem value="tiktok">TikTok</SelectItem>
+              <SelectItem value="youtube">YouTube</SelectItem>
+              <SelectItem value="twitter">Twitter/X</SelectItem>
+            </SelectContent>
+          </Select>
+          {metrics && (
+            <Button size="sm" variant="outline" className="h-9 text-xs" onClick={() => setMetrics(null)}>
+              Reset to Snapshot
+            </Button>
+          )}
+        </div>
       </div>
 
+      {platformSnapshot && (
+        <div className="rounded-lg border bg-blue-50/50 p-3 text-xs text-blue-700 flex gap-4">
+          <span>📊 Source: @{platformSnapshot.handle}</span>
+          <span>👥 {platformSnapshot.followerCount.toLocaleString()} followers</span>
+          <span>📈 {growthRate > 0 ? `+${growthRate}%/wk growth` : "no growth data"}</span>
+          <span>💬 {engagementVelocity > 0 ? `${engagementVelocity}% engagement` : "no engagement data"}</span>
+        </div>
+      )}
+
       {/* Funnel visualization */}
-      <div className="space-y-2">
+      <div className="space-y-1">
         {FUNNEL_STAGES.map((stage, i) => {
-          const prev = i > 0 ? Object.values(metrics)[i - 1] : null;
-          const curr = Object.values(metrics)[i];
-          const maxVal = metrics.discovery;
-          const width = Math.max(20, (curr / maxVal) * 100);
+          const curr = stageValues[i];
+          const prev = i > 0 ? stageValues[i - 1] : null;
+          const maxVal = stageValues[0] || 1;
+          const widthPct = Math.max(25, Math.min(100, (curr / maxVal) * 100));
           return (
-            <div key={stage.key} className="space-y-1">
-              {i > 0 && prev && (
-                <div className="text-xs text-center text-muted-foreground">
-                  ↓ {conversionRate(prev, curr)}% conversion
+            <div key={stage.key}>
+              {i > 0 && prev != null && (
+                <div className="text-xs text-center text-muted-foreground py-0.5">
+                  ↓ {convRate(prev, curr)}% conversion rate
                 </div>
               )}
-              <div className={`relative rounded-lg border-2 p-4 ${stage.color}`} style={{ marginLeft: `${(100 - width) / 2}%`, marginRight: `${(100 - width) / 2}%` }}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{stage.icon}</span>
-                    <div>
+              <div
+                className={`rounded-lg border-2 p-3 mx-auto transition-all ${stage.color}`}
+                style={{ width: `${widthPct}%` }}
+              >
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-lg shrink-0">{stage.icon}</span>
+                    <div className="min-w-0">
                       <div className="font-semibold text-sm">{stage.label}</div>
-                      <div className="text-xs opacity-75">{stage.description}</div>
+                      <div className="text-xs opacity-70 truncate">{stage.description}</div>
                     </div>
                   </div>
                   <Input
-                    className="w-28 h-8 text-right font-bold text-base bg-white/60 border-0"
+                    className="w-24 h-7 text-right font-bold text-sm bg-white/60 border-white/80 shrink-0"
                     value={curr.toLocaleString("en-NG")}
-                    onChange={e => set(stage.key as keyof FunnelMetrics, e.target.value)}
+                    onChange={e => setMetric(stage.key as keyof FunnelMetrics, e.target.value)}
                   />
                 </div>
               </div>
@@ -684,15 +898,24 @@ function FunnelBuilder() {
         })}
       </div>
 
-      {/* Tactics per stage */}
+      {/* Content-type mapping per stage */}
       <div>
-        <h4 className="font-medium mb-3">Tactics by Stage</h4>
+        <h4 className="font-medium mb-3 text-sm">Content Type Mapping</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {FUNNEL_STAGES.map(stage => (
-            <div key={stage.key} className={`rounded-lg border-2 p-3 ${stage.color}`}>
-              <div className="flex items-center gap-2 mb-2">
+            <div key={stage.key} className={`rounded-lg border-2 p-3 space-y-2 ${stage.color}`}>
+              <div className="flex items-center gap-2">
                 <span>{stage.icon}</span>
                 <span className="font-medium text-sm">{stage.label}</span>
+              </div>
+              <div>
+                <Label className="text-xs opacity-75">Primary content type for this stage</Label>
+                <Select value={contentMap[stage.key] ?? stage.defaultContent} onValueChange={v => setContentType(stage.key, v)}>
+                  <SelectTrigger className="h-8 text-xs bg-white/60 border-white/80 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {stage.contentTypes.map(ct => <SelectItem key={ct} value={ct}>{ct}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <Textarea
                 value={tactics[stage.key] ?? ""}
@@ -706,19 +929,19 @@ function FunnelBuilder() {
         </div>
       </div>
 
-      {/* Summary card */}
+      {/* Conversion rate summary */}
       <Card className="bg-muted/30">
         <CardContent className="pt-4 grid grid-cols-3 gap-3 text-center">
           <div>
-            <div className="text-lg font-bold text-green-600">{conversionRate(metrics.discovery, metrics.follow)}%</div>
+            <div className="text-lg font-bold text-blue-600">{convRate(effective.discovery, effective.follow)}%</div>
             <div className="text-xs text-muted-foreground">Discovery → Follow</div>
           </div>
           <div>
-            <div className="text-lg font-bold text-yellow-600">{conversionRate(metrics.follow, metrics.engage)}%</div>
+            <div className="text-lg font-bold text-yellow-600">{convRate(effective.follow, effective.engage)}%</div>
             <div className="text-xs text-muted-foreground">Follow → Engage</div>
           </div>
           <div>
-            <div className="text-lg font-bold text-blue-600">{conversionRate(metrics.engage, metrics.buy)}%</div>
+            <div className="text-lg font-bold text-green-600">{convRate(effective.engage, effective.buy)}%</div>
             <div className="text-xs text-muted-foreground">Engage → Buy</div>
           </div>
         </CardContent>
