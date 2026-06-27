@@ -3,7 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 
-export const DEAL_STATUSES = ["prospecting", "negotiating", "active", "completed", "cancelled"] as const;
+export const DEAL_STATUSES = ["inbound", "negotiating", "agreed", "deliverable_due", "invoiced", "paid", "cancelled"] as const;
 export type DealStatus = typeof DEAL_STATUSES[number];
 
 export const INVOICE_STATUSES = ["draft", "sent", "paid", "overdue", "cancelled"] as const;

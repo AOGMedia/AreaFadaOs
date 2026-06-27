@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
@@ -11,7 +12,7 @@ import {
   affiliateClicksTable,
   paymentRemindersTable,
 } from "@workspace/db";
-import { eq, and, desc, gte, sql } from "drizzle-orm";
+import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import type { Currency, PaymentGateway } from "@workspace/db";
 
 const router = Router();
@@ -27,8 +28,11 @@ function nextInvoiceNumber(count: number): string {
   return `INV-${String(count + 1).padStart(4, "0")}`;
 }
 
-// FX rates relative to NGN (approximate mid-market)
-const FX: Record<string, number> = {
+// ─── Live FX rates with 1h cache ─────────────────────────────────────────────
+// Rates are NGN units per 1 foreign unit (how many NGN = 1 GHS/KES etc.)
+let fxCache: { rates: Record<string, number>; fetchedAt: number } | null = null;
+
+const FALLBACK_FX: Record<string, number> = {
   NGN: 1,
   GHS: 145,
   KES: 9.5,
@@ -36,36 +40,133 @@ const FX: Record<string, number> = {
   USD: 1580,
 };
 
-function toNGN(amount: number, currency: string): number {
-  return amount * (FX[currency] ?? 1);
+async function getFX(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (fxCache && now - fxCache.fetchedAt < 60 * 60 * 1000) return fxCache.rates;
+
+  try {
+    // Free tier Open Exchange Rates (NGN base via USD pivot)
+    const r = await fetch("https://open.er-api.com/v6/latest/NGN", { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) throw new Error("FX fetch failed");
+    const data = await r.json() as { rates: Record<string, number> };
+    // data.rates gives "how many X per 1 NGN", invert for "NGN per 1 X"
+    const rates: Record<string, number> = { NGN: 1 };
+    for (const [k, v] of Object.entries(data.rates)) {
+      if (v > 0) rates[k] = 1 / v;
+    }
+    fxCache = { rates, fetchedAt: now };
+    return rates;
+  } catch {
+    return FALLBACK_FX;
+  }
 }
 
-// ─── Brand Deals ─────────────────────────────────────────────────────────────
+async function toTargetCurrency(amountNGN: number, targetCurrency: string): Promise<number> {
+  const fx = await getFX();
+  const ngnPerTarget = fx[targetCurrency] ?? FALLBACK_FX[targetCurrency] ?? 1;
+  return amountNGN / ngnPerTarget;
+}
+
+async function toNGN(amount: number, sourceCurrency: string): Promise<number> {
+  const fx = await getFX();
+  const ngnPer = fx[sourceCurrency] ?? FALLBACK_FX[sourceCurrency] ?? 1;
+  return amount * ngnPer;
+}
+
+// ─── FX rates endpoint ────────────────────────────────────────────────────────
+
+router.get("/monetization/fx", ...requireMonetization, async (_req: any, res): Promise<void> => {
+  try {
+    const fx = await getFX();
+    const currencies = ["NGN", "GHS", "KES", "ZAR", "USD"];
+    const result: Record<string, number> = {};
+    for (const c of currencies) result[c] = fx[c] ?? FALLBACK_FX[c] ?? 1;
+    res.json({ base: "NGN", rates: result, cached: !!fxCache });
+  } catch {
+    res.json({ base: "NGN", rates: FALLBACK_FX, cached: false });
+  }
+});
+
+// ─── Sponsorship Rate Calculator ──────────────────────────────────────────────
+
+const NICHE_MULTIPLIERS: Record<string, number> = {
+  fashion: 1.2,
+  music: 1.3,
+  tech: 1.4,
+  food: 1.0,
+  politics: 1.5,
+  entertainment: 1.35,
+  sports: 1.25,
+  beauty: 1.15,
+  education: 0.9,
+  general: 1.0,
+};
+
+const GEO_SCORES: Record<string, number> = {
+  NG: 1.0,
+  GH: 0.85,
+  KE: 0.8,
+  ZA: 1.1,
+  US: 2.5,
+  GB: 2.2,
+  global: 1.8,
+};
+
+router.post("/monetization/rate-calculator", ...requireMonetization, async (req: any, res): Promise<void> => {
+  try {
+    const { followerCount = 100000, engagementRate = 3, niche = "general", audienceGeo = "NG", currency = "NGN" } = req.body;
+
+    const nicheMultiplier = NICHE_MULTIPLIERS[niche] ?? 1.0;
+    const geoScore = GEO_SCORES[audienceGeo] ?? 1.0;
+
+    // Industry formula: CPE (cost per engagement) × total engagements × niche × geo
+    const engagements = (followerCount * engagementRate) / 100;
+    const cpe = 500; // NGN 500 per 1000 engagements baseline
+    const baseNGN = (engagements / 1000) * cpe * nicheMultiplier * geoScore;
+
+    const lowNGN = Math.round(baseNGN * 0.7);
+    const midNGN = Math.round(baseNGN);
+    const highNGN = Math.round(baseNGN * 1.4);
+
+    const fx = await getFX();
+    const ngnPer = fx[currency] ?? FALLBACK_FX[currency] ?? 1;
+
+    res.json({
+      currency,
+      low: Math.round(lowNGN / ngnPer),
+      mid: Math.round(midNGN / ngnPer),
+      high: Math.round(highNGN / ngnPer),
+      breakdown: { followerCount, engagementRate, engagements: Math.round(engagements), nicheMultiplier, geoScore },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Rate calculation failed" });
+  }
+});
+
+// ─── Brand Deals ──────────────────────────────────────────────────────────────
 
 router.get("/brand-deals", ...requireMonetization, async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.json([]); return; }
 
-    let query = db.select().from(brandDealsTable).where(eq(brandDealsTable.userId, user.id)).$dynamic();
-    if (req.query.status) {
-      query = query.where(and(eq(brandDealsTable.userId, user.id), eq(brandDealsTable.status, req.query.status)));
-    }
+    const where = req.query.status
+      ? and(eq(brandDealsTable.userId, user.id), eq(brandDealsTable.status, req.query.status as string))
+      : eq(brandDealsTable.userId, user.id);
 
-    const deals = await query.orderBy(desc(brandDealsTable.createdAt));
+    const deals = await db.select().from(brandDealsTable).where(where).orderBy(desc(brandDealsTable.createdAt));
 
     if (deals.length === 0) {
-      const seeds = [
-        { brandName: "Paystack Nigeria", contactName: "Temi Adeyemi", contactEmail: "temi@paystack.com", dealValue: "1500000", currency: "NGN" as Currency, status: "active" as const, deliverables: "3 Instagram posts + 1 TikTok video", platforms: ["instagram", "tiktok"] },
-        { brandName: "Guinness Africa", contactName: "Chidi Okafor", contactEmail: "chidi@guinness.com", dealValue: "800000", currency: "NGN" as Currency, status: "negotiating" as const, deliverables: "2 YouTube integrations", platforms: ["youtube"] },
-        { brandName: "Flutterwave", contactName: "Amaka Eze", contactEmail: "amaka@flutterwave.com", dealValue: "2000000", currency: "NGN" as Currency, status: "prospecting" as const, deliverables: "4-post campaign TBD", platforms: ["instagram", "x", "tiktok"] },
-        { brandName: "Techpoint Africa", contactName: "Bola Adesanya", contactEmail: "bola@techpoint.africa", dealValue: "350000", currency: "NGN" as Currency, status: "completed" as const, deliverables: "Brand mention in podcast", platforms: ["youtube"] },
-      ] satisfies typeof brandDealsTable.$inferInsert[];
-
-      await db.insert(brandDealsTable).values(seeds.map(s => ({ ...s, userId: user.id })));
+      const seeds: typeof brandDealsTable.$inferInsert[] = [
+        { userId: user.id, brandName: "Paystack Nigeria", contactName: "Temi Adeyemi", contactEmail: "temi@paystack.com", dealValue: "1500000", currency: "NGN", status: "active", deliverables: "3 Instagram posts + 1 TikTok video", platforms: ["instagram", "tiktok"] },
+        { userId: user.id, brandName: "Guinness Africa", contactName: "Chidi Okafor", contactEmail: "chidi@guinness.com", dealValue: "800000", currency: "NGN", status: "negotiating", deliverables: "2 YouTube integrations", platforms: ["youtube"] },
+        { userId: user.id, brandName: "Flutterwave", contactName: "Amaka Eze", contactEmail: "amaka@flutterwave.com", dealValue: "2000000", currency: "NGN", status: "inbound", deliverables: "4-post campaign TBD", platforms: ["instagram", "x", "tiktok"] },
+        { userId: user.id, brandName: "TechPoint Africa", contactName: "Bola Adesanya", contactEmail: "bola@techpoint.africa", dealValue: "350000", currency: "NGN", status: "paid", deliverables: "Brand mention in podcast", platforms: ["youtube"] },
+      ];
+      await db.insert(brandDealsTable).values(seeds);
       const fresh = await db.select().from(brandDealsTable).where(eq(brandDealsTable.userId, user.id)).orderBy(desc(brandDealsTable.createdAt));
-      res.json(fresh.map(mapDeal));
-      return;
+      res.json(fresh.map(mapDeal)); return;
     }
 
     res.json(deals.map(mapDeal));
@@ -84,15 +185,11 @@ router.post("/brand-deals", ...requireMonetization, async (req: any, res): Promi
     if (!brandName) { res.status(400).json({ error: "brandName is required" }); return; }
 
     const [deal] = await db.insert(brandDealsTable).values({
-      userId: user.id,
-      brandName,
-      contactName,
-      contactEmail,
+      userId: user.id, brandName, contactName, contactEmail,
       dealValue: dealValue != null ? String(dealValue) : "0",
       currency: currency ?? "NGN",
-      status: status ?? "prospecting",
-      deliverables,
-      platforms: platforms ?? [],
+      status: status ?? "inbound",
+      deliverables, platforms: platforms ?? [],
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
       notes,
@@ -140,7 +237,6 @@ router.delete("/brand-deals/:id", ...requireMonetization, async (req: any, res):
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "User not found" }); return; }
-
     await db.delete(brandDealsTable).where(and(eq(brandDealsTable.id, Number(req.params.id)), eq(brandDealsTable.userId, user.id)));
     res.status(204).send();
   } catch (err) {
@@ -156,21 +252,21 @@ router.get("/invoices", ...requireMonetization, async (req: any, res): Promise<v
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.json([]); return; }
 
-    const invoices = await db.select().from(invoicesTable)
-      .where(eq(invoicesTable.userId, user.id))
-      .orderBy(desc(invoicesTable.createdAt));
+    const where = req.query.status
+      ? and(eq(invoicesTable.userId, user.id), eq(invoicesTable.status, req.query.status as string))
+      : eq(invoicesTable.userId, user.id);
+
+    const invoices = await db.select().from(invoicesTable).where(where).orderBy(desc(invoicesTable.createdAt));
 
     if (invoices.length === 0) {
-      const seedInvoices = [
-        { invoiceNumber: "INV-0001", clientName: "Paystack Nigeria", clientEmail: "billing@paystack.com", currency: "NGN" as Currency, subtotal: "1500000", taxRate: "7.5", taxAmount: "112500", total: "1612500", status: "paid" as const },
-        { invoiceNumber: "INV-0002", clientName: "Guinness Africa", clientEmail: "billing@guinness.com", currency: "NGN" as Currency, subtotal: "800000", taxRate: "7.5", taxAmount: "60000", total: "860000", status: "sent" as const },
-        { invoiceNumber: "INV-0003", clientName: "TechPoint Africa", clientEmail: "accounts@techpoint.africa", currency: "NGN" as Currency, subtotal: "350000", taxRate: "0", taxAmount: "0", total: "350000", status: "overdue" as const },
-      ] satisfies typeof invoicesTable.$inferInsert[];
-
-      await db.insert(invoicesTable).values(seedInvoices.map(s => ({ ...s, userId: user.id })));
+      const seeds: typeof invoicesTable.$inferInsert[] = [
+        { userId: user.id, invoiceNumber: "INV-0001", clientName: "Paystack Nigeria", clientEmail: "billing@paystack.com", currency: "NGN", subtotal: "1500000", taxRate: "7.5", taxAmount: "112500", total: "1612500", status: "paid" },
+        { userId: user.id, invoiceNumber: "INV-0002", clientName: "Guinness Africa", clientEmail: "billing@guinness.com", currency: "NGN", subtotal: "800000", taxRate: "7.5", taxAmount: "60000", total: "860000", status: "sent" },
+        { userId: user.id, invoiceNumber: "INV-0003", clientName: "TechPoint Africa", clientEmail: "accounts@techpoint.africa", currency: "NGN", subtotal: "350000", taxRate: "0", taxAmount: "0", total: "350000", status: "overdue", dueDate: new Date(Date.now() - 10 * 86400000) },
+      ];
+      await db.insert(invoicesTable).values(seeds);
       const fresh = await db.select().from(invoicesTable).where(eq(invoicesTable.userId, user.id)).orderBy(desc(invoicesTable.createdAt));
-      res.json(fresh.map(mapInvoice));
-      return;
+      res.json(fresh.map(mapInvoice)); return;
     }
 
     res.json(invoices.map(mapInvoice));
@@ -196,19 +292,9 @@ router.post("/invoices", ...requireMonetization, async (req: any, res): Promise<
     const total = subtotal + taxAmount;
 
     const [invoice] = await db.insert(invoicesTable).values({
-      userId: user.id,
-      dealId: dealId ?? null,
-      invoiceNumber,
-      clientName,
-      clientEmail,
-      currency,
-      subtotal: String(subtotal),
-      taxRate: String(taxRate),
-      taxAmount: String(taxAmount),
-      total: String(total),
-      status: "draft",
-      dueDate: dueDate ? new Date(dueDate) : undefined,
-      notes,
+      userId: user.id, dealId: dealId ?? null, invoiceNumber, clientName, clientEmail, currency,
+      subtotal: String(subtotal), taxRate: String(taxRate), taxAmount: String(taxAmount), total: String(total),
+      status: "draft", dueDate: dueDate ? new Date(dueDate) : undefined, notes,
     }).returning();
 
     if (lineItems.length > 0) {
@@ -253,7 +339,7 @@ router.patch("/invoices/:id", ...requireMonetization, async (req: any, res): Pro
     if (!user) { res.status(401).json({ error: "User not found" }); return; }
 
     const id = Number(req.params.id);
-    const { clientName, clientEmail, currency, taxRate, dueDate, notes, lineItems } = req.body;
+    const { clientName, clientEmail, currency, taxRate, dueDate, notes, lineItems, status } = req.body;
 
     const existing = await db.select().from(invoicesTable).where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, user.id)));
     if (!existing.length) { res.status(404).json({ error: "Invoice not found" }); return; }
@@ -270,11 +356,8 @@ router.patch("/invoices/:id", ...requireMonetization, async (req: any, res): Pro
       await db.delete(invoiceLineItemsTable).where(eq(invoiceLineItemsTable.invoiceId, id));
       await db.insert(invoiceLineItemsTable).values(
         lineItems.map((li: { description: string; quantity: number; unitPrice: number }) => ({
-          invoiceId: id,
-          description: li.description,
-          quantity: String(li.quantity),
-          unitPrice: String(li.unitPrice),
-          amount: String(li.quantity * li.unitPrice),
+          invoiceId: id, description: li.description,
+          quantity: String(li.quantity), unitPrice: String(li.unitPrice), amount: String(li.quantity * li.unitPrice),
         })),
       );
     }
@@ -283,6 +366,7 @@ router.patch("/invoices/:id", ...requireMonetization, async (req: any, res): Pro
       ...(clientName !== undefined && { clientName }),
       ...(clientEmail !== undefined && { clientEmail }),
       ...(currency !== undefined && { currency }),
+      ...(status !== undefined && { status }),
       ...(taxRate !== undefined && { taxRate: String(taxRate), taxAmount: String(taxAmount), total: String(total), subtotal: String(subtotal) }),
       ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
       ...(notes !== undefined && { notes }),
@@ -300,7 +384,6 @@ router.delete("/invoices/:id", ...requireMonetization, async (req: any, res): Pr
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "User not found" }); return; }
-
     await db.delete(invoicesTable).where(and(eq(invoicesTable.id, Number(req.params.id)), eq(invoicesTable.userId, user.id)));
     res.status(204).send();
   } catch (err) {
@@ -322,7 +405,6 @@ router.post("/invoices/:id/payment-link", ...requireMonetization, async (req: an
     const [invoice] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, user.id)));
     if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
 
-    const amountKobo = Math.round(Number(invoice.total) * 100);
     const reference = `AF-${invoice.invoiceNumber}-${Date.now()}`;
     let paymentLink = "";
 
@@ -330,19 +412,15 @@ router.post("/invoices/:id/payment-link", ...requireMonetization, async (req: an
       const psKey = process.env.PAYSTACK_SECRET_KEY;
       if (!psKey) { res.status(500).json({ error: "Paystack not configured" }); return; }
 
-      const body = {
-        email: invoice.clientEmail,
-        amount: amountKobo,
-        currency: invoice.currency === "NGN" ? "NGN" : "NGN",
-        reference,
-        metadata: { invoice_number: invoice.invoiceNumber, client: invoice.clientName },
-        callback_url: `${process.env.APP_URL ?? "https://areafadaos.app"}/monetization?paid=1`,
-      };
-
+      const amountKobo = Math.round(Number(invoice.total) * 100);
       const psRes = await fetch("https://api.paystack.co/transaction/initialize", {
         method: "POST",
         headers: { Authorization: `Bearer ${psKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          email: invoice.clientEmail, amount: amountKobo, currency: "NGN", reference,
+          metadata: { invoice_number: invoice.invoiceNumber, client: invoice.clientName },
+          callback_url: `${process.env.APP_URL ?? "https://areafadaos.app"}/monetization?paid=1`,
+        }),
       });
       const psData = await psRes.json() as any;
       if (!psData.status) { res.status(502).json({ error: psData.message ?? "Paystack error" }); return; }
@@ -352,20 +430,16 @@ router.post("/invoices/:id/payment-link", ...requireMonetization, async (req: an
       const fwKey = process.env.FLUTTERWAVE_SECRET_KEY;
       if (!fwKey) { res.status(500).json({ error: "Flutterwave not configured" }); return; }
 
-      const fwBody = {
-        tx_ref: reference,
-        amount: Number(invoice.total),
-        currency: invoice.currency,
-        redirect_url: `${process.env.APP_URL ?? "https://areafadaos.app"}/monetization?paid=1`,
-        customer: { email: invoice.clientEmail, name: invoice.clientName },
-        meta: { invoice_number: invoice.invoiceNumber },
-        customizations: { title: "AreaFada OS Invoice", logo: "https://areafadaos.app/logo.svg" },
-      };
-
       const fwRes = await fetch("https://api.flutterwave.com/v3/payments", {
         method: "POST",
         headers: { Authorization: `Bearer ${fwKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify(fwBody),
+        body: JSON.stringify({
+          tx_ref: reference, amount: Number(invoice.total), currency: invoice.currency,
+          redirect_url: `${process.env.APP_URL ?? "https://areafadaos.app"}/monetization?paid=1`,
+          customer: { email: invoice.clientEmail, name: invoice.clientName },
+          meta: { invoice_number: invoice.invoiceNumber },
+          customizations: { title: "AreaFada OS Invoice", logo: "https://areafadaos.app/logo.svg" },
+        }),
       });
       const fwData = await fwRes.json() as any;
       if (fwData.status !== "success") { res.status(502).json({ error: fwData.message ?? "Flutterwave error" }); return; }
@@ -376,11 +450,7 @@ router.post("/invoices/:id/payment-link", ...requireMonetization, async (req: an
     }
 
     await db.update(invoicesTable).set({
-      status: "sent",
-      paymentGateway: gateway,
-      paymentLink,
-      paymentRef: reference,
-      updatedAt: new Date(),
+      status: "sent", paymentGateway: gateway, paymentLink, paymentRef: reference, updatedAt: new Date(),
     }).where(eq(invoicesTable.id, id));
 
     res.json({ paymentLink, gateway, invoiceId: id, reference });
@@ -390,7 +460,7 @@ router.post("/invoices/:id/payment-link", ...requireMonetization, async (req: an
   }
 });
 
-// ─── Payment Reminders ────────────────────────────────────────────────────────
+// ─── Payment Reminders (3/7/14 day automated check) ──────────────────────────
 
 router.post("/invoices/:id/remind", ...requireMonetization, async (req: any, res): Promise<void> => {
   try {
@@ -401,29 +471,128 @@ router.post("/invoices/:id/remind", ...requireMonetization, async (req: any, res
     const [invoice] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, user.id)));
     if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
 
-    const message = `Reminder: Invoice ${invoice.invoiceNumber} for ${invoice.currency} ${Number(invoice.total).toLocaleString()} is due. ${invoice.paymentLink ? `Pay here: ${invoice.paymentLink}` : "Please arrange payment at your earliest convenience."}`;
+    const daysOverdue = invoice.dueDate
+      ? Math.floor((Date.now() - new Date(invoice.dueDate).getTime()) / 86400000)
+      : 0;
+
+    const message = `Payment reminder for ${invoice.invoiceNumber} (${invoice.currency} ${Number(invoice.total).toLocaleString()}). ${daysOverdue > 0 ? `${daysOverdue} days overdue.` : "Due soon."} ${invoice.paymentLink ? `Pay here: ${invoice.paymentLink}` : "Please arrange payment."}`;
 
     const [reminder] = await db.insert(paymentRemindersTable).values({
-      invoiceId: id,
-      userId: user.id,
-      channel: "email",
-      status: "sent",
-      message,
-      sentAt: new Date(),
+      invoiceId: id, userId: user.id, channel: "email", status: "sent", message, sentAt: new Date(),
     }).returning();
 
-    res.json({
-      id: reminder.id,
-      invoiceId: reminder.invoiceId,
-      userId: reminder.userId,
-      channel: reminder.channel,
-      sentAt: reminder.sentAt,
-      status: reminder.status,
-      message: reminder.message,
-    });
+    res.json({ id: reminder.id, invoiceId: reminder.invoiceId, userId: reminder.userId, channel: reminder.channel, sentAt: reminder.sentAt, status: reminder.status, message: reminder.message });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to send reminder" });
+  }
+});
+
+// Auto-check overdue invoices and log 3/7/14-day reminders
+router.post("/monetization/process-reminders", requireAuth, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "User not found" }); return; }
+
+    const now = new Date();
+    const REMINDER_DAYS = [3, 7, 14];
+    const logged: number[] = [];
+
+    for (const days of REMINDER_DAYS) {
+      const windowStart = new Date(now.getTime() - (days + 1) * 86400000);
+      const windowEnd = new Date(now.getTime() - days * 86400000);
+
+      const overdueInvoices = await db.select().from(invoicesTable).where(
+        and(
+          eq(invoicesTable.userId, user.id),
+          eq(invoicesTable.status, "overdue"),
+          gte(invoicesTable.dueDate, windowStart),
+          lte(invoicesTable.dueDate, windowEnd),
+        ),
+      );
+
+      for (const inv of overdueInvoices) {
+        // Check not already reminded in last 24h
+        const recent = await db.select({ c: sql<number>`count(*)` })
+          .from(paymentRemindersTable)
+          .where(and(
+            eq(paymentRemindersTable.invoiceId, inv.id),
+            gte(paymentRemindersTable.sentAt, new Date(now.getTime() - 86400000)),
+          ));
+        if (Number(recent[0]?.c ?? 0) > 0) continue;
+
+        const message = `[AUTO] ${days}-day overdue reminder for ${inv.invoiceNumber} (${inv.currency} ${Number(inv.total).toLocaleString()}). ${inv.paymentLink ? `Pay: ${inv.paymentLink}` : ""}`;
+        await db.insert(paymentRemindersTable).values({
+          invoiceId: inv.id, userId: user.id, channel: "email", status: "sent", message, sentAt: now,
+        });
+        logged.push(inv.id);
+      }
+    }
+
+    res.json({ processed: logged.length, invoiceIds: logged });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Reminder processing failed" });
+  }
+});
+
+// ─── Paystack Webhook ─────────────────────────────────────────────────────────
+
+router.post("/webhooks/paystack", async (req: any, res): Promise<void> => {
+  try {
+    const psKey = process.env.PAYSTACK_SECRET_KEY ?? "";
+    const sig = req.headers["x-paystack-signature"] as string ?? "";
+    const rawBody = JSON.stringify(req.body);
+    const expected = crypto.createHmac("sha512", psKey).update(rawBody).digest("hex");
+
+    if (!crypto.timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"))) {
+      res.status(400).json({ error: "Invalid signature" }); return;
+    }
+
+    const { event, data } = req.body as { event: string; data: any };
+    if (event === "charge.success") {
+      const ref = data?.reference as string;
+      if (ref) {
+        const [inv] = await db.select().from(invoicesTable).where(eq(invoicesTable.paymentRef, ref));
+        if (inv && inv.status !== "paid") {
+          await db.update(invoicesTable).set({ status: "paid", paidAt: new Date(), updatedAt: new Date() }).where(eq(invoicesTable.id, inv.id));
+        }
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Webhook processing failed" });
+  }
+});
+
+// ─── Flutterwave Webhook ──────────────────────────────────────────────────────
+
+router.post("/webhooks/flutterwave", async (req: any, res): Promise<void> => {
+  try {
+    const fwHash = process.env.FLUTTERWAVE_SECRET_HASH ?? process.env.FLUTTERWAVE_SECRET_KEY ?? "";
+    const sig = req.headers["verif-hash"] as string ?? "";
+
+    if (!fwHash || sig !== fwHash) {
+      res.status(400).json({ error: "Invalid signature" }); return;
+    }
+
+    const { event, data } = req.body as { event: string; data: any };
+    if (event === "charge.completed" && data?.status === "successful") {
+      const ref = data?.tx_ref as string;
+      if (ref) {
+        const [inv] = await db.select().from(invoicesTable).where(eq(invoicesTable.paymentRef, ref));
+        if (inv && inv.status !== "paid") {
+          await db.update(invoicesTable).set({ status: "paid", paidAt: new Date(), updatedAt: new Date() }).where(eq(invoicesTable.id, inv.id));
+        }
+      }
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Webhook processing failed" });
   }
 });
 
@@ -437,16 +606,14 @@ router.get("/affiliate-links", ...requireMonetization, async (req: any, res): Pr
     const links = await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id)).orderBy(desc(affiliateLinksTable.createdAt));
 
     if (links.length === 0) {
-      const seeds = [
-        { name: "999 Book — Instagram Bio", destinationUrl: "https://charlyboy.com/999", slug: "999-ig", platform: "instagram", campaignTag: "book-launch", clickCount: 1847, conversionCount: 312, revenueGenerated: "468000" },
-        { name: "999 Book — TikTok Bio", destinationUrl: "https://charlyboy.com/999", slug: "999-tk", platform: "tiktok", campaignTag: "book-launch", clickCount: 2340, conversionCount: 478, revenueGenerated: "717000" },
-        { name: "Paystack Referral", destinationUrl: "https://paystack.com/refer/areafada", slug: "ps-ref", platform: null, campaignTag: "partnership", clickCount: 567, conversionCount: 89, revenueGenerated: "133500" },
-      ] satisfies typeof affiliateLinksTable.$inferInsert[];
-
-      await db.insert(affiliateLinksTable).values(seeds.map(s => ({ ...s, userId: user.id })));
+      const seeds: typeof affiliateLinksTable.$inferInsert[] = [
+        { userId: user.id, name: "999 Book — Instagram Bio", destinationUrl: "https://charlyboy.com/999", slug: "999-ig", platform: "instagram", campaignTag: "book-launch", clickCount: 1847, conversionCount: 312, revenueGenerated: "468000" },
+        { userId: user.id, name: "999 Book — TikTok Bio", destinationUrl: "https://charlyboy.com/999", slug: "999-tk", platform: "tiktok", campaignTag: "book-launch", clickCount: 2340, conversionCount: 478, revenueGenerated: "717000" },
+        { userId: user.id, name: "Paystack Referral", destinationUrl: "https://paystack.com/refer/areafada", slug: "ps-ref", platform: null, campaignTag: "partnership", clickCount: 567, conversionCount: 89, revenueGenerated: "133500" },
+      ];
+      await db.insert(affiliateLinksTable).values(seeds);
       const fresh = await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id)).orderBy(desc(affiliateLinksTable.createdAt));
-      res.json(fresh.map(mapLink));
-      return;
+      res.json(fresh.map(mapLink)); return;
     }
 
     res.json(links.map(mapLink));
@@ -464,8 +631,12 @@ router.post("/affiliate-links", ...requireMonetization, async (req: any, res): P
     const { name, destinationUrl, slug, platform, campaignTag, isActive } = req.body;
     if (!name || !destinationUrl || !slug) { res.status(400).json({ error: "name, destinationUrl, slug required" }); return; }
 
+    // Unique slug check
+    const existing = await db.select({ id: affiliateLinksTable.id }).from(affiliateLinksTable).where(eq(affiliateLinksTable.slug, slug)).limit(1);
+    if (existing.length > 0) { res.status(409).json({ error: `Slug "${slug}" is already in use — choose a different one` }); return; }
+
     const [link] = await db.insert(affiliateLinksTable).values({
-      userId: user.id, name, destinationUrl, slug, platform, campaignTag, isActive: isActive ?? true,
+      userId: user.id, name, destinationUrl, slug, platform: platform ?? null, campaignTag: campaignTag ?? null, isActive: isActive ?? true,
     }).returning();
 
     res.status(201).json(mapLink(link));
@@ -505,12 +676,45 @@ router.delete("/affiliate-links/:id", ...requireMonetization, async (req: any, r
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "User not found" }); return; }
-
     await db.delete(affiliateLinksTable).where(and(eq(affiliateLinksTable.id, Number(req.params.id)), eq(affiliateLinksTable.userId, user.id)));
     res.status(204).send();
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to delete affiliate link" });
+  }
+});
+
+// ─── Affiliate Click Tracking ─────────────────────────────────────────────────
+
+router.post("/affiliate-links/:slug/click", async (req: any, res): Promise<void> => {
+  try {
+    const { slug } = req.params;
+    const [link] = await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.slug, slug)).limit(1);
+    if (!link || !link.isActive) { res.status(404).json({ error: "Link not found" }); return; }
+
+    const ipRaw = (req.headers["x-forwarded-for"] as string ?? req.socket.remoteAddress ?? "");
+    const ipHash = crypto.createHash("sha256").update(ipRaw).digest("hex");
+    const converted = req.body.converted === true;
+
+    await db.insert(affiliateClicksTable).values({
+      linkId: link.id,
+      ipHash,
+      userAgent: (req.headers["user-agent"] ?? "").slice(0, 512),
+      referer: (req.headers["referer"] ?? "").slice(0, 512),
+      country: req.body.country ?? null,
+      converted,
+    });
+
+    await db.update(affiliateLinksTable).set({
+      clickCount: link.clickCount + 1,
+      ...(converted && { conversionCount: link.conversionCount + 1 }),
+      updatedAt: new Date(),
+    }).where(eq(affiliateLinksTable.id, link.id));
+
+    res.json({ success: true, destinationUrl: link.destinationUrl });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Click tracking failed" });
   }
 });
 
@@ -521,46 +725,54 @@ router.get("/monetization/revenue", ...requireMonetization, async (req: any, res
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "User not found" }); return; }
 
-    const targetCurrency = (req.query.currency as Currency) ?? "NGN";
+    const targetCurrency = (req.query.currency as string) ?? "NGN";
     const months = Math.min(Number(req.query.months ?? 6), 12);
+    const now = new Date();
 
     const monthLabels: string[] = [];
-    const now = new Date();
     for (let i = months - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       monthLabels.push(d.toLocaleString("en-NG", { month: "short", year: "2-digit" }));
     }
 
-    const deals = await db.select().from(brandDealsTable)
-      .where(and(eq(brandDealsTable.userId, user.id), gte(brandDealsTable.createdAt, new Date(now.getFullYear(), now.getMonth() - months + 1, 1))));
+    const rangeStart = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
-    const invoices = await db.select().from(invoicesTable)
-      .where(and(eq(invoicesTable.userId, user.id), gte(invoicesTable.createdAt, new Date(now.getFullYear(), now.getMonth() - months + 1, 1))));
+    const [deals, invoices, links] = await Promise.all([
+      db.select().from(brandDealsTable).where(and(eq(brandDealsTable.userId, user.id), gte(brandDealsTable.createdAt, rangeStart))),
+      db.select().from(invoicesTable).where(and(eq(invoicesTable.userId, user.id), gte(invoicesTable.createdAt, rangeStart))),
+      db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id)),
+    ]);
 
-    const links = await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id));
-
-    const waterfallMonths = monthLabels.map((label, i) => {
+    const waterfallMonths = await Promise.all(monthLabels.map(async (label, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (months - 1 - i), 1);
       const nextD = new Date(now.getFullYear(), now.getMonth() - (months - 2 - i), 1);
 
-      const dealTotal = deals
-        .filter(d2 => d2.createdAt >= d && d2.createdAt < nextD)
-        .reduce((acc, d2) => acc + toNGN(Number(d2.dealValue), d2.currency) / FX[targetCurrency], 0);
+      const dealTotalNGN = await Promise.all(
+        deals.filter(d2 => d2.createdAt >= d && d2.createdAt < nextD)
+          .map(d2 => toNGN(Number(d2.dealValue), d2.currency)),
+      ).then(vals => vals.reduce((a, v) => a + v, 0));
 
-      const invoiceTotal = invoices
-        .filter(inv => inv.status === "paid" && inv.createdAt >= d && inv.createdAt < nextD)
-        .reduce((acc, inv) => acc + toNGN(Number(inv.total), inv.currency) / FX[targetCurrency], 0);
+      const invoiceTotalNGN = await Promise.all(
+        invoices.filter(inv => inv.status === "paid" && inv.createdAt >= d && inv.createdAt < nextD)
+          .map(inv => toNGN(Number(inv.total), inv.currency)),
+      ).then(vals => vals.reduce((a, v) => a + v, 0));
 
-      const affiliateTotal = links.reduce((acc, l) => acc + Number(l.revenueGenerated) / FX[targetCurrency], 0) / months;
+      const affiliateTotalNGN = links.reduce((acc, l) => acc + Number(l.revenueGenerated), 0) / months;
+
+      const [dv, iv, av] = await Promise.all([
+        toTargetCurrency(dealTotalNGN, targetCurrency),
+        toTargetCurrency(invoiceTotalNGN, targetCurrency),
+        toTargetCurrency(affiliateTotalNGN, targetCurrency),
+      ]);
 
       return {
         month: label,
-        brandDeals: Math.round(dealTotal),
-        invoices: Math.round(invoiceTotal),
-        affiliates: Math.round(affiliateTotal),
-        total: Math.round(dealTotal + invoiceTotal + affiliateTotal),
+        brandDeals: Math.round(dv),
+        invoices: Math.round(iv),
+        affiliates: Math.round(av),
+        total: Math.round(dv + iv + av),
       };
-    });
+    }));
 
     const totalBrandDeals = waterfallMonths.reduce((a, m) => a + m.brandDeals, 0);
     const totalInvoices = waterfallMonths.reduce((a, m) => a + m.invoices, 0);
@@ -570,9 +782,7 @@ router.get("/monetization/revenue", ...requireMonetization, async (req: any, res
       currency: targetCurrency,
       months: waterfallMonths,
       totalRevenue: totalBrandDeals + totalInvoices + totalAffiliates,
-      totalBrandDeals,
-      totalInvoices,
-      totalAffiliates,
+      totalBrandDeals, totalInvoices, totalAffiliates,
     });
   } catch (err) {
     console.error(err);
@@ -584,10 +794,9 @@ router.get("/monetization/revenue", ...requireMonetization, async (req: any, res
 
 function mapDeal(d: typeof brandDealsTable.$inferSelect) {
   return {
-    id: d.id, userId: d.userId, brandName: d.brandName,
-    contactName: d.contactName, contactEmail: d.contactEmail,
-    dealValue: Number(d.dealValue), currency: d.currency, status: d.status,
-    deliverables: d.deliverables, platforms: d.platforms,
+    id: d.id, userId: d.userId, brandName: d.brandName, contactName: d.contactName,
+    contactEmail: d.contactEmail, dealValue: Number(d.dealValue), currency: d.currency,
+    status: d.status, deliverables: d.deliverables, platforms: d.platforms,
     startDate: d.startDate, endDate: d.endDate, notes: d.notes,
     createdAt: d.createdAt, updatedAt: d.updatedAt,
   };
@@ -595,13 +804,12 @@ function mapDeal(d: typeof brandDealsTable.$inferSelect) {
 
 function mapInvoice(inv: typeof invoicesTable.$inferSelect) {
   return {
-    id: inv.id, userId: inv.userId, dealId: inv.dealId,
-    invoiceNumber: inv.invoiceNumber, clientName: inv.clientName, clientEmail: inv.clientEmail,
-    currency: inv.currency, subtotal: Number(inv.subtotal), taxRate: Number(inv.taxRate),
-    taxAmount: Number(inv.taxAmount), total: Number(inv.total), status: inv.status,
-    dueDate: inv.dueDate, paidAt: inv.paidAt, paymentGateway: inv.paymentGateway,
-    paymentLink: inv.paymentLink, paymentRef: inv.paymentRef, notes: inv.notes,
-    createdAt: inv.createdAt, updatedAt: inv.updatedAt,
+    id: inv.id, userId: inv.userId, dealId: inv.dealId, invoiceNumber: inv.invoiceNumber,
+    clientName: inv.clientName, clientEmail: inv.clientEmail, currency: inv.currency,
+    subtotal: Number(inv.subtotal), taxRate: Number(inv.taxRate), taxAmount: Number(inv.taxAmount),
+    total: Number(inv.total), status: inv.status, dueDate: inv.dueDate, paidAt: inv.paidAt,
+    paymentGateway: inv.paymentGateway, paymentLink: inv.paymentLink, paymentRef: inv.paymentRef,
+    notes: inv.notes, createdAt: inv.createdAt, updatedAt: inv.updatedAt,
   };
 }
 
