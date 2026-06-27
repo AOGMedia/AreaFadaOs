@@ -19,6 +19,7 @@ export const ambassadorsTable = pgTable("ambassadors", {
   totalPoints: integer("total_points").notNull().default(0),
   tasksCompleted: integer("tasks_completed").notNull().default(0),
   referrals: integer("referrals").notNull().default(0),
+  portalToken: text("portal_token"),
   joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });

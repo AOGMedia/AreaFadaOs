@@ -26,6 +26,23 @@ tags:
     description: Analytics, audience geography, best post times, engagement scores, and reports
   - name: ambassadors
     description: Ambassador CRM, gamification, leaderboard, micro-influencer directory, WhatsApp broadcast log
+  - name: bookPromo
+    description: Book Download Promotion Engine — campaigns, tracked links, QR codes, funnel analytics, drip scheduler, fan verifications, affiliate commissions
+  - name: liveVideo
+    description: Live Video & Real-Time Engagement — sessions, broadcast setup, chat moderation, fan reminders, revenue tracking, post-live clip generator
+  - name: autoPost
+    description: Intelligent Auto-Post Engine — multi-platform composer, AI caption variants, hashtag engine, posting time optimizer, account groups, approval workflow, compliance checker, publish job tracker
+  - name: traffic
+    description: Traffic Generator & Traffic Engine — campaign management, multi-channel activation, Meta Ads Africa presets, WhatsApp blasts, influencer activation, growth snapshots, viral hook library, SEO content engine, content velocity recommender
+
+  - name: fanHub
+    description: Charly Boy Area Fada Fan Hub — fan profiles, tier qualification, leaderboard, challenges, content vault, merch codes, OG invites, fan analytics
+
+  - name: campaignIntelligence
+    description: Campaign Intelligence Tier 5 Enterprise — political LGA map, voter sentiment tracker, competitor monitoring, crisis alert system, ROI attribution, AFRIMA event mode
+
+  - name: mediaPartners
+    description: Global Media Partners Bulk Invite System — bulk invite generator, outreach dashboard, personalised landing pages, partner profiles, global media directory, email outreach, partner analytics
 
 paths:
   /healthz:
@@ -1246,6 +1263,3839 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RevenueWaterfall"
+
+  # ─── Book Promo Engine ────────────────────────────────────────────────────────
+
+  /promo-campaigns:
+    get:
+      operationId: listPromoCampaigns
+      tags: [bookPromo]
+      summary: List book promo campaigns
+      responses:
+        "200":
+          description: List of promo campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PromoCampaign"
+    post:
+      operationId: createPromoCampaign
+      tags: [bookPromo]
+      summary: Create a new promo campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromoCampaignBody"
+      responses:
+        "201":
+          description: Created campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoCampaign"
+
+  /promo-campaigns/{id}:
+    patch:
+      operationId: updatePromoCampaign
+      tags: [bookPromo]
+      summary: Update a promo campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromoCampaignBody"
+      responses:
+        "200":
+          description: Updated campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoCampaign"
+    delete:
+      operationId: deletePromoCampaign
+      tags: [bookPromo]
+      summary: Delete a promo campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /promo-campaigns/{id}/links:
+    get:
+      operationId: listPromoLinks
+      tags: [bookPromo]
+      summary: List tracked links for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of promo links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PromoLink"
+    post:
+      operationId: createPromoLink
+      tags: [bookPromo]
+      summary: Add a tracked link to a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromoLinkBody"
+      responses:
+        "201":
+          description: Created link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoLink"
+
+  /promo-links/{id}:
+    delete:
+      operationId: deletePromoLink
+      tags: [bookPromo]
+      summary: Delete a promo link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /promo-campaigns/{id}/qr/{channel}:
+    get:
+      operationId: getPromoQrCode
+      tags: [bookPromo]
+      summary: Download QR code PNG or SVG for a promo link channel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: channel
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [png, svg]
+            default: png
+      responses:
+        "200":
+          description: QR code image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/svg+xml:
+              schema:
+                type: string
+
+  /promo-campaigns/{id}/funnel:
+    get:
+      operationId: getPromoFunnel
+      tags: [bookPromo]
+      summary: Get funnel analytics for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Funnel analytics data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoFunnelData"
+
+  /promo-campaigns/{id}/drip-schedule:
+    post:
+      operationId: generateDripSchedule
+      tags: [bookPromo]
+      summary: Generate 30-day drip content schedule for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Generated drip posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DripScheduleResult"
+
+  /purchase-verifications:
+    get:
+      operationId: listPurchaseVerifications
+      tags: [bookPromo]
+      summary: List fan purchase verifications (admin)
+      parameters:
+        - name: campaignId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+      responses:
+        "200":
+          description: List of verifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PurchaseVerification"
+    post:
+      operationId: submitPurchaseVerification
+      tags: [bookPromo]
+      summary: Fan submits a purchase verification (public)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitVerificationBody"
+      responses:
+        "201":
+          description: Submission received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  id:
+                    type: integer
+
+  /purchase-verifications/{id}:
+    patch:
+      operationId: reviewPurchaseVerification
+      tags: [bookPromo]
+      summary: Admin approve or reject a fan purchase verification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewVerificationBody"
+      responses:
+        "200":
+          description: Updated verification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseVerification"
+
+  /affiliate-commissions:
+    get:
+      operationId: listAffiliateCommissions
+      tags: [bookPromo]
+      summary: List affiliate commissions for a campaign
+      parameters:
+        - name: campaignId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of commissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AffiliateCommission"
+    post:
+      operationId: createAffiliateCommission
+      tags: [bookPromo]
+      summary: Add an affiliate ambassador to a campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAffiliateBody"
+      responses:
+        "201":
+          description: Created affiliate record with referral URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateCommission"
+
+  /affiliate-commissions/{id}/payout:
+    patch:
+      operationId: triggerAffiliatePayout
+      tags: [bookPromo]
+      summary: Mark affiliate commission as paid (triggers Paystack payout)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payout triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateCommission"
+
+  # ─── Live Video ────────────────────────────────────────────────────────────────
+
+  /live-sessions:
+    get:
+      operationId: listLiveSessions
+      tags: [liveVideo]
+      summary: List live sessions for current user
+      responses:
+        "200":
+          description: List of live sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveSession"
+    post:
+      operationId: createLiveSession
+      tags: [liveVideo]
+      summary: Schedule a new live session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLiveSessionBody"
+      responses:
+        "201":
+          description: Created live session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSession"
+
+  /live-sessions/{id}:
+    patch:
+      operationId: updateLiveSession
+      tags: [liveVideo]
+      summary: Update a live session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLiveSessionBody"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSession"
+    delete:
+      operationId: deleteLiveSession
+      tags: [liveVideo]
+      summary: Delete a live session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /live-sessions/{id}/platform-configs:
+    get:
+      operationId: getLivePlatformConfigs
+      tags: [liveVideo]
+      summary: Get broadcast stream key configs per platform
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Platform configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LivePlatformConfig"
+
+  /live-sessions/{id}/platform-configs/{platform}:
+    patch:
+      operationId: updateLivePlatformConfig
+      tags: [liveVideo]
+      summary: Update stream key / status for a platform
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: platform
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                streamKey:
+                  type: string
+                broadcastUrl:
+                  type: string
+                status:
+                  type: string
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivePlatformConfig"
+
+  /live-sessions/{id}/chat:
+    get:
+      operationId: getLiveChat
+      tags: [liveVideo]
+      summary: Get unified chat feed for a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveChatMessage"
+    post:
+      operationId: addLiveChatMessage
+      tags: [liveVideo]
+      summary: Add a chat message to a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, authorName, message]
+              properties:
+                platform:
+                  type: string
+                authorName:
+                  type: string
+                authorHandle:
+                  type: string
+                message:
+                  type: string
+                isQuestion:
+                  type: boolean
+      responses:
+        "201":
+          description: Created message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveChatMessage"
+
+  /live-chat/{id}:
+    patch:
+      operationId: moderateLiveChatMessage
+      tags: [liveVideo]
+      summary: Pin, ban or mark a message as question
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isPinned:
+                  type: boolean
+                isBanned:
+                  type: boolean
+                isModerated:
+                  type: boolean
+                isQuestion:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveChatMessage"
+
+  /live-sessions/{id}/revenue:
+    get:
+      operationId: getLiveRevenue
+      tags: [liveVideo]
+      summary: Get revenue events and totals for a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Revenue data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRevenueData"
+    post:
+      operationId: addLiveRevenueEvent
+      tags: [liveVideo]
+      summary: Log a revenue event (super chat, donation, product sale)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, eventType, senderName, amount]
+              properties:
+                platform:
+                  type: string
+                eventType:
+                  type: string
+                senderName:
+                  type: string
+                amount:
+                  type: string
+                currency:
+                  type: string
+                message:
+                  type: string
+      responses:
+        "201":
+          description: Created event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRevenueEvent"
+
+  /live-sessions/{id}/clips:
+    get:
+      operationId: getLiveClips
+      tags: [liveVideo]
+      summary: Get post-live clip markers for a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Clips
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostLiveClip"
+    post:
+      operationId: createLiveClip
+      tags: [liveVideo]
+      summary: Mark a highlight clip with AI-generated caption
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, startSeconds, endSeconds]
+              properties:
+                label:
+                  type: string
+                startSeconds:
+                  type: integer
+                endSeconds:
+                  type: integer
+                platform:
+                  type: string
+      responses:
+        "201":
+          description: Created clip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostLiveClip"
+
+  /live-clips/{id}:
+    delete:
+      operationId: deleteLiveClip
+      tags: [liveVideo]
+      summary: Delete a clip marker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /live-sessions/{id}/reminders:
+    get:
+      operationId: getLiveReminders
+      tags: [liveVideo]
+      summary: Get fan reminder sign-ups for a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reminder signups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveReminderSignup"
+    post:
+      operationId: registerLiveReminder
+      tags: [liveVideo]
+      summary: Fan opt-in for live session reminder (public endpoint)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fanName]
+              properties:
+                fanName:
+                  type: string
+                fanEmail:
+                  type: string
+                fanPhone:
+                  type: string
+                channel:
+                  type: string
+                  enum: [email, whatsapp, sms]
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  id:
+                    type: integer
+
+  /live-sessions/{id}/send-reminders:
+    post:
+      operationId: sendLiveReminders
+      tags: [liveVideo]
+      summary: Send reminder notifications to all pending fans
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reminders sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  count:
+                    type: integer
+
+  /live-sessions/{id}/hype-schedule:
+    post:
+      operationId: generateHypeSchedule
+      tags: [liveVideo]
+      summary: Generate a pre-live countdown post sequence (7d to 15min before)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hype drip schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HypeScheduleResponse"
+
+  /live-sessions/{id}/public:
+    get:
+      operationId: getPublicLiveSession
+      tags: [liveVideo]
+      summary: Get public session details for fan reminder sign-up page (no auth required)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Public session details
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, title, scheduledAt, status, platforms]
+                properties:
+                  id:
+                    type: integer
+                  title:
+                    type: string
+                  description:
+                    type: string
+                  thumbnailUrl:
+                    type: string
+                  scheduledAt:
+                    type: string
+                    format: date-time
+                  endedAt:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+                  platforms:
+                    type: array
+                    items:
+                      type: string
+                  replayUrl:
+                    type: string
+                  totalViewers:
+                    type: integer
+        "404":
+          description: Session not found
+
+  /live-sessions/{id}/revenue.csv:
+    get:
+      operationId: exportLiveRevenueCsv
+      tags: [liveVideo]
+      summary: Export live session revenue events as CSV
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: CSV file download
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /live-sessions/{id}/queue-replay:
+    post:
+      operationId: queueReplayDistribution
+      tags: [liveVideo]
+      summary: Queue replay and clip distribution to YouTube/IGTV/Facebook after session ends
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                replayUrl:
+                  type: string
+                platforms:
+                  type: array
+                  items:
+                    type: string
+                distributeClips:
+                  type: boolean
+      responses:
+        "200":
+          description: Replay distribution queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  replayPosts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        platform:
+                          type: string
+                  clipPosts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        clipId:
+                          type: integer
+                        platform:
+                          type: string
+                  sessionId:
+                    type: integer
+
+  /live-moderation-rules:
+    get:
+      operationId: listModerationRules
+      tags: [liveVideo]
+      summary: List all keyword/ban moderation rules for the current user
+      responses:
+        "200":
+          description: List of moderation rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveModerationRule"
+    post:
+      operationId: createModerationRule
+      tags: [liveVideo]
+      summary: Create a keyword filter or ban rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pattern]
+              properties:
+                ruleType:
+                  type: string
+                  enum: [keyword, ban, regex]
+                pattern:
+                  type: string
+                action:
+                  type: string
+                  enum: [hide, delete, flag, timeout]
+      responses:
+        "201":
+          description: Rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveModerationRule"
+
+  /live-moderation-rules/{id}:
+    patch:
+      operationId: updateModerationRule
+      tags: [liveVideo]
+      summary: Toggle active status or update action/pattern
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                active:
+                  type: boolean
+                action:
+                  type: string
+                pattern:
+                  type: string
+      responses:
+        "200":
+          description: Rule updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveModerationRule"
+        "404":
+          description: Rule not found
+    delete:
+      operationId: deleteModerationRule
+      tags: [liveVideo]
+      summary: Delete a moderation rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Rule not found
+
+  /live-chat/{id}/check-moderation:
+    post:
+      operationId: checkChatModeration
+      tags: [liveVideo]
+      summary: Run active keyword/ban rules against a chat message and apply action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Moderation check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  triggered:
+                    type: array
+                    items:
+                      type: object
+                  topAction:
+                    type: string
+                    nullable: true
+                  messageId:
+                    type: integer
+                  message:
+                    type: string
+
+  /live-notification-events:
+    get:
+      operationId: listNotificationEvents
+      tags: [liveVideo]
+      summary: Delivery log of reminder notifications for the current user's sessions
+      parameters:
+        - name: sessionId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of notification events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveNotificationEvent"
+
+  /clip-accounts:
+    get:
+      operationId: listClipAccounts
+      tags: [clip-engine]
+      summary: List all clip accounts for the user
+      responses:
+        "200":
+          description: List of clip accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClipAccount"
+    post:
+      operationId: createClipAccount
+      tags: [clip-engine]
+      summary: Create a new clip account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClipAccountRequest"
+      responses:
+        "201":
+          description: Created clip account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipAccount"
+
+  /clip-accounts/{id}:
+    patch:
+      operationId: updateClipAccount
+      tags: [clip-engine]
+      summary: Update a clip account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClipAccountRequest"
+      responses:
+        "200":
+          description: Updated clip account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipAccount"
+    delete:
+      operationId: deleteClipAccount
+      tags: [clip-engine]
+      summary: Delete a clip account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /source-videos:
+    get:
+      operationId: listSourceVideos
+      tags: [clip-engine]
+      summary: List source videos
+      responses:
+        "200":
+          description: List of source videos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SourceVideo"
+    post:
+      operationId: createSourceVideo
+      tags: [clip-engine]
+      summary: Add a source video
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSourceVideoRequest"
+      responses:
+        "201":
+          description: Created source video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceVideo"
+
+  /source-videos/{id}:
+    get:
+      operationId: getSourceVideo
+      tags: [clip-engine]
+      summary: Get a source video by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Source video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceVideo"
+
+  /source-videos/{id}/analyze:
+    post:
+      operationId: analyzeSourceVideo
+      tags: [clip-engine]
+      summary: Run AI moment detection on a source video
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Detected moments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeVideoResponse"
+
+  /source-videos/{id}/distribute:
+    post:
+      operationId: distributeSourceVideo
+      tags: [clip-engine]
+      summary: Distribute source video across accounts with content differentiation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DistributeVideoRequest"
+      responses:
+        "200":
+          description: Distribution result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DistributeVideoResponse"
+
+  /clip-jobs:
+    get:
+      operationId: listClipJobs
+      tags: [clip-engine]
+      summary: List AI clip analysis jobs
+      responses:
+        "200":
+          description: List of clip jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClipJob"
+
+  /clip-jobs/{id}:
+    get:
+      operationId: getClipJob
+      tags: [clip-engine]
+      summary: Get a clip job by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Clip job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipJob"
+
+  /clips:
+    get:
+      operationId: listClips
+      tags: [clip-engine]
+      summary: List clips with optional filters
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: integer
+        - name: sourceVideoId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of clips
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Clip"
+    post:
+      operationId: createClip
+      tags: [clip-engine]
+      summary: Create a clip manually
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClipRequest"
+      responses:
+        "201":
+          description: Created clip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clip"
+
+  /clips/{id}:
+    patch:
+      operationId: updateClip
+      tags: [clip-engine]
+      summary: Update a clip
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClipRequest"
+      responses:
+        "200":
+          description: Updated clip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clip"
+
+  /clips/{id}/generate-caption:
+    post:
+      operationId: generateClipCaption
+      tags: [clip-engine]
+      summary: Generate AI captions in multiple tones for a clip
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tones:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Generated captions per tone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateCaptionResponse"
+
+  /clips/{id}/collab:
+    post:
+      operationId: enableClipCollab
+      tags: [clip-engine]
+      summary: Enable collab mode — queue the clip from a second account simultaneously
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollabRequest"
+      responses:
+        "200":
+          description: Collab enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollabResponse"
+
+  /clip-schedules:
+    get:
+      operationId: listClipSchedules
+      tags: [clip-engine]
+      summary: List clip schedules
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: integer
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: List of clip schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClipSchedule"
+    post:
+      operationId: createClipSchedule
+      tags: [clip-engine]
+      summary: Schedule a clip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClipScheduleRequest"
+      responses:
+        "201":
+          description: Created schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipSchedule"
+
+  /clip-schedules/calendar:
+    get:
+      operationId: getClipScheduleCalendar
+      tags: [clip-engine]
+      summary: Get 30-day clip scheduling calendar
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Calendar entries with clip and account details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEntry"
+
+  /clip-schedules/bulk:
+    post:
+      operationId: bulkCreateClipSchedules
+      tags: [clip-engine]
+      summary: Bulk schedule clips across accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkScheduleRequest"
+      responses:
+        "201":
+          description: Bulk schedule result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkScheduleResponse"
+
+  /clip-schedules/{id}:
+    patch:
+      operationId: updateClipSchedule
+      tags: [clip-engine]
+      summary: Update a clip schedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClipScheduleRequest"
+      responses:
+        "200":
+          description: Updated schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipSchedule"
+    delete:
+      operationId: deleteClipSchedule
+      tags: [clip-engine]
+      summary: Delete a clip schedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /brand-overlay-configs:
+    get:
+      operationId: listBrandOverlayConfigs
+      tags: [clip-engine]
+      summary: List brand overlay configs
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of brand overlay configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrandOverlayConfig"
+    post:
+      operationId: createBrandOverlayConfig
+      tags: [clip-engine]
+      summary: Create a brand overlay config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrandOverlayConfigRequest"
+      responses:
+        "201":
+          description: Created brand overlay config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandOverlayConfig"
+
+  /brand-overlay-configs/{id}:
+    patch:
+      operationId: updateBrandOverlayConfig
+      tags: [clip-engine]
+      summary: Update a brand overlay config
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrandOverlayConfigRequest"
+      responses:
+        "200":
+          description: Updated brand overlay config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandOverlayConfig"
+
+  /clip-performance:
+    get:
+      operationId: listClipPerformance
+      tags: [clip-engine]
+      summary: List clip performance logs
+      parameters:
+        - name: clipId
+          in: query
+          schema:
+            type: integer
+        - name: accountId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of performance logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClipPerformanceLog"
+    post:
+      operationId: logClipPerformance
+      tags: [clip-engine]
+      summary: Log clip performance data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogClipPerformanceRequest"
+      responses:
+        "201":
+          description: Created performance log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipPerformanceLog"
+
+  /clip-performance/summary:
+    get:
+      operationId: getClipPerformanceSummary
+      tags: [clip-engine]
+      summary: Get clip performance summary and top clips
+      responses:
+        "200":
+          description: Performance summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipPerformanceSummary"
+
+
+  # ─── Auto-Post Engine ─────────────────────────────────────────────────────────
+
+  /auto-post/drafts:
+    get:
+      operationId: listPostDrafts
+      tags: [autoPost]
+      summary: List post drafts for current user
+      responses:
+        "200":
+          description: List of drafts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostDraft"
+    post:
+      operationId: createPostDraft
+      tags: [autoPost]
+      summary: Create a new post draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostDraftBody"
+      responses:
+        "201":
+          description: Created draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostDraft"
+
+  /auto-post/drafts/{id}:
+    get:
+      operationId: getPostDraft
+      tags: [autoPost]
+      summary: Get a draft with its publish jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Draft with jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostDraftWithJobs"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePostDraft
+      tags: [autoPost]
+      summary: Update a post draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePostDraftBody"
+      responses:
+        "200":
+          description: Updated draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostDraft"
+    delete:
+      operationId: deletePostDraft
+      tags: [autoPost]
+      summary: Delete a post draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /auto-post/drafts/{id}/generate-variants:
+    post:
+      operationId: generatePostVariants
+      tags: [autoPost]
+      summary: Generate AI caption variants per platform
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                platforms:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Generated variants
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateVariantsResponse"
+
+  /auto-post/drafts/{id}/compliance-check:
+    post:
+      operationId: checkPostCompliance
+      tags: [autoPost]
+      summary: Run AI compliance scan on draft caption
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Compliance result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplianceFlag"
+
+  /auto-post/drafts/{id}/publish:
+    post:
+      operationId: publishPostDraft
+      tags: [autoPost]
+      summary: Publish draft — creates per-platform publish jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scheduledAt:
+                  type: string
+                  format: date-time
+                platformVariants:
+                  type: object
+                  additionalProperties:
+                    type: string
+                platformHashtags:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items:
+                      type: string
+      responses:
+        "201":
+          description: Publish jobs created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishResult"
+
+  /auto-post/publish-jobs:
+    get:
+      operationId: listPublishJobs
+      tags: [autoPost]
+      summary: List publish jobs
+      parameters:
+        - name: draftId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of publish jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PublishJob"
+
+  /auto-post/publish-jobs/{id}/retry:
+    post:
+      operationId: retryPublishJob
+      tags: [autoPost]
+      summary: Retry a failed publish job
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Job queued for retry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  job:
+                    $ref: "#/components/schemas/PublishJob"
+
+  /auto-post/account-groups:
+    get:
+      operationId: listAccountGroups
+      tags: [autoPost]
+      summary: List account groups with members
+      responses:
+        "200":
+          description: List of groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccountGroup"
+    post:
+      operationId: createAccountGroup
+      tags: [autoPost]
+      summary: Create an account group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountGroupBody"
+      responses:
+        "201":
+          description: Created group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountGroup"
+
+  /auto-post/account-groups/{id}:
+    patch:
+      operationId: updateAccountGroup
+      tags: [autoPost]
+      summary: Update an account group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccountGroupBody"
+      responses:
+        "200":
+          description: Updated group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountGroup"
+    delete:
+      operationId: deleteAccountGroup
+      tags: [autoPost]
+      summary: Delete an account group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /auto-post/account-groups/{id}/publish:
+    post:
+      operationId: publishToAccountGroup
+      tags: [autoPost]
+      summary: Publish to all accounts in a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                draftId:
+                  type: integer
+                sourceCaption:
+                  type: string
+                scheduledAt:
+                  type: string
+                  format: date-time
+                platformVariants:
+                  type: object
+                  additionalProperties:
+                    type: string
+      responses:
+        "201":
+          description: Group publish jobs created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublishResult"
+
+  /auto-post/posting-time-recommendations:
+    get:
+      operationId: getPostingTimeRecommendations
+      tags: [autoPost]
+      summary: Get optimal posting times per platform (WAT timezone)
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Posting time recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostingTimeRecommendations"
+
+  /auto-post/hashtag-engine:
+    get:
+      operationId: getHashtagSuggestions
+      tags: [autoPost]
+      summary: Get hashtag suggestions per platform, region, and niche
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+            default: instagram
+        - name: region
+          in: query
+          schema:
+            type: string
+            default: NG
+        - name: niche
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Hashtag suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HashtagEngineResponse"
+
+  /auto-post/approval-requests:
+    get:
+      operationId: listApprovalRequests
+      tags: [autoPost]
+      summary: List approval requests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of approval requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApprovalRequest"
+    post:
+      operationId: createApprovalRequest
+      tags: [autoPost]
+      summary: Submit a draft for approval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [draftId]
+              properties:
+                draftId:
+                  type: integer
+      responses:
+        "201":
+          description: Approval request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalRequest"
+
+  /auto-post/approval-requests/{id}:
+    patch:
+      operationId: reviewApprovalRequest
+      tags: [autoPost]
+      summary: Approve, reject, or request edit on an approval request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected, edited]
+                reviewNote:
+                  type: string
+      responses:
+        "200":
+          description: Updated approval request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalRequest"
+
+  # ─── Traffic Generator & Traffic Engine ──────────────────────────────────────
+
+  /traffic-campaigns:
+    get:
+      operationId: listTrafficCampaigns
+      tags: [traffic]
+      summary: List traffic campaigns for current user
+      responses:
+        "200":
+          description: List of traffic campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrafficCampaign"
+    post:
+      operationId: createTrafficCampaign
+      tags: [traffic]
+      summary: Create a new traffic campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrafficCampaignBody"
+      responses:
+        "201":
+          description: Created traffic campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficCampaign"
+
+  /traffic-campaigns/{id}:
+    get:
+      operationId: getTrafficCampaign
+      tags: [traffic]
+      summary: Get a traffic campaign with its channel configs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Traffic campaign with channels
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficCampaignDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateTrafficCampaign
+      tags: [traffic]
+      summary: Update a traffic campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTrafficCampaignBody"
+      responses:
+        "200":
+          description: Updated traffic campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficCampaign"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteTrafficCampaign
+      tags: [traffic]
+      summary: Delete a traffic campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /traffic-campaigns/{id}/channels:
+    get:
+      operationId: listCampaignChannels
+      tags: [traffic]
+      summary: List channel configs for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of channel configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CampaignChannel"
+
+  /traffic-campaigns/{id}/channels/{channelId}:
+    patch:
+      operationId: updateCampaignChannel
+      tags: [traffic]
+      summary: Update a campaign channel config
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCampaignChannelBody"
+      responses:
+        "200":
+          description: Updated channel config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignChannel"
+        "404":
+          description: Not found
+
+  /traffic/meta-audience-presets:
+    get:
+      operationId: listMetaAudiencePresets
+      tags: [traffic]
+      summary: List Africa-specific Meta Ads audience presets
+      responses:
+        "200":
+          description: List of presets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MetaAudiencePreset"
+
+  /traffic-campaigns/{id}/influencer-activations:
+    get:
+      operationId: listInfluencerActivations
+      tags: [traffic]
+      summary: List micro-influencers with activation status for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Influencers with activation status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InfluencerActivation"
+
+  /traffic-campaigns/{id}/influencer-activations/{influencerId}:
+    post:
+      operationId: updateInfluencerActivation
+      tags: [traffic]
+      summary: Send brief or update activation status for an influencer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: influencerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [send_brief, mark_active, mark_completed]
+      responses:
+        "200":
+          description: Updated activation record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfluencerActivationRecord"
+
+  /traffic-campaigns/{id}/events:
+    post:
+      operationId: recordTrafficEvent
+      tags: [traffic]
+      summary: Record a traffic event (click, visit, lead, conversion)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrafficEventBody"
+      responses:
+        "201":
+          description: Recorded event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficEvent"
+
+  /growth-snapshots:
+    get:
+      operationId: listGrowthSnapshots
+      tags: [traffic]
+      summary: List growth snapshots for current user
+      parameters:
+        - name: platformAccountId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of growth snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GrowthSnapshot"
+    post:
+      operationId: createGrowthSnapshot
+      tags: [traffic]
+      summary: Log a new growth snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGrowthSnapshotBody"
+      responses:
+        "201":
+          description: Created snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrowthSnapshot"
+
+  /growth-snapshots/{id}/alert:
+    patch:
+      operationId: updateGrowthSnapshotAlert
+      tags: [traffic]
+      summary: Configure growth rate alert for a snapshot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alertEnabled:
+                  type: boolean
+                alertThresholdRate:
+                  type: string
+      responses:
+        "200":
+          description: Updated snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrowthSnapshot"
+
+  /hook-library:
+    get:
+      operationId: listHookLibrary
+      tags: [traffic]
+      summary: Browse viral hook library
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: niche
+          in: query
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of hook entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HookEntry"
+    post:
+      operationId: createHookEntry
+      tags: [traffic]
+      summary: Add a hook to the library
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHookEntryBody"
+      responses:
+        "201":
+          description: Created hook entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HookEntry"
+
+  /hook-library/{id}/like:
+    post:
+      operationId: likeHookEntry
+      tags: [traffic]
+      summary: Like a hook entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated hook entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HookEntry"
+
+  /hook-library/{id}/use:
+    post:
+      operationId: useHookEntry
+      tags: [traffic]
+      summary: Record usage of a hook entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated hook entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HookEntry"
+
+  /seo-content-jobs:
+    get:
+      operationId: listSeoContentJobs
+      tags: [traffic]
+      summary: List SEO content generation jobs
+      responses:
+        "200":
+          description: List of SEO content pieces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SeoContentPiece"
+    post:
+      operationId: createSeoContentJob
+      tags: [traffic]
+      summary: Generate SEO-optimised content for an African search topic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSeoContentJobBody"
+      responses:
+        "201":
+          description: SEO content job started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeoContentPiece"
+
+  /seo-content-jobs/{id}/publish-to-calendar:
+    post:
+      operationId: publishSeoContentToCalendar
+      tags: [traffic]
+      summary: Publish generated SEO content to the content calendar
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scheduledAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                platform:
+                  type: string
+      responses:
+        "200":
+          description: Published to calendar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  post:
+                    $ref: "#/components/schemas/Post"
+                  piece:
+                    $ref: "#/components/schemas/SeoContentPiece"
+
+  /traffic/content-velocity:
+    get:
+      operationId: getContentVelocityRecommendations
+      tags: [traffic]
+      summary: Get AI-driven content velocity recommendations per platform
+      responses:
+        "200":
+          description: Content velocity analysis and recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentVelocityReport"
+
+  # ─── Fan Hub ─────────────────────────────────────────────────────────────────
+
+  /fan-hub/profiles:
+    get:
+      operationId: listFanProfiles
+      tags: [fanHub]
+      summary: List all fan profiles (admin view)
+      parameters:
+        - name: tier
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Fan profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FanProfile"
+    post:
+      operationId: registerFanProfile
+      tags: [fanHub]
+      summary: Register a new fan profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterFanBody"
+      responses:
+        "201":
+          description: Created fan profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanProfile"
+
+  /fan-hub/profiles/me:
+    get:
+      operationId: getMyFanProfile
+      tags: [fanHub]
+      summary: Get my fan profile
+      responses:
+        "200":
+          description: My fan profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanProfile"
+        "404":
+          description: Not registered
+
+  /fan-hub/profiles/{id}:
+    patch:
+      operationId: updateFanProfile
+      tags: [fanHub]
+      summary: Update a fan profile (admin — e.g. verify purchase, force tier)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFanProfileBody"
+      responses:
+        "200":
+          description: Updated fan profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanProfile"
+
+  /fan-hub/leaderboard:
+    get:
+      operationId: getFanLeaderboard
+      tags: [fanHub]
+      summary: Get public fan leaderboard ranked by score
+      responses:
+        "200":
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FanLeaderboardEntry"
+
+  /fan-hub/challenges:
+    get:
+      operationId: listFanChallenges
+      tags: [fanHub]
+      summary: List fan challenges
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Challenges
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FanChallenge"
+    post:
+      operationId: createFanChallenge
+      tags: [fanHub]
+      summary: Create a fan challenge / mission (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFanChallengeBody"
+      responses:
+        "201":
+          description: Created challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanChallenge"
+
+  /fan-hub/challenges/{id}:
+    patch:
+      operationId: updateFanChallenge
+      tags: [fanHub]
+      summary: Update a fan challenge (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFanChallengeBody"
+      responses:
+        "200":
+          description: Updated challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanChallenge"
+    delete:
+      operationId: deleteFanChallenge
+      tags: [fanHub]
+      summary: Delete a fan challenge (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /fan-hub/challenges/{id}/submit:
+    post:
+      operationId: submitChallengeProof
+      tags: [fanHub]
+      summary: Submit proof for a fan challenge
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitChallengeProofBody"
+      responses:
+        "201":
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeSubmission"
+
+  /fan-hub/submissions:
+    get:
+      operationId: listChallengeSubmissions
+      tags: [fanHub]
+      summary: List all challenge submissions (admin approval queue)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Submissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChallengeSubmission"
+
+  /fan-hub/submissions/{id}/review:
+    patch:
+      operationId: reviewChallengeSubmission
+      tags: [fanHub]
+      summary: Approve or reject a submission (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewSubmissionBody"
+      responses:
+        "200":
+          description: Reviewed submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeSubmission"
+
+  /fan-hub/vault:
+    get:
+      operationId: listVaultItems
+      tags: [fanHub]
+      summary: List content vault items (filtered by fan tier)
+      responses:
+        "200":
+          description: Vault items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/VaultItem"
+    post:
+      operationId: createVaultItem
+      tags: [fanHub]
+      summary: Add a content vault item (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVaultItemBody"
+      responses:
+        "201":
+          description: Created vault item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultItem"
+
+  /fan-hub/vault/{id}:
+    patch:
+      operationId: updateVaultItem
+      tags: [fanHub]
+      summary: Update a vault item (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVaultItemBody"
+      responses:
+        "200":
+          description: Updated vault item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VaultItem"
+    delete:
+      operationId: deleteVaultItem
+      tags: [fanHub]
+      summary: Delete a vault item (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /fan-hub/merch-codes:
+    get:
+      operationId: listMerchCodes
+      tags: [fanHub]
+      summary: List merch discount codes (admin)
+      responses:
+        "200":
+          description: Merch codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MerchDiscountCode"
+
+  /fan-hub/merch-codes/generate:
+    post:
+      operationId: generateMerchCode
+      tags: [fanHub]
+      summary: Generate a merch discount code for a Tier 3+ fan (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateMerchCodeBody"
+      responses:
+        "201":
+          description: Generated code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MerchDiscountCode"
+
+  /fan-hub/og-list:
+    get:
+      operationId: listOgInvites
+      tags: [fanHub]
+      summary: List OG invite list (admin)
+      responses:
+        "200":
+          description: OG invite list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OgInvite"
+
+  /fan-hub/og-list/invite:
+    post:
+      operationId: inviteOgMember
+      tags: [fanHub]
+      summary: Generate personal invite link for a top fan (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteOgMemberBody"
+      responses:
+        "201":
+          description: OG invite created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OgInvite"
+
+  /fan-hub/og-list/{id}:
+    patch:
+      operationId: updateOgInvite
+      tags: [fanHub]
+      summary: Update OG invite status / notes (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOgInviteBody"
+      responses:
+        "200":
+          description: Updated OG invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OgInvite"
+
+  /fan-hub/analytics:
+    get:
+      operationId: getFanHubAnalytics
+      tags: [fanHub]
+      summary: Fan Hub analytics overview (admin)
+      responses:
+        "200":
+          description: Fan analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FanHubAnalytics"
+
+  # ─── Campaign Intelligence ───────────────────────────────────────────────────
+
+  /intelligence/configs:
+    get:
+      operationId: listIntelligenceConfigs
+      tags: [campaignIntelligence]
+      summary: List campaign intelligence configs for current user (auto-seeds KOH 2027 demo)
+      responses:
+        "200":
+          description: List of configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IntelligenceConfig"
+    post:
+      operationId: createIntelligenceConfig
+      tags: [campaignIntelligence]
+      summary: Create a campaign intelligence config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIntelligenceConfigBody"
+      responses:
+        "201":
+          description: Created config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceConfig"
+
+  /intelligence/configs/{id}:
+    patch:
+      operationId: updateIntelligenceConfig
+      tags: [campaignIntelligence]
+      summary: Update a campaign intelligence config
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIntelligenceConfigBody"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceConfig"
+
+  /intelligence/lga-data:
+    get:
+      operationId: getLgaData
+      tags: [campaignIntelligence]
+      summary: Get Nigeria state/LGA content performance heat data
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: LGA performance data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LgaData"
+
+  /intelligence/lga-data/{state}/wards:
+    get:
+      operationId: getWardData
+      tags: [campaignIntelligence]
+      summary: Get ward-level breakdown for a specific state
+      parameters:
+        - name: state
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ward-level data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WardData"
+
+  /intelligence/sentiment-monitors:
+    get:
+      operationId: listSentimentMonitors
+      tags: [campaignIntelligence]
+      summary: List sentiment keyword monitors
+      responses:
+        "200":
+          description: Monitors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SentimentMonitor"
+    post:
+      operationId: createSentimentMonitor
+      tags: [campaignIntelligence]
+      summary: Add a keyword/hashtag sentiment monitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSentimentMonitorBody"
+      responses:
+        "201":
+          description: Created monitor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentimentMonitor"
+
+  /intelligence/sentiment-monitors/{id}:
+    delete:
+      operationId: deleteSentimentMonitor
+      tags: [campaignIntelligence]
+      summary: Delete a sentiment monitor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /intelligence/sentiment-events:
+    get:
+      operationId: listSentimentEvents
+      tags: [campaignIntelligence]
+      summary: List sentiment events (last 30 days by default)
+      parameters:
+        - name: monitorId
+          in: query
+          schema:
+            type: integer
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Sentiment events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SentimentEvent"
+
+  /intelligence/sentiment-events/analyse:
+    post:
+      operationId: analyseSentimentText
+      tags: [campaignIntelligence]
+      summary: Run Claude AI sentiment analysis on a text sample
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyseSentimentBody"
+      responses:
+        "201":
+          description: Created sentiment event with AI analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentimentEvent"
+
+  /intelligence/competitors:
+    get:
+      operationId: listCompetitors
+      tags: [campaignIntelligence]
+      summary: List tracked competitor accounts
+      parameters:
+        - name: configId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Competitor accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompetitorAccount"
+    post:
+      operationId: addCompetitor
+      tags: [campaignIntelligence]
+      summary: Add a competitor account (max 10 per config)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCompetitorBody"
+      responses:
+        "201":
+          description: Added competitor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitorAccount"
+
+  /intelligence/competitors/latest-snapshots:
+    get:
+      operationId: getCompetitorLatestSnapshots
+      tags: [campaignIntelligence]
+      summary: Get latest snapshot for every competitor in a config
+      parameters:
+        - name: configId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Map of competitorId to latest snapshot
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompetitorWithSnapshot"
+
+  /intelligence/competitors/{id}:
+    delete:
+      operationId: deleteCompetitor
+      tags: [campaignIntelligence]
+      summary: Remove a competitor account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /intelligence/competitors/{id}/snapshots:
+    get:
+      operationId: listCompetitorSnapshots
+      tags: [campaignIntelligence]
+      summary: List snapshots for a competitor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompetitorSnapshot"
+    post:
+      operationId: addCompetitorSnapshot
+      tags: [campaignIntelligence]
+      summary: Log a manual competitor snapshot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCompetitorSnapshotBody"
+      responses:
+        "201":
+          description: Created snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitorSnapshot"
+
+  /intelligence/crisis-alerts:
+    get:
+      operationId: listCrisisAlerts
+      tags: [campaignIntelligence]
+      summary: List crisis alerts
+      parameters:
+        - name: acknowledged
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: Crisis alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrisisAlert"
+    post:
+      operationId: createCrisisAlert
+      tags: [campaignIntelligence]
+      summary: Manually log a crisis alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCrisisAlertBody"
+      responses:
+        "201":
+          description: Created alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrisisAlert"
+
+  /intelligence/crisis-alerts/detect:
+    post:
+      operationId: detectCrisisAlerts
+      tags: [campaignIntelligence]
+      summary: Auto-detect crisis conditions from recent sentiment/growth data and generate alerts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [configId]
+              properties:
+                configId:
+                  type: integer
+      responses:
+        "200":
+          description: Detection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrisisDetectionResult"
+
+  /intelligence/crisis-alerts/{id}/acknowledge:
+    post:
+      operationId: acknowledgeCrisisAlert
+      tags: [campaignIntelligence]
+      summary: Acknowledge a crisis alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrisisAlert"
+
+  /intelligence/roi-attributions:
+    get:
+      operationId: listRoiAttributions
+      tags: [campaignIntelligence]
+      summary: List ROI attribution events
+      parameters:
+        - name: configId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Attribution events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoiAttributionEvent"
+    post:
+      operationId: createRoiAttribution
+      tags: [campaignIntelligence]
+      summary: Log a new ROI attribution event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoiAttributionBody"
+      responses:
+        "201":
+          description: Created event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoiAttributionEvent"
+
+  /intelligence/event-modes:
+    get:
+      operationId: listEventModes
+      tags: [campaignIntelligence]
+      summary: List AFRIMA/awards event mode configs
+      parameters:
+        - name: configId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Event modes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EventModeConfig"
+    post:
+      operationId: createEventMode
+      tags: [campaignIntelligence]
+      summary: Create an event mode config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventModeBody"
+      responses:
+        "201":
+          description: Created event mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventModeConfig"
+
+  /intelligence/event-modes/{id}:
+    patch:
+      operationId: updateEventMode
+      tags: [campaignIntelligence]
+      summary: Update an event mode config
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventModeBody"
+      responses:
+        "200":
+          description: Updated event mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventModeConfig"
+
+  /intelligence/event-modes/{id}/generate-recap:
+    post:
+      operationId: generateEventRecap
+      tags: [campaignIntelligence]
+      summary: Generate Claude AI post-show recap for an event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated event with recap text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventModeConfig"
+
+  /intelligence/event-modes/{id}/generate-hype-schedule:
+    post:
+      operationId: generateHypeSchedule
+      tags: [campaignIntelligence]
+      summary: Generate 30-day pre-event hype content schedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated event with content schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventModeConfig"
+
+  # ─── Media Partners ──────────────────────────────────────────────────────────
+
+  /partner-invites/public/{token}:
+    get:
+      operationId: getPublicInvite
+      tags: [mediaPartners]
+      summary: Validate and retrieve a partner invite by token (public, no auth)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Invite details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicInviteResponse"
+        "404":
+          description: Not found
+        "410":
+          description: Expired or revoked
+
+  /partner-invites:
+    get:
+      operationId: listPartnerInvites
+      tags: [mediaPartners]
+      summary: List all sent partner invites
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [sent, opened, signed_up, converted, expired, revoked] }
+        - name: partnerType
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartnerInvite"
+    post:
+      operationId: createPartnerInvite
+      tags: [mediaPartners]
+      summary: Create a single personalised invite link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePartnerInviteBody"
+      responses:
+        "201":
+          description: Created invite with invite URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerInviteWithUrl"
+
+  /partner-invites/bulk:
+    post:
+      operationId: bulkCreatePartnerInvites
+      tags: [mediaPartners]
+      summary: Bulk create invites from CSV row data (up to 500)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkPartnerInviteBody"
+      responses:
+        "200":
+          description: Bulk creation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkPartnerInviteResult"
+
+  /partner-invites/bulk-resend:
+    post:
+      operationId: bulkResendPartnerInvites
+      tags: [mediaPartners]
+      summary: Bulk re-send invites by ID list (unconverted)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        "200":
+          description: Re-send count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resentCount: { type: integer }
+
+  /partner-invites/{id}/resend:
+    post:
+      operationId: resendPartnerInvite
+      tags: [mediaPartners]
+      summary: Re-send a single invite (generates a new token with fresh 30-day expiry)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Updated invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerInviteWithUrl"
+
+  /partner-invites/{id}/revoke:
+    post:
+      operationId: revokePartnerInvite
+      tags: [mediaPartners]
+      summary: Revoke an invite
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Revoked invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerInvite"
+
+  /partner-profiles:
+    get:
+      operationId: listPartnerProfiles
+      tags: [mediaPartners]
+      summary: List onboarded partner profiles
+      parameters:
+        - name: partnerType
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartnerProfile"
+    post:
+      operationId: createPartnerProfile
+      tags: [mediaPartners]
+      summary: Manually create a partner profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePartnerProfileBody"
+      responses:
+        "201":
+          description: Created profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+
+  /partner-profiles/{id}:
+    get:
+      operationId: getPartnerProfile
+      tags: [mediaPartners]
+      summary: Get a partner profile by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+    patch:
+      operationId: updatePartnerProfile
+      tags: [mediaPartners]
+      summary: Update a partner profile (also appends activity log note)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePartnerProfileBody"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+
+  /partner-directory:
+    get:
+      operationId: listPartnerDirectory
+      tags: [mediaPartners]
+      summary: List curated African and diaspora media partner targets
+      parameters:
+        - name: orgType
+          in: query
+          schema: { type: string }
+        - name: region
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: outreachStatus
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Directory entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartnerDirectoryEntry"
+    post:
+      operationId: createPartnerDirectoryEntry
+      tags: [mediaPartners]
+      summary: Add a new entry to the partner directory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePartnerDirectoryEntryBody"
+      responses:
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerDirectoryEntry"
+
+  /partner-directory/{id}:
+    patch:
+      operationId: updatePartnerDirectoryEntry
+      tags: [mediaPartners]
+      summary: Update outreach status or notes for a directory entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outreachStatus: { type: string }
+                notes: { type: string }
+                inviteId: { type: integer }
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerDirectoryEntry"
+
+  /partner-outreach-emails:
+    get:
+      operationId: listPartnerOutreachEmails
+      tags: [mediaPartners]
+      summary: List all outreach email delivery logs
+      responses:
+        "200":
+          description: Email logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OutreachEmailLog"
+
+  /partner-outreach-emails/send:
+    post:
+      operationId: sendPartnerOutreachEmail
+      tags: [mediaPartners]
+      summary: Send a personalised outreach email using a template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendOutreachEmailBody"
+      responses:
+        "201":
+          description: Email queued / sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logId: { type: integer }
+                  status: { type: string }
+
+  /partner-analytics:
+    get:
+      operationId: getPartnerAnalytics
+      tags: [mediaPartners]
+      summary: Get partner invite funnel analytics
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerAnalytics"
+
 
 components:
   schemas:
@@ -2625,6 +6475,2747 @@ components:
           format: date-time
         notes:
           type: string
+
+    # ─── Book Promo Schemas ────────────────────────────────────────────────────
+
+    PromoCampaign:
+      type: object
+      required: [id, userId, name, slug, bookTitle, destinationUrl, primaryColor, active, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: ["string", "null"]
+        bookTitle:
+          type: string
+        coverImageUrl:
+          type: ["string", "null"]
+        synopsis:
+          type: ["string", "null"]
+        chapterPreview:
+          type: ["string", "null"]
+        destinationUrl:
+          type: string
+        paystackLink:
+          type: ["string", "null"]
+        launchDate:
+          type: ["string", "null"]
+          format: date-time
+        primaryColor:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePromoCampaignBody:
+      type: object
+      required: [name, destinationUrl]
+      properties:
+        name:
+          type: string
+        bookTitle:
+          type: string
+        synopsis:
+          type: string
+        chapterPreview:
+          type: string
+        destinationUrl:
+          type: string
+        paystackLink:
+          type: string
+        launchDate:
+          type: string
+          format: date-time
+        primaryColor:
+          type: string
+        description:
+          type: string
+        coverImageUrl:
+          type: string
+        active:
+          type: boolean
+
+    PromoLink:
+      type: object
+      required: [id, campaignId, userId, channel, label, clickCount, conversionCount, createdAt]
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        channel:
+          type: string
+        label:
+          type: string
+        clickCount:
+          type: integer
+        conversionCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreatePromoLinkBody:
+      type: object
+      required: [channel, label]
+      properties:
+        channel:
+          type: string
+        label:
+          type: string
+
+    PromoFunnelStep:
+      type: object
+      required: [step, value]
+      properties:
+        step:
+          type: string
+        value:
+          type: integer
+
+    PromoChannelBreakdown:
+      type: object
+      required: [channel, label, clicks, conversions, conversionRate]
+      properties:
+        channel:
+          type: string
+        label:
+          type: string
+        clicks:
+          type: integer
+        conversions:
+          type: integer
+        conversionRate:
+          type: string
+
+    PromoFunnelData:
+      type: object
+      required: [campaign, funnelSteps, channelBreakdown, totalClicks, totalConversions, pendingVerifications]
+      properties:
+        campaign:
+          $ref: "#/components/schemas/PromoCampaign"
+        funnelSteps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromoFunnelStep"
+        channelBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromoChannelBreakdown"
+        totalClicks:
+          type: integer
+        totalConversions:
+          type: integer
+        pendingVerifications:
+          type: integer
+
+    DripPost:
+      type: object
+      required: [platform, content, scheduledDate]
+      properties:
+        platform:
+          type: string
+        content:
+          type: string
+        scheduledDate:
+          type: string
+          format: date-time
+
+    DripScheduleResult:
+      type: object
+      required: [message, posts, campaignId]
+      properties:
+        message:
+          type: string
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/DripPost"
+        campaignId:
+          type: integer
+
+    PurchaseVerification:
+      type: object
+      required: [id, campaignId, userId, fanName, fanEmail, status, createdAt]
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        fanName:
+          type: string
+        fanEmail:
+          type: string
+        fanPhone:
+          type: ["string", "null"]
+        paymentRef:
+          type: ["string", "null"]
+        receiptNote:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        bonusCode:
+          type: ["string", "null"]
+        reviewNote:
+          type: ["string", "null"]
+        reviewedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    SubmitVerificationBody:
+      type: object
+      required: [campaignId, fanName, fanEmail]
+      properties:
+        campaignId:
+          type: integer
+        fanName:
+          type: string
+        fanEmail:
+          type: string
+        fanPhone:
+          type: string
+        paymentRef:
+          type: string
+        receiptNote:
+          type: string
+
+    ReviewVerificationBody:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+        reviewNote:
+          type: string
+
+    AffiliateCommission:
+      type: object
+      required: [id, promoLinkId, campaignId, userId, ambassadorName, ambassadorEmail, commissionRate, totalClicks, totalConversions, totalEarned, paidAmount, payoutStatus, createdAt]
+      properties:
+        id:
+          type: integer
+        promoLinkId:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        ambassadorName:
+          type: string
+        ambassadorEmail:
+          type: string
+        commissionRate:
+          type: string
+        totalClicks:
+          type: integer
+        totalConversions:
+          type: integer
+        totalEarned:
+          type: string
+        paidAmount:
+          type: string
+        payoutStatus:
+          type: string
+        referralUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateAffiliateBody:
+      type: object
+      required: [campaignId, ambassadorName, ambassadorEmail]
+      properties:
+        campaignId:
+          type: integer
+        ambassadorName:
+          type: string
+        ambassadorEmail:
+          type: string
+        commissionRate:
+          type: string
+
+    # ─── Live Video ──────────────────────────────────────────────────────────────
+
+    LiveSession:
+      type: object
+      required: [id, userId, title, scheduledAt, status, platforms, peakViewers, totalViewers, countdownPostsEnabled, totalRevenue, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        thumbnailUrl:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [scheduled, live, ended, cancelled]
+        platforms:
+          type: array
+          items:
+            type: string
+        rtmpUrl:
+          type: string
+        streamKey:
+          type: string
+        peakViewers:
+          type: integer
+        totalViewers:
+          type: integer
+        countdownPostsEnabled:
+          type: boolean
+        replayUrl:
+          type: string
+        totalRevenue:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateLiveSessionBody:
+      type: object
+      required: [title, scheduledAt]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        thumbnailUrl:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        platforms:
+          type: array
+          items:
+            type: string
+        countdownPostsEnabled:
+          type: boolean
+
+    UpdateLiveSessionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        platforms:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [scheduled, live, ended, cancelled]
+        replayUrl:
+          type: string
+        countdownPostsEnabled:
+          type: boolean
+        peakViewers:
+          type: integer
+        totalViewers:
+          type: integer
+        totalRevenue:
+          type: string
+
+    LivePlatformConfig:
+      type: object
+      required: [id, sessionId, userId, platform, status, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        platform:
+          type: string
+        streamKey:
+          type: string
+        rtmpEndpoint:
+          type: string
+        broadcastUrl:
+          type: string
+        status:
+          type: string
+
+    LiveChatMessage:
+      type: object
+      required: [id, sessionId, userId, platform, authorName, message, isPinned, isBanned, isQuestion, isModerated, sentAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        platform:
+          type: string
+        authorName:
+          type: string
+        authorHandle:
+          type: string
+        message:
+          type: string
+        isPinned:
+          type: boolean
+        isBanned:
+          type: boolean
+        isQuestion:
+          type: boolean
+        isModerated:
+          type: boolean
+        sentAt:
+          type: string
+          format: date-time
+
+    LiveRevenueEvent:
+      type: object
+      required: [id, sessionId, userId, platform, eventType, senderName, amount, currency, occurredAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        platform:
+          type: string
+        eventType:
+          type: string
+          enum: [super_chat, donation, badge, product_sale]
+        senderName:
+          type: string
+        amount:
+          type: string
+        currency:
+          type: string
+        message:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+
+    LiveRevenueData:
+      type: object
+      required: [events, totalRevenue, byType, byPlatform]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveRevenueEvent"
+        totalRevenue:
+          type: number
+        byType:
+          type: object
+          additionalProperties:
+            type: number
+        byPlatform:
+          type: object
+          additionalProperties:
+            type: number
+
+    PostLiveClip:
+      type: object
+      required: [id, sessionId, userId, label, startSeconds, endSeconds, status, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        label:
+          type: string
+        startSeconds:
+          type: integer
+        endSeconds:
+          type: integer
+        aiCaption:
+          type: string
+        platform:
+          type: string
+        status:
+          type: string
+          enum: [pending, ready, queued, published]
+        createdAt:
+          type: string
+          format: date-time
+
+    LiveReminderSignup:
+      type: object
+      required: [id, sessionId, userId, fanName, channel, reminded, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        fanName:
+          type: string
+        fanEmail:
+          type: string
+        fanPhone:
+          type: string
+        channel:
+          type: string
+          enum: [email, whatsapp, sms]
+        reminded:
+          type: boolean
+        remindedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    HypeDripPost:
+      type: object
+      required: [platform, content, scheduledDate, hoursBeforeLive]
+      properties:
+        platform:
+          type: string
+        content:
+          type: string
+        scheduledDate:
+          type: string
+          format: date-time
+        hoursBeforeLive:
+          type: number
+
+    HypeScheduleResponse:
+      type: object
+      required: [message, posts, sessionId]
+      properties:
+        message:
+          type: string
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/HypeDripPost"
+        sessionId:
+          type: integer
+
+    LiveModerationRule:
+      type: object
+      required: [id, userId, ruleType, pattern, action, active, hitCount, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        ruleType:
+          type: string
+          enum: [keyword, ban, regex]
+        pattern:
+          type: string
+        action:
+          type: string
+          enum: [hide, delete, flag, timeout]
+        active:
+          type: boolean
+        hitCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    LiveNotificationEvent:
+      type: object
+      required: [id, sessionId, userId, channel, recipient, body, status, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        recipientId:
+          type: integer
+        channel:
+          type: string
+          enum: [email, whatsapp, sms]
+        recipient:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+        status:
+          type: string
+          enum: [queued, sent, failed]
+        providerMessageId:
+          type: string
+        errorMessage:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    ClipAccount:
+      type: object
+      required: [id, userId, name, platform, handle, personaLabel, color, queueCount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        platform:
+          type: string
+        handle:
+          type: string
+        personaLabel:
+          type: string
+        personaProfile:
+          type: object
+          additionalProperties: true
+        color:
+          type: string
+        queueCount:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateClipAccountRequest:
+      type: object
+      required: [name, platform, handle]
+      properties:
+        name:
+          type: string
+        platform:
+          type: string
+        handle:
+          type: string
+        personaLabel:
+          type: string
+        personaProfile:
+          type: object
+          additionalProperties: true
+        color:
+          type: string
+        status:
+          type: string
+
+    SourceVideo:
+      type: object
+      required: [id, userId, title, url, analysisStatus, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        durationSeconds:
+          type: integer
+        transcript:
+          type: string
+        analysisStatus:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateSourceVideoRequest:
+      type: object
+      required: [title, url]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        durationSeconds:
+          type: integer
+        transcript:
+          type: string
+
+    DetectedMoment:
+      type: object
+      required: [label, startSeconds, endSeconds, retentionScore, suggestedFormats, suggestedCaption]
+      properties:
+        label:
+          type: string
+        startSeconds:
+          type: integer
+        endSeconds:
+          type: integer
+        retentionScore:
+          type: integer
+        suggestedFormats:
+          type: array
+          items:
+            type: string
+        suggestedCaption:
+          type: string
+
+    ClipJob:
+      type: object
+      required: [id, userId, sourceVideoId, status, momentsDetected, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        sourceVideoId:
+          type: integer
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        momentsDetected:
+          type: array
+          items:
+            $ref: "#/components/schemas/DetectedMoment"
+        errorMessage:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    AnalyzeVideoResponse:
+      type: object
+      required: [jobId, momentsDetected, count]
+      properties:
+        jobId:
+          type: integer
+        momentsDetected:
+          type: array
+          items:
+            $ref: "#/components/schemas/DetectedMoment"
+        count:
+          type: integer
+
+    DistributeVideoRequest:
+      type: object
+      required: [accountIds]
+      properties:
+        accountIds:
+          type: array
+          items:
+            type: integer
+        jobId:
+          type: integer
+
+    DistributeVideoResponse:
+      type: object
+      required: [message, distributed]
+      properties:
+        message:
+          type: string
+        distributed:
+          type: array
+          items:
+            type: object
+            properties:
+              accountId:
+                type: integer
+              accountName:
+                type: string
+              clipId:
+                type: integer
+              momentLabel:
+                type: string
+              format:
+                type: string
+              tone:
+                type: string
+
+    Clip:
+      type: object
+      required: [id, userId, sourceVideoId, label, startSeconds, endSeconds, format, captionTone, hashtags, status, collabEnabled, watermarkApplied, coverFrameTime, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        sourceVideoId:
+          type: integer
+        accountId:
+          type: integer
+        jobId:
+          type: integer
+        label:
+          type: string
+        startSeconds:
+          type: integer
+        endSeconds:
+          type: integer
+        format:
+          type: string
+          enum: ["9:16", "1:1", "16:9"]
+        captionTone:
+          type: string
+          enum: [african_english, pidgin, yoruba, hausa]
+        captionText:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        coverFrameTime:
+          type: integer
+        status:
+          type: string
+          enum: [draft, ready, scheduled, published, failed]
+        performanceScore:
+          type: string
+        collabEnabled:
+          type: boolean
+        collabAccountId:
+          type: integer
+        watermarkApplied:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateClipRequest:
+      type: object
+      required: [sourceVideoId, label, startSeconds, endSeconds]
+      properties:
+        sourceVideoId:
+          type: integer
+        accountId:
+          type: integer
+        jobId:
+          type: integer
+        label:
+          type: string
+        startSeconds:
+          type: integer
+        endSeconds:
+          type: integer
+        format:
+          type: string
+        captionTone:
+          type: string
+        captionText:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        coverFrameTime:
+          type: integer
+
+    UpdateClipRequest:
+      type: object
+      properties:
+        label:
+          type: string
+        format:
+          type: string
+        captionTone:
+          type: string
+        captionText:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        coverFrameTime:
+          type: integer
+        collabEnabled:
+          type: boolean
+        collabAccountId:
+          type: integer
+        watermarkApplied:
+          type: boolean
+        accountId:
+          type: integer
+
+    CaptionVariant:
+      type: object
+      required: [caption, hashtags, cta]
+      properties:
+        caption:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        cta:
+          type: string
+
+    GenerateCaptionResponse:
+      type: object
+      required: [clipId, captions]
+      properties:
+        clipId:
+          type: integer
+        captions:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/CaptionVariant"
+
+    CollabRequest:
+      type: object
+      required: [collabAccountId]
+      properties:
+        collabAccountId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+
+    CollabResponse:
+      type: object
+      required: [message, originalClipId, collabClipId, collabAccount]
+      properties:
+        message:
+          type: string
+        originalClipId:
+          type: integer
+        collabClipId:
+          type: integer
+        collabAccount:
+          type: string
+
+    ClipSchedule:
+      type: object
+      required: [id, userId, clipId, accountId, scheduledAt, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        clipId:
+          type: integer
+        accountId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [scheduled, posted, cancelled]
+        postedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateClipScheduleRequest:
+      type: object
+      required: [clipId, accountId, scheduledAt]
+      properties:
+        clipId:
+          type: integer
+        accountId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+
+    UpdateClipScheduleRequest:
+      type: object
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        accountId:
+          type: integer
+
+    CalendarEntry:
+      type: object
+      required: [schedule]
+      properties:
+        schedule:
+          $ref: "#/components/schemas/ClipSchedule"
+        clip:
+          $ref: "#/components/schemas/Clip"
+        account:
+          $ref: "#/components/schemas/ClipAccount"
+
+    BulkScheduleRequest:
+      type: object
+      required: [schedules]
+      properties:
+        schedules:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateClipScheduleRequest"
+
+    BulkScheduleResponse:
+      type: object
+      required: [count, schedules]
+      properties:
+        count:
+          type: integer
+        schedules:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClipSchedule"
+
+    BrandOverlayConfig:
+      type: object
+      required: [id, userId, accountId, watermarkPosition, watermarkOpacity, endCardTemplate, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        accountId:
+          type: integer
+        watermarkUrl:
+          type: string
+        watermarkPosition:
+          type: string
+        watermarkOpacity:
+          type: string
+        introBumperUrl:
+          type: string
+        endCardTemplate:
+          type: string
+        endCardText:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateBrandOverlayConfigRequest:
+      type: object
+      required: [accountId]
+      properties:
+        accountId:
+          type: integer
+        watermarkUrl:
+          type: string
+        watermarkPosition:
+          type: string
+        watermarkOpacity:
+          type: number
+        introBumperUrl:
+          type: string
+        endCardTemplate:
+          type: string
+        endCardText:
+          type: string
+
+    ClipPerformanceLog:
+      type: object
+      required: [id, userId, clipId, accountId, views, shares, comments, saves, watchTimeSeconds, source, recordedAt, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        clipId:
+          type: integer
+        accountId:
+          type: integer
+        views:
+          type: integer
+        shares:
+          type: integer
+        comments:
+          type: integer
+        saves:
+          type: integer
+        watchTimeSeconds:
+          type: integer
+        source:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    LogClipPerformanceRequest:
+      type: object
+      required: [clipId, accountId]
+      properties:
+        clipId:
+          type: integer
+        accountId:
+          type: integer
+        views:
+          type: integer
+        shares:
+          type: integer
+        comments:
+          type: integer
+        saves:
+          type: integer
+        watchTimeSeconds:
+          type: integer
+        source:
+          type: string
+
+    ClipPerformanceSummary:
+      type: object
+      required: [totals, topClips, byFormat, totalClips]
+      properties:
+        totals:
+          type: object
+          properties:
+            views:
+              type: integer
+            shares:
+              type: integer
+            saves:
+              type: integer
+            comments:
+              type: integer
+            watchTime:
+              type: integer
+        topClips:
+          type: array
+          items:
+            $ref: "#/components/schemas/Clip"
+        byFormat:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              count:
+                type: integer
+              avgScore:
+                type: number
+        totalClips:
+          type: integer
+
+    PostDraft:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+          nullable: true
+        sourceCaption:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        selectedPlatforms:
+          type: array
+          items:
+            type: string
+        selectedAccountIds:
+          type: array
+          items:
+            type: integer
+        selectedGroupId:
+          type: integer
+          nullable: true
+        platformVariants:
+          type: object
+          additionalProperties:
+            type: string
+        platformHashtags:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        approvalRequired:
+          type: boolean
+        complianceChecked:
+          type: boolean
+        complianceScore:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePostDraftBody:
+      type: object
+      required: [sourceCaption]
+      properties:
+        title:
+          type: string
+        sourceCaption:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        selectedPlatforms:
+          type: array
+          items:
+            type: string
+        selectedAccountIds:
+          type: array
+          items:
+            type: integer
+        selectedGroupId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        approvalRequired:
+          type: boolean
+
+    UpdatePostDraftBody:
+      type: object
+      properties:
+        title:
+          type: string
+        sourceCaption:
+          type: string
+        selectedPlatforms:
+          type: array
+          items:
+            type: string
+        platformVariants:
+          type: object
+          additionalProperties:
+            type: string
+        platformHashtags:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        approvalRequired:
+          type: boolean
+        status:
+          type: string
+
+    PostDraftWithJobs:
+      type: object
+      properties:
+        draft:
+          $ref: "#/components/schemas/PostDraft"
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishJob"
+
+    PublishJob:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        draftId:
+          type: integer
+        platform:
+          type: string
+        platformAccountId:
+          type: integer
+          nullable: true
+        caption:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        attemptCount:
+          type: integer
+        maxAttempts:
+          type: integer
+        errorMessage:
+          type: string
+          nullable: true
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastAttemptAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    GenerateVariantsResponse:
+      type: object
+      properties:
+        variants:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              caption:
+                type: string
+              hashtags:
+                type: array
+                items:
+                  type: string
+              charCount:
+                type: integer
+        platformVariants:
+          type: object
+          additionalProperties:
+            type: string
+        platformHashtags:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    ComplianceFlag:
+      type: object
+      properties:
+        id:
+          type: integer
+        draftId:
+          type: integer
+        overallScore:
+          type: integer
+        flags:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              severity:
+                type: string
+              message:
+                type: string
+              guideline:
+                type: string
+        recommendation:
+          type: string
+          nullable: true
+        checkedAt:
+          type: string
+          format: date-time
+
+    PublishResult:
+      type: object
+      properties:
+        message:
+          type: string
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublishJob"
+
+    AccountGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        color:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccountGroupMember"
+        createdAt:
+          type: string
+          format: date-time
+
+    AccountGroupMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        groupId:
+          type: integer
+        platform:
+          type: string
+        handle:
+          type: string
+        displayName:
+          type: string
+          nullable: true
+        platformAccountId:
+          type: integer
+          nullable: true
+
+    CreateAccountGroupBody:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        members:
+          type: array
+          items:
+            type: object
+            properties:
+              platform:
+                type: string
+              handle:
+                type: string
+              displayName:
+                type: string
+
+    PostingTimeRecommendations:
+      type: object
+      properties:
+        recommendations:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              slots:
+                type: array
+                items:
+                  type: string
+              timezone:
+                type: string
+              explanation:
+                type: string
+        note:
+          type: string
+
+    HashtagEngineResponse:
+      type: object
+      properties:
+        platform:
+          type: string
+        region:
+          type: string
+        niche:
+          type: string
+          nullable: true
+        dbTags:
+          type: array
+          items:
+            type: object
+            properties:
+              hashtag:
+                type: string
+              trendScore:
+                type: integer
+              category:
+                type: string
+                nullable: true
+        curatedTags:
+          type: array
+          items:
+            type: string
+        allSuggestions:
+          type: array
+          items:
+            type: string
+
+    ApprovalRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        draftId:
+          type: integer
+        requestedByUserId:
+          type: integer
+        status:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        draft:
+          $ref: "#/components/schemas/PostDraft"
+
+    TrafficCampaign:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        destinationUrl:
+          type: string
+        budgetNgn:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        goal:
+          type: string
+        targetRegion:
+          type: string
+        totalVisits:
+          type: integer
+        totalConversions:
+          type: integer
+        roiPercent:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TrafficCampaignDetail:
+      allOf:
+        - $ref: "#/components/schemas/TrafficCampaign"
+        - type: object
+          properties:
+            channels:
+              type: array
+              items:
+                $ref: "#/components/schemas/CampaignChannel"
+
+    CreateTrafficCampaignBody:
+      type: object
+      required: [name, destinationUrl]
+      properties:
+        name:
+          type: string
+        destinationUrl:
+          type: string
+        budgetNgn:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        goal:
+          type: string
+          enum: [visits, leads, sales, downloads]
+        targetRegion:
+          type: string
+
+    UpdateTrafficCampaignBody:
+      type: object
+      properties:
+        name:
+          type: string
+        destinationUrl:
+          type: string
+        budgetNgn:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        goal:
+          type: string
+        targetRegion:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, paused, completed]
+
+    CampaignChannel:
+      type: object
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        channel:
+          type: string
+        enabled:
+          type: boolean
+        budgetAllocationNgn:
+          type: string
+        visits:
+          type: integer
+        clicks:
+          type: integer
+        costPerVisit:
+          type: string
+          nullable: true
+        status:
+          type: string
+        settings:
+          type: object
+          additionalProperties: true
+        activatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateCampaignChannelBody:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        budgetAllocationNgn:
+          type: string
+        settings:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+
+    MetaAudiencePreset:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        country:
+          type: string
+        ageMin:
+          type: integer
+        ageMax:
+          type: integer
+        interests:
+          type: array
+          items:
+            type: string
+
+    InfluencerActivation:
+      type: object
+      properties:
+        id:
+          type: integer
+        handle:
+          type: string
+        platform:
+          type: string
+        niche:
+          type: string
+        followerCount:
+          type: integer
+        activationStatus:
+          type: string
+        briefSent:
+          type: boolean
+        visitsAttributed:
+          type: integer
+
+    InfluencerActivationRecord:
+      type: object
+      properties:
+        influencerId:
+          type: integer
+        status:
+          type: string
+        briefSent:
+          type: boolean
+        visitsAttributed:
+          type: integer
+
+    CreateTrafficEventBody:
+      type: object
+      properties:
+        channel:
+          type: string
+        eventType:
+          type: string
+          enum: [click, visit, lead, conversion]
+        trackedLinkSlug:
+          type: string
+          nullable: true
+        referrer:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+
+    TrafficEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        channel:
+          type: string
+        eventType:
+          type: string
+        trackedLinkSlug:
+          type: string
+          nullable: true
+        referrer:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        occurredAt:
+          type: string
+          format: date-time
+
+    GrowthSnapshot:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        platformAccountId:
+          type: integer
+        platform:
+          type: string
+        handle:
+          type: string
+        followerCount:
+          type: integer
+        followerGrowthRate:
+          type: string
+        reachCount:
+          type: integer
+        reachGrowthRate:
+          type: string
+        engagementVelocity:
+          type: string
+        healthScore:
+          type: integer
+        alertThresholdRate:
+          type: string
+          nullable: true
+        alertEnabled:
+          type: boolean
+        snapshotDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateGrowthSnapshotBody:
+      type: object
+      required: [platformAccountId, platform, handle]
+      properties:
+        platformAccountId:
+          type: integer
+        platform:
+          type: string
+        handle:
+          type: string
+        followerCount:
+          type: integer
+        followerGrowthRate:
+          type: string
+        reachCount:
+          type: integer
+        reachGrowthRate:
+          type: string
+        engagementVelocity:
+          type: string
+        healthScore:
+          type: integer
+        alertThresholdRate:
+          type: string
+        alertEnabled:
+          type: boolean
+
+    HookEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        hookText:
+          type: string
+        platform:
+          type: string
+        niche:
+          type: string
+        format:
+          type: string
+        useCount:
+          type: integer
+        likeCount:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        curated:
+          type: boolean
+        weekNumber:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateHookEntryBody:
+      type: object
+      required: [title, hookText]
+      properties:
+        title:
+          type: string
+        hookText:
+          type: string
+        platform:
+          type: string
+        niche:
+          type: string
+        format:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    SeoContentPiece:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        topic:
+          type: string
+        contentType:
+          type: string
+        targetKeywords:
+          type: array
+          items:
+            type: string
+        region:
+          type: string
+        title:
+          type: string
+          nullable: true
+        body:
+          type: string
+          nullable: true
+        metaDescription:
+          type: string
+          nullable: true
+        status:
+          type: string
+        publishedToCalendar:
+          type: boolean
+        scheduledPostId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateSeoContentJobBody:
+      type: object
+      required: [topic]
+      properties:
+        topic:
+          type: string
+        contentType:
+          type: string
+          enum: [blog, youtube_description, thread]
+        targetKeywords:
+          type: array
+          items:
+            type: string
+        region:
+          type: string
+
+    ContentVelocityReport:
+      type: object
+      properties:
+        analysedPeriodDays:
+          type: integer
+        totalPostsAnalysed:
+          type: integer
+        overallPostsPerWeek:
+          type: number
+        recommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              platform:
+                type: string
+              currentPostsPerWeek:
+                type: number
+              recommendedPostsPerWeek:
+                type: number
+              contentMix:
+                type: object
+                properties:
+                  educational:
+                    type: integer
+                  entertainment:
+                    type: integer
+                  promotional:
+                    type: integer
+              insight:
+                type: string
+        generatedAt:
+          type: string
+          format: date-time
+    # ─── Fan Hub Schemas ────────────────────────────────────────────────────────
+
+    FanProfile:
+      type: object
+      required: [id, userId, email, displayName, referralCode, fanTier, totalPoints, referralCount, purchaseVerified, joinedAt, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        email:
+          type: string
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        instagramHandle:
+          type: string
+          nullable: true
+        twitterHandle:
+          type: string
+          nullable: true
+        tiktokHandle:
+          type: string
+          nullable: true
+        referralCode:
+          type: string
+        referredByCode:
+          type: string
+          nullable: true
+        fanTier:
+          type: integer
+        totalPoints:
+          type: integer
+        referralCount:
+          type: integer
+        purchaseVerified:
+          type: boolean
+        joinedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    RegisterFanBody:
+      type: object
+      required: [email, displayName]
+      properties:
+        email:
+          type: string
+        displayName:
+          type: string
+        phone:
+          type: string
+        state:
+          type: string
+        instagramHandle:
+          type: string
+        twitterHandle:
+          type: string
+        tiktokHandle:
+          type: string
+        referredByCode:
+          type: string
+
+    UpdateFanProfileBody:
+      type: object
+      properties:
+        purchaseVerified:
+          type: boolean
+        fanTier:
+          type: integer
+        state:
+          type: string
+        phone:
+          type: string
+        instagramHandle:
+          type: string
+        twitterHandle:
+          type: string
+        tiktokHandle:
+          type: string
+
+    FanLeaderboardEntry:
+      type: object
+      required: [rank, fanProfileId, displayName, fanTier, totalPoints, referralCount, purchaseVerified]
+      properties:
+        rank:
+          type: integer
+        fanProfileId:
+          type: integer
+        displayName:
+          type: string
+        state:
+          type: string
+          nullable: true
+        fanTier:
+          type: integer
+        totalPoints:
+          type: integer
+        referralCount:
+          type: integer
+        purchaseVerified:
+          type: boolean
+
+    FanChallenge:
+      type: object
+      required: [id, userId, title, pointValue, proofType, status, participantCount, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        pointValue:
+          type: integer
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        proofType:
+          type: string
+        status:
+          type: string
+        participantCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateFanChallengeBody:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        pointValue:
+          type: integer
+        deadline:
+          type: string
+          format: date-time
+        proofType:
+          type: string
+        status:
+          type: string
+
+    ChallengeSubmission:
+      type: object
+      required: [id, challengeId, fanProfileId, userId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        challengeId:
+          type: integer
+        fanProfileId:
+          type: integer
+        userId:
+          type: integer
+        fanDisplayName:
+          type: string
+          nullable: true
+        challengeTitle:
+          type: string
+          nullable: true
+        proofText:
+          type: string
+          nullable: true
+        proofUrl:
+          type: string
+          nullable: true
+        status:
+          type: string
+        reviewNote:
+          type: string
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    SubmitChallengeProofBody:
+      type: object
+      properties:
+        proofText:
+          type: string
+        proofUrl:
+          type: string
+        fanProfileId:
+          type: integer
+
+    ReviewSubmissionBody:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+        reviewNote:
+          type: string
+
+    VaultItem:
+      type: object
+      required: [id, userId, title, contentType, accessTier, downloadCount, active, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        contentType:
+          type: string
+        accessTier:
+          type: integer
+        contentUrl:
+          type: string
+          nullable: true
+        thumbnailUrl:
+          type: string
+          nullable: true
+        fileSize:
+          type: string
+          nullable: true
+        downloadCount:
+          type: integer
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateVaultItemBody:
+      type: object
+      required: [title, contentType, accessTier]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        contentType:
+          type: string
+        accessTier:
+          type: integer
+        contentUrl:
+          type: string
+        thumbnailUrl:
+          type: string
+        fileSize:
+          type: string
+        active:
+          type: boolean
+
+    MerchDiscountCode:
+      type: object
+      required: [id, userId, fanProfileId, code, discountPercent, used, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        fanProfileId:
+          type: integer
+        fanDisplayName:
+          type: string
+          nullable: true
+        code:
+          type: string
+        discountPercent:
+          type: integer
+        used:
+          type: boolean
+        usedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    GenerateMerchCodeBody:
+      type: object
+      required: [fanProfileId]
+      properties:
+        fanProfileId:
+          type: integer
+        discountPercent:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+
+    OgInvite:
+      type: object
+      required: [id, userId, fanProfileId, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        fanProfileId:
+          type: integer
+        fanDisplayName:
+          type: string
+          nullable: true
+        fanTier:
+          type: integer
+          nullable: true
+        totalPoints:
+          type: integer
+          nullable: true
+        status:
+          type: string
+        inviteLink:
+          type: string
+          nullable: true
+        invitedAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastActiveAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    InviteOgMemberBody:
+      type: object
+      required: [fanProfileId]
+      properties:
+        fanProfileId:
+          type: integer
+        notes:
+          type: string
+
+    UpdateOgInviteBody:
+      type: object
+      properties:
+        status:
+          type: string
+        notes:
+          type: string
+        lastActiveAt:
+          type: string
+          format: date-time
+
+    FanHubAnalytics:
+      type: object
+      required: [totalFans, fansByTier, weeklySignups, topChallenges, popularVaultItems, referralConversionRate]
+      properties:
+        totalFans:
+          type: integer
+        fansByTier:
+          type: object
+          additionalProperties:
+            type: integer
+        weeklySignups:
+          type: array
+          items:
+            type: object
+            required: [week, count]
+            properties:
+              week:
+                type: string
+              count:
+                type: integer
+        topChallenges:
+          type: array
+          items:
+            type: object
+            required: [id, title, participantCount]
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              participantCount:
+                type: integer
+        popularVaultItems:
+          type: array
+          items:
+            type: object
+            required: [id, title, downloadCount]
+            properties:
+              id:
+                type: integer
+              title:
+                type: string
+              downloadCount:
+                type: integer
+        referralConversionRate:
+          type: string
+    IntelligenceConfig:
+      type: object
+      required: [id, userId, name, mode, targetStates, targetLgas, active, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        name: { type: string }
+        mode: { type: string }
+        politicalParty: { type: string, nullable: true }
+        politicalCandidateName: { type: string, nullable: true }
+        targetStates:
+          type: array
+          items: { type: string }
+        targetLgas:
+          type: array
+          items: { type: string }
+        crisisEngagementDropPct: { type: string }
+        crisisFollowerLossPct: { type: string }
+        crisisNegativeSentimentPct: { type: string }
+        alertWhatsapp: { type: string, nullable: true }
+        alertEmail: { type: string, nullable: true }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateIntelligenceConfigBody:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        mode: { type: string }
+        politicalParty: { type: string }
+        politicalCandidateName: { type: string }
+        targetStates:
+          type: array
+          items: { type: string }
+        targetLgas:
+          type: array
+          items: { type: string }
+        crisisEngagementDropPct: { type: string }
+        crisisFollowerLossPct: { type: string }
+        crisisNegativeSentimentPct: { type: string }
+        alertWhatsapp: { type: string }
+        alertEmail: { type: string }
+        active: { type: boolean }
+    LgaData:
+      type: object
+      required: [state, lgas, totalReach, engagementRate, sentimentScore, topContent, postsPublished]
+      properties:
+        state: { type: string }
+        lgas: { type: integer }
+        totalReach: { type: integer }
+        engagementRate: { type: number }
+        sentimentScore: { type: number }
+        topContent: { type: string }
+        postsPublished: { type: integer }
+    WardData:
+      type: object
+      required: [ward, lga, reach, postsPublished, engagementRate, sentimentScore, topContent]
+      properties:
+        ward: { type: string }
+        lga: { type: string }
+        reach: { type: integer }
+        postsPublished: { type: integer }
+        engagementRate: { type: number }
+        sentimentScore: { type: number }
+        topContent: { type: string }
+    SentimentMonitor:
+      type: object
+      required: [id, userId, configId, keyword, type, platform, alertOnSpike, alertOnNegative, active, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        keyword: { type: string }
+        type: { type: string }
+        platform: { type: string }
+        alertOnSpike: { type: boolean }
+        alertOnNegative: { type: boolean }
+        baselineScore: { type: string }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    CreateSentimentMonitorBody:
+      type: object
+      required: [configId, keyword]
+      properties:
+        configId: { type: integer }
+        keyword: { type: string }
+        type: { type: string }
+        platform: { type: string }
+        alertOnSpike: { type: boolean }
+        alertOnNegative: { type: boolean }
+    SentimentEvent:
+      type: object
+      required: [id, userId, monitorId, keyword, sentimentScore, sentimentLabel, volume, platform, occurredAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        monitorId: { type: integer }
+        keyword: { type: string }
+        sampleText: { type: string, nullable: true }
+        sentimentScore: { type: string }
+        sentimentLabel: { type: string }
+        volume: { type: integer }
+        platform: { type: string }
+        aiAnalysis: { type: string, nullable: true }
+        occurredAt: { type: string, format: date-time }
+    AnalyseSentimentBody:
+      type: object
+      required: [keyword, sampleText]
+      properties:
+        keyword: { type: string }
+        sampleText: { type: string }
+        platform: { type: string }
+        monitorId: { type: integer }
+    CompetitorAccount:
+      type: object
+      required: [id, userId, configId, handle, platform, category, active, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        handle: { type: string }
+        platform: { type: string }
+        displayName: { type: string, nullable: true }
+        category: { type: string }
+        notes: { type: string, nullable: true }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    CompetitorWithSnapshot:
+      allOf:
+        - $ref: "#/components/schemas/CompetitorAccount"
+        - type: object
+          properties:
+            latestSnapshot:
+              oneOf:
+                - $ref: "#/components/schemas/CompetitorSnapshot"
+                - type: "null"
+    AddCompetitorBody:
+      type: object
+      required: [configId, handle]
+      properties:
+        configId: { type: integer }
+        handle: { type: string }
+        platform: { type: string }
+        displayName: { type: string }
+        category: { type: string }
+        notes: { type: string }
+    CompetitorSnapshot:
+      type: object
+      required: [id, userId, competitorId, followerCount, postsPerWeek, avgEngagementRate, topPostEngagement, snapshotDate]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        competitorId: { type: integer }
+        followerCount: { type: integer }
+        followingCount: { type: integer }
+        postsCount: { type: integer }
+        postsPerWeek: { type: string }
+        avgEngagementRate: { type: string }
+        topPostUrl: { type: string, nullable: true }
+        topPostEngagement: { type: integer }
+        topPostCaption: { type: string, nullable: true }
+        snapshotDate: { type: string, format: date-time }
+    AddCompetitorSnapshotBody:
+      type: object
+      properties:
+        followerCount: { type: integer }
+        followingCount: { type: integer }
+        postsCount: { type: integer }
+        postsPerWeek: { type: string }
+        avgEngagementRate: { type: string }
+        topPostUrl: { type: string }
+        topPostEngagement: { type: integer }
+        topPostCaption: { type: string }
+    CrisisAlert:
+      type: object
+      required: [id, userId, configId, type, severity, title, description, acknowledged, notificationSent, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        type: { type: string }
+        severity: { type: string }
+        title: { type: string }
+        description: { type: string }
+        triggeredValue: { type: string, nullable: true }
+        thresholdValue: { type: string, nullable: true }
+        platform: { type: string, nullable: true }
+        acknowledged: { type: boolean }
+        acknowledgedAt: { type: string, format: date-time, nullable: true }
+        notificationSent: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    CreateCrisisAlertBody:
+      type: object
+      required: [configId, type, title, description]
+      properties:
+        configId: { type: integer }
+        type: { type: string }
+        severity: { type: string }
+        title: { type: string }
+        description: { type: string }
+        triggeredValue: { type: string }
+        thresholdValue: { type: string }
+        platform: { type: string }
+    CrisisDetectionResult:
+      type: object
+      required: [detected, inserted, alerts]
+      properties:
+        detected: { type: integer }
+        inserted: { type: integer }
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrisisAlert"
+    RoiAttributionEvent:
+      type: object
+      required: [id, userId, configId, contentAction, outcomeType, outcomeCount, estimatedRevenueNgn, attributionModel, occurredAt, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        contentAction: { type: string }
+        contentRef: { type: string, nullable: true }
+        outcomeType: { type: string }
+        outcomeCount: { type: integer }
+        estimatedRevenueNgn: { type: string }
+        utmSource: { type: string, nullable: true }
+        utmMedium: { type: string, nullable: true }
+        utmCampaign: { type: string, nullable: true }
+        manualTag: { type: string, nullable: true }
+        platform: { type: string, nullable: true }
+        attributionModel: { type: string }
+        occurredAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    CreateRoiAttributionBody:
+      type: object
+      required: [configId, contentAction, outcomeType]
+      properties:
+        configId: { type: integer }
+        contentAction: { type: string }
+        contentRef: { type: string }
+        outcomeType: { type: string }
+        outcomeCount: { type: integer }
+        estimatedRevenueNgn: { type: string }
+        utmSource: { type: string }
+        utmMedium: { type: string }
+        utmCampaign: { type: string }
+        manualTag: { type: string }
+        platform: { type: string }
+        attributionModel: { type: string }
+    EventModeConfig:
+      type: object
+      required: [id, userId, configId, eventName, hashtags, votingLinks, totalVoteCount, phase, hypeSeriesEnabled, hypeSeriesDays, recapGenerated, contentSchedule, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        eventName: { type: string }
+        eventDate: { type: string, format: date-time, nullable: true }
+        hashtags:
+          type: array
+          items: { type: string }
+        votingLinks:
+          type: array
+          items:
+            type: object
+            required: [label, url]
+            properties:
+              label: { type: string }
+              url: { type: string }
+        hypeSeriesEnabled: { type: boolean }
+        hypeSeriesDays: { type: integer }
+        totalVoteCount: { type: integer }
+        recapGenerated: { type: boolean }
+        recapText: { type: string, nullable: true }
+        phase: { type: string }
+        contentSchedule:
+          type: array
+          items:
+            type: object
+            required: [day, type, caption, platform]
+            properties:
+              day: { type: integer }
+              type: { type: string }
+              caption: { type: string }
+              platform: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateEventModeBody:
+      type: object
+      required: [configId, eventName]
+      properties:
+        configId: { type: integer }
+        eventName: { type: string }
+        eventDate: { type: string, format: date-time }
+        hashtags:
+          type: array
+          items: { type: string }
+        votingLinks:
+          type: array
+          items:
+            type: object
+            required: [label, url]
+            properties:
+              label: { type: string }
+              url: { type: string }
+        hypeSeriesDays: { type: integer }
+        totalVoteCount: { type: integer }
+        phase: { type: string }
+        contentSchedule:
+          type: array
+          items:
+            type: object
+            required: [day, type, caption, platform]
+            properties:
+              day: { type: integer }
+              type: { type: string }
+              caption: { type: string }
+              platform: { type: string }
 
     # ─── Media Partners ────────────────────────────────────────────────────────
 

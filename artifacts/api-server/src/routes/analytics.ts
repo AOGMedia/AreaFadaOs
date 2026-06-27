@@ -180,7 +180,7 @@ async function seedAnalyticsForUser(userId: number) {
         { type: "bot_risk", value: botRiskNum, ok: botRiskNum < 20 },
         { type: "comment_depth", value: comments, ok: comments > 50 },
       ],
-      scoredAt: p.publishedAt,
+      scoredAt: p.publishedAt ?? undefined,
     };
   });
   await db.insert(engagementScores).values(scores);
