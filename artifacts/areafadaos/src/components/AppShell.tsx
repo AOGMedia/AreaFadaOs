@@ -18,6 +18,7 @@ import {
   X,
   ChevronRight,
   Send,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Ambassadors", path: "/ambassadors", icon: <Users className="w-4 h-4" />, moduleKey: "ambassadorCrm", requiredTier: "agency" },
   { label: "Fan Hub", path: "/fan-hub", icon: <Star className="w-4 h-4" />, moduleKey: "fanHub", requiredTier: "agency" },
   { label: "Intelligence", path: "/intelligence", icon: <BarChart3 className="w-4 h-4" />, moduleKey: "campaignIntelligence", requiredTier: "enterprise" },
+  { label: "Media Partners", path: "/media-partners", icon: <Globe className="w-4 h-4" />, moduleKey: "ambassadorCrm", requiredTier: "agency" },
 ];
 
 const TIER_BADGE: Record<string, string> = {

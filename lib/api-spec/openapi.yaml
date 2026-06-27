@@ -41,6 +41,9 @@ tags:
   - name: campaignIntelligence
     description: Campaign Intelligence Tier 5 Enterprise — political LGA map, voter sentiment tracker, competitor monitoring, crisis alert system, ROI attribution, AFRIMA event mode
 
+  - name: mediaPartners
+    description: Global Media Partners Bulk Invite System — bulk invite generator, outreach dashboard, personalised landing pages, partner profiles, global media directory, email outreach, partner analytics
+
 paths:
   /healthz:
     get:
@@ -4744,7 +4747,354 @@ paths:
               schema:
                 $ref: "#/components/schemas/EventModeConfig"
 
+  # ─── Media Partners ──────────────────────────────────────────────────────────
 
+  /partner-invites/public/{token}:
+    get:
+      operationId: getPublicInvite
+      tags: [mediaPartners]
+      summary: Validate and retrieve a partner invite by token (public, no auth)
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Invite details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicInviteResponse"
+        "404":
+          description: Not found
+        "410":
+          description: Expired or revoked
+
+  /partner-invites:
+    get:
+      operationId: listPartnerInvites
+      tags: [mediaPartners]
+      summary: List all sent partner invites
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [sent, opened, signed_up, converted, expired, revoked] }
+        - name: partnerType
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of invites
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartnerInvite"
+    post:
+      operationId: createPartnerInvite
+      tags: [mediaPartners]
+      summary: Create a single personalised invite link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePartnerInviteBody"
+      responses:
+        "201":
+          description: Created invite with invite URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerInviteWithUrl"
+
+  /partner-invites/bulk:
+    post:
+      operationId: bulkCreatePartnerInvites
+      tags: [mediaPartners]
+      summary: Bulk create invites from CSV row data (up to 500)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkPartnerInviteBody"
+      responses:
+        "200":
+          description: Bulk creation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkPartnerInviteResult"
+
+  /partner-invites/bulk-resend:
+    post:
+      operationId: bulkResendPartnerInvites
+      tags: [mediaPartners]
+      summary: Bulk re-send invites by ID list (unconverted)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        "200":
+          description: Re-send count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resentCount: { type: integer }
+
+  /partner-invites/{id}/resend:
+    post:
+      operationId: resendPartnerInvite
+      tags: [mediaPartners]
+      summary: Re-send a single invite (generates a new token with fresh 30-day expiry)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Updated invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerInviteWithUrl"
+
+  /partner-invites/{id}/revoke:
+    post:
+      operationId: revokePartnerInvite
+      tags: [mediaPartners]
+      summary: Revoke an invite
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Revoked invite
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerInvite"
+
+  /partner-profiles:
+    get:
+      operationId: listPartnerProfiles
+      tags: [mediaPartners]
+      summary: List onboarded partner profiles
+      parameters:
+        - name: partnerType
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: List of profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartnerProfile"
+    post:
+      operationId: createPartnerProfile
+      tags: [mediaPartners]
+      summary: Manually create a partner profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePartnerProfileBody"
+      responses:
+        "201":
+          description: Created profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+
+  /partner-profiles/{id}:
+    get:
+      operationId: getPartnerProfile
+      tags: [mediaPartners]
+      summary: Get a partner profile by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+    patch:
+      operationId: updatePartnerProfile
+      tags: [mediaPartners]
+      summary: Update a partner profile (also appends activity log note)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePartnerProfileBody"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerProfile"
+
+  /partner-directory:
+    get:
+      operationId: listPartnerDirectory
+      tags: [mediaPartners]
+      summary: List curated African and diaspora media partner targets
+      parameters:
+        - name: orgType
+          in: query
+          schema: { type: string }
+        - name: region
+          in: query
+          schema: { type: string }
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: outreachStatus
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Directory entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PartnerDirectoryEntry"
+    post:
+      operationId: createPartnerDirectoryEntry
+      tags: [mediaPartners]
+      summary: Add a new entry to the partner directory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePartnerDirectoryEntryBody"
+      responses:
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerDirectoryEntry"
+
+  /partner-directory/{id}:
+    patch:
+      operationId: updatePartnerDirectoryEntry
+      tags: [mediaPartners]
+      summary: Update outreach status or notes for a directory entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outreachStatus: { type: string }
+                notes: { type: string }
+                inviteId: { type: integer }
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerDirectoryEntry"
+
+  /partner-outreach-emails:
+    get:
+      operationId: listPartnerOutreachEmails
+      tags: [mediaPartners]
+      summary: List all outreach email delivery logs
+      responses:
+        "200":
+          description: Email logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OutreachEmailLog"
+
+  /partner-outreach-emails/send:
+    post:
+      operationId: sendPartnerOutreachEmail
+      tags: [mediaPartners]
+      summary: Send a personalised outreach email using a template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendOutreachEmailBody"
+      responses:
+        "201":
+          description: Email queued / sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logId: { type: integer }
+                  status: { type: string }
+
+  /partner-analytics:
+    get:
+      operationId: getPartnerAnalytics
+      tags: [mediaPartners]
+      summary: Get partner invite funnel analytics
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerAnalytics"
 
 
 components:

@@ -23,6 +23,8 @@ import { AutoPostPage } from "@/pages/auto-post";
 import { TrafficPage } from "@/pages/traffic";
 import { FanHubPage } from "@/pages/fan-hub";
 import { IntelligencePage } from "@/pages/intelligence";
+import { MediaPartnersPage } from "@/pages/media-partners";
+import { InviteLandingPage } from "@/pages/invite-landing";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -235,6 +237,10 @@ function ClerkProviderWithRoutes() {
             <Route path="/intelligence">
               <AuthRequired><IntelligencePage /></AuthRequired>
             </Route>
+            <Route path="/media-partners">
+              <AuthRequired><MediaPartnersPage /></AuthRequired>
+            </Route>
+            <Route path="/invite/:token" component={InviteLandingPage} />
 
             <Route component={NotFound} />
           </Switch>

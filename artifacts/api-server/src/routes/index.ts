@@ -13,6 +13,7 @@ import autoPostRouter from "./auto-post";
 import trafficRouter from "./traffic";
 import fanHubRouter from "./fan-hub";
 import campaignIntelligenceRouter from "./campaign-intelligence";
+import mediaPartnersRouter from "./media-partners";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(autoPostRouter);
 router.use(trafficRouter);
 router.use(fanHubRouter);
 router.use(campaignIntelligenceRouter);
+router.use(mediaPartnersRouter);
 
 export default router;
