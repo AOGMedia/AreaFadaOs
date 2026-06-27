@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Resend } from "resend";
 import { db } from "@workspace/db";
 import {
   liveSessionsTable,
@@ -7,11 +8,16 @@ import {
   liveRevenueEventsTable,
   postLiveClipsTable,
   liveReminderSignupsTable,
+  liveModerationRulesTable,
+  liveNotificationEventsTable,
+  postsTable,
   usersTable,
 } from "@workspace/db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const router = Router();
 const requireLive = [requireAuth, requireTier("brand")];
@@ -432,42 +438,75 @@ router.post("/live-sessions/:id/send-reminders", ...requireLive, async (req: any
     const liveDate = new Date(session.scheduledAt);
     const liveStr = liveDate.toLocaleDateString("en-NG", { weekday: "long", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
-    const notificationLog: Array<{ channel: string; recipient: string; status: string; message: string }> = [];
+    const results: Array<{ signupId: number; channel: string; recipient: string; status: string; messageId?: string; error?: string }> = [];
 
     for (const signup of pending) {
+      const subject = `🔴 Going LIVE soon: "${session.title}"`;
+      const emailBody = `Hey ${signup.fanName},\n\nJust a reminder — "${session.title}" goes LIVE on ${liveStr}.\n\nDon't be late! Set your alarm now.\n\n— Area Fada OS`;
+      const htmlBody = `<p>Hey <strong>${signup.fanName}</strong>,</p><p>Just a reminder — <strong>"${session.title}"</strong> goes <strong>LIVE</strong> on <strong>${liveStr}</strong>.</p><p>Don't be late! Set your alarm now. 🎙</p><p>— Area Fada OS</p>`;
+      const smsBody = `Hey ${signup.fanName}! 🔴 "${session.title}" goes LIVE on ${liveStr}. Don't miss it! — Area Fada OS`;
+
+      let status = "queued";
+      let providerMessageId: string | undefined;
+      let errorMessage: string | undefined;
+
+      if (signup.channel === "email" && signup.fanEmail) {
+        if (resend) {
+          try {
+            const { data, error } = await resend.emails.send({
+              from: "Area Fada OS <noreply@areafada.ng>",
+              to: [signup.fanEmail],
+              subject,
+              text: emailBody,
+              html: htmlBody,
+            });
+            if (error) { status = "failed"; errorMessage = error.message; }
+            else { status = "sent"; providerMessageId = data?.id; }
+          } catch (e: any) {
+            status = "failed"; errorMessage = e.message;
+          }
+        } else {
+          // RESEND_API_KEY not configured — log for manual send
+          status = "queued";
+          console.info(`[live-reminders] email queued (no RESEND_API_KEY): to=${signup.fanEmail} subject="${subject}"`);
+        }
+      } else if ((signup.channel === "whatsapp" || signup.channel === "sms") && signup.fanPhone) {
+        // WhatsApp/SMS: persist as queued (wire Twilio/WhatsApp Business API to process queue)
+        status = "queued";
+        console.info(`[live-reminders] ${signup.channel} queued: to=${signup.fanPhone.slice(0, 7)}*** msg="${smsBody.slice(0, 60)}"`);
+      }
+
+      // Persist delivery event regardless of channel
+      await db.insert(liveNotificationEventsTable).values({
+        sessionId: session.id,
+        userId: user.id,
+        recipientId: signup.id,
+        channel: signup.channel,
+        recipient: signup.fanEmail ?? signup.fanPhone ?? "",
+        subject,
+        body: signup.channel === "email" ? emailBody : smsBody,
+        status,
+        providerMessageId,
+        errorMessage,
+        sentAt: status === "sent" ? now : undefined,
+      });
+
       await db.update(liveReminderSignupsTable)
         .set({ reminded: true, remindedAt: now })
         .where(eq(liveReminderSignupsTable.id, signup.id));
 
-      // Notification delivery logging (email/WhatsApp simulation; integrate Resend/Twilio in production)
-      if (signup.channel === "email" && signup.fanEmail) {
-        notificationLog.push({
-          channel: "email",
-          recipient: signup.fanEmail,
-          status: "queued",
-          message: `Subject: You're going LIVE with ${session.title}!\n\nHey ${signup.fanName}, don't forget — "${session.title}" goes LIVE on ${liveStr}. See you there! 🎙 — Area Fada OS`,
-        });
-      } else if ((signup.channel === "whatsapp" || signup.channel === "sms") && signup.fanPhone) {
-        notificationLog.push({
-          channel: signup.channel,
-          recipient: signup.fanPhone,
-          status: "queued",
-          message: `Hey ${signup.fanName}! 🔴 "${session.title}" goes LIVE on ${liveStr}. Don't miss it! — Area Fada OS`,
-        });
-      }
+      results.push({ signupId: signup.id, channel: signup.channel, recipient: (signup.fanEmail ?? signup.fanPhone ?? "").slice(0, 6) + "***", status, messageId: providerMessageId, error: errorMessage });
     }
 
-    // In production: iterate notificationLog and call Resend (email) / Twilio / WhatsApp Business API
-    // For now, log deliveries for auditability
-    if (notificationLog.length > 0) {
-      console.info(`[live-reminders] Session ${session.id}: dispatching ${notificationLog.length} notifications`, notificationLog.map(n => ({ ch: n.channel, to: n.recipient.slice(0, 6) + "***" })));
-    }
+    const sent = results.filter(r => r.status === "sent").length;
+    const queued = results.filter(r => r.status === "queued").length;
+    const failed = results.filter(r => r.status === "failed").length;
 
     res.json({
-      message: `Reminders queued for ${pending.length} fans`,
+      message: `Reminders dispatched for ${pending.length} fans — ${sent} sent, ${queued} queued, ${failed} failed`,
       count: pending.length,
-      breakdown: { email: notificationLog.filter(n => n.channel === "email").length, whatsapp: notificationLog.filter(n => n.channel === "whatsapp").length, sms: notificationLog.filter(n => n.channel === "sms").length },
-      notificationLog,
+      breakdown: { sent, queued, failed },
+      results,
     });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to send reminders" }); }
 });
@@ -510,57 +549,65 @@ router.post("/live-sessions/:id/queue-replay", ...requireLive, async (req: any, 
     if (!session) { res.status(404).json({ error: "Session not found" }); return; }
     if (session.status !== "ended") { res.status(400).json({ error: "Session must be ended before queueing replay distribution" }); return; }
 
-    const { replayUrl, platforms, distributeClips } = req.body;
+    const { replayUrl, platforms, distributeClips, chapters } = req.body;
 
-    // Update replayUrl on session if provided
     if (replayUrl) {
       await db.update(liveSessionsTable)
         .set({ replayUrl, updatedAt: new Date() })
         .where(eq(liveSessionsTable.id, session.id));
     }
 
+    const activeReplayUrl: string | null = replayUrl ?? session.replayUrl;
     const targetPlatforms: string[] = platforms ?? (session.platforms as string[]);
-    const clips = distributeClips ? await db.select().from(postLiveClipsTable)
-      .where(and(eq(postLiveClipsTable.sessionId, session.id), eq(postLiveClipsTable.userId, user.id))) : [];
+    const chaptersBlock: string = Array.isArray(chapters) && chapters.length > 0
+      ? "\n\nChapters:\n" + (chapters as Array<{ label: string; timestamp: string }>)
+          .map(c => `${c.timestamp} — ${c.label}`).join("\n")
+      : "";
 
-    // Update clip statuses to "queued" for distribution
-    if (clips.length > 0) {
-      for (const clip of clips) {
-        if (clip.status === "ready") {
-          await db.update(postLiveClipsTable)
-            .set({ status: "queued" })
-            .where(eq(postLiveClipsTable.id, clip.id));
-        }
-      }
+    // Create a scheduled post in postsTable for each platform (replay announcement)
+    const createdPosts: { id: number; platform: string }[] = [];
+    const scheduleAt = new Date(Date.now() + 5 * 60 * 1000);
+    for (const platform of targetPlatforms) {
+      const caption = `🎬 Missed the LIVE? Watch the full replay of "${session.title}" now!\n\n${activeReplayUrl ?? "Link in bio"}${chaptersBlock}`;
+      const [post] = await db.insert(postsTable).values({
+        userId: user.id,
+        caption,
+        platforms: [platform] as any,
+        hashtags: ["#Replay", "#AreaFada", "#LiveNG"],
+        mediaUrls: [],
+        status: "scheduled",
+        scheduledAt: scheduleAt,
+      }).returning({ id: postsTable.id });
+      createdPosts.push({ id: post.id, platform });
     }
 
-    // In production: integrate with YouTube Data API v3, Instagram Graph API, Facebook Live API
-    // Each platform receives: replayUrl or clip upload task queued to a worker
-    const replayQueue = targetPlatforms.map(platform => ({
-      platform,
-      type: "full_replay",
-      replayUrl: replayUrl ?? session.replayUrl,
-      status: "queued",
-      scheduledAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 min from now
-      title: session.title,
-    }));
+    // Queue clips as scheduled posts
+    const clips = distributeClips
+      ? await db.select().from(postLiveClipsTable)
+          .where(and(eq(postLiveClipsTable.sessionId, session.id), eq(postLiveClipsTable.userId, user.id)))
+      : [];
 
-    const clipQueue = (distributeClips && clips.length > 0) ? clips.filter(c => c.platform).map(c => ({
-      platform: c.platform,
-      type: "clip",
-      clipId: c.id,
-      label: c.label,
-      status: "queued",
-      aiCaption: c.aiCaption,
-      scheduledAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-    })) : [];
-
-    console.info(`[replay-queue] Session ${session.id}: queued ${replayQueue.length} replay tasks + ${clipQueue.length} clip tasks`);
+    const createdClipPosts: { id: number; clipId: number; platform: string }[] = [];
+    for (const clip of clips) {
+      if (!clip.platform || clip.status !== "ready") continue;
+      const caption = clip.aiCaption ?? `Highlight from "${session.title}" 🎙`;
+      const [clipPost] = await db.insert(postsTable).values({
+        userId: user.id,
+        caption,
+        platforms: [clip.platform] as any,
+        hashtags: ["#LiveHighlight", "#AreaFada"],
+        mediaUrls: [],
+        status: "scheduled",
+        scheduledAt: new Date(scheduleAt.getTime() + 10 * 60 * 1000),
+      }).returning({ id: postsTable.id });
+      await db.update(postLiveClipsTable).set({ status: "queued" }).where(eq(postLiveClipsTable.id, clip.id));
+      createdClipPosts.push({ id: clipPost.id, clipId: clip.id, platform: clip.platform });
+    }
 
     res.json({
-      message: `Replay distribution queued for ${targetPlatforms.length} platform${targetPlatforms.length !== 1 ? "s" : ""}${clipQueue.length > 0 ? ` + ${clipQueue.length} clip${clipQueue.length !== 1 ? "s" : ""}` : ""}`,
-      replayQueue,
-      clipQueue,
+      message: `Replay distribution queued: ${createdPosts.length} replay post${createdPosts.length !== 1 ? "s" : ""}${createdClipPosts.length > 0 ? ` + ${createdClipPosts.length} clip post${createdClipPosts.length !== 1 ? "s" : ""}` : ""} added to the post scheduler`,
+      replayPosts: createdPosts,
+      clipPosts: createdClipPosts,
       sessionId: session.id,
     });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to queue replay" }); }
@@ -578,24 +625,199 @@ router.post("/live-sessions/:id/hype-schedule", ...requireLive, async (req: any,
     const liveDate = new Date(session.scheduledAt);
     const title = session.title;
     const platformList = (session.platforms as string[]).join(", ");
+    const sessionPlatforms = session.platforms as string[];
 
-    const templates = [
-      { hoursBeforeLive: 168, platform: "instagram", content: `🚨 LIVE IN 7 DAYS 🚨\n\n${title}\n\nJoin me LIVE on ${platformList} — mark your calendar and set a reminder. This one will be different. #AreaFada #CharlyBoy` },
-      { hoursBeforeLive: 72, platform: "twitter", content: `72 hours to go. "${title}" — coming LIVE to your screen. Set a reminder. Bring your questions. I won't hold back. #LiveNG #AreaFada` },
-      { hoursBeforeLive: 48, platform: "instagram", content: `48 hours. Here's a teaser of what we'll discuss LIVE: the things people are afraid to say out loud. "${title}" — ${liveDate.toLocaleDateString("en-NG", { weekday: "long", month: "short", day: "numeric" })} on ${platformList}. 🎙` },
-      { hoursBeforeLive: 24, platform: "instagram", content: `TOMORROW! 🔥 "${title}" goes LIVE in 24 hours. Everything is set. Are you ready? Drop a 🔴 below if you're coming through. #AreaFada` },
-      { hoursBeforeLive: 6, platform: "twitter", content: `⏰ 6 HOURS. "${title}" is happening TONIGHT. Set your reminder RIGHT NOW. No excuses. I'll be waiting. 🎙 #LiveNG #CharlyBoy` },
-      { hoursBeforeLive: 1, platform: "instagram", content: `🔴 WE GO LIVE IN 1 HOUR!\n\n"${title}"\n\nGo to ${platformList} NOW and hit the notification bell. Don't be late! #LiveNow #AreaFada` },
-      { hoursBeforeLive: 0.25, platform: "twitter", content: `🔴 LIVE IN 15 MINUTES — "${title}". Join me NOW on ${platformList}. This is the moment. 🎬 #LiveNow` },
+    const templates: Array<{ hoursBeforeLive: number; platforms: string[]; caption: string; hashtags: string[] }> = [
+      {
+        hoursBeforeLive: 168,
+        platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"],
+        caption: `🚨 LIVE IN 7 DAYS 🚨\n\n${title}\n\nJoin me LIVE on ${platformList} — mark your calendar and set a reminder. This one will be different.`,
+        hashtags: ["#AreaFada", "#CharlyBoy", "#LiveNG"],
+      },
+      {
+        hoursBeforeLive: 72,
+        platforms: sessionPlatforms.length > 1 ? [sessionPlatforms[1]] : ["twitter"],
+        caption: `72 hours to go. "${title}" — coming LIVE to your screen. Set a reminder. Bring your questions. I won't hold back.`,
+        hashtags: ["#LiveNG", "#AreaFada"],
+      },
+      {
+        hoursBeforeLive: 48,
+        platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"],
+        caption: `48 hours. Here's a teaser of what we'll discuss LIVE: the things people are afraid to say out loud. "${title}" — ${liveDate.toLocaleDateString("en-NG", { weekday: "long", month: "short", day: "numeric" })} on ${platformList}. 🎙`,
+        hashtags: ["#Teaser", "#AreaFada"],
+      },
+      {
+        hoursBeforeLive: 24,
+        platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"],
+        caption: `TOMORROW! 🔥 "${title}" goes LIVE in 24 hours. Everything is set. Are you ready? Drop a 🔴 below if you're coming through.`,
+        hashtags: ["#AreaFada", "#LiveNG"],
+      },
+      {
+        hoursBeforeLive: 6,
+        platforms: sessionPlatforms.length > 1 ? [sessionPlatforms[1]] : ["twitter"],
+        caption: `⏰ 6 HOURS. "${title}" is happening TONIGHT. Set your reminder RIGHT NOW. No excuses. I'll be waiting. 🎙`,
+        hashtags: ["#LiveNG", "#CharlyBoy"],
+      },
+      {
+        hoursBeforeLive: 1,
+        platforms: sessionPlatforms.length ? [sessionPlatforms[0]] : ["instagram"],
+        caption: `🔴 WE GO LIVE IN 1 HOUR!\n\n"${title}"\n\nGo to ${platformList} NOW and hit the notification bell. Don't be late!`,
+        hashtags: ["#LiveNow", "#AreaFada"],
+      },
+      {
+        hoursBeforeLive: 0.25,
+        platforms: sessionPlatforms.length > 1 ? [sessionPlatforms[1]] : ["twitter"],
+        caption: `🔴 LIVE IN 15 MINUTES — "${title}". Join me NOW on ${platformList}. This is the moment. 🎬`,
+        hashtags: ["#LiveNow"],
+      },
     ];
 
-    const posts = templates.map(t => {
-      const postDate = new Date(liveDate.getTime() - t.hoursBeforeLive * 3600 * 1000);
-      return { platform: t.platform, content: t.content, scheduledDate: postDate.toISOString(), hoursBeforeLive: t.hoursBeforeLive };
-    });
+    // Persist each hype post to postsTable as a scheduled draft
+    const created: Array<{ postId: number; scheduledAt: string; hoursBeforeLive: number; platforms: string[] }> = [];
+    for (const t of templates) {
+      const scheduledAt = new Date(liveDate.getTime() - t.hoursBeforeLive * 3600 * 1000);
+      // Only schedule future posts (skip if scheduled time already passed)
+      if (scheduledAt <= new Date()) continue;
+      const [post] = await db.insert(postsTable).values({
+        userId: user.id,
+        caption: t.caption,
+        platforms: t.platforms as any,
+        hashtags: t.hashtags,
+        mediaUrls: [],
+        status: "scheduled",
+        scheduledAt,
+      }).returning({ id: postsTable.id });
+      created.push({ postId: post.id, scheduledAt: scheduledAt.toISOString(), hoursBeforeLive: t.hoursBeforeLive, platforms: t.platforms });
+    }
 
-    res.json({ message: `Hype schedule generated — ${posts.length} posts ready to queue`, posts, sessionId: Number(req.params.id) });
+    res.json({
+      message: `Hype schedule created — ${created.length} post${created.length !== 1 ? "s" : ""} added to the post scheduler`,
+      posts: created,
+      sessionId: Number(req.params.id),
+    });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to generate hype schedule" }); }
+});
+
+// ─── Moderation Rules CRUD ────────────────────────────────────────────────────
+
+// GET /live-moderation-rules — list all rules for current user
+router.get("/live-moderation-rules", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const rules = await db.select().from(liveModerationRulesTable)
+      .where(eq(liveModerationRulesTable.userId, user.id))
+      .orderBy(desc(liveModerationRulesTable.createdAt));
+    res.json(rules);
+  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to fetch moderation rules" }); }
+});
+
+// POST /live-moderation-rules — create keyword filter or ban rule
+router.post("/live-moderation-rules", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const { ruleType, pattern, action } = req.body;
+    if (!pattern) { res.status(400).json({ error: "pattern is required" }); return; }
+    const validTypes = ["keyword", "ban", "regex"];
+    const validActions = ["hide", "delete", "flag", "timeout"];
+    if (ruleType && !validTypes.includes(ruleType)) { res.status(400).json({ error: `ruleType must be one of: ${validTypes.join(", ")}` }); return; }
+    if (action && !validActions.includes(action)) { res.status(400).json({ error: `action must be one of: ${validActions.join(", ")}` }); return; }
+    const [rule] = await db.insert(liveModerationRulesTable).values({
+      userId: user.id,
+      ruleType: ruleType ?? "keyword",
+      pattern,
+      action: action ?? "hide",
+    }).returning();
+    res.status(201).json(rule);
+  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to create moderation rule" }); }
+});
+
+// PATCH /live-moderation-rules/:id — toggle active, update action
+router.patch("/live-moderation-rules/:id", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const { active, action, pattern } = req.body;
+    const patch: Record<string, unknown> = {};
+    if (active !== undefined) patch.active = active;
+    if (action !== undefined) patch.action = action;
+    if (pattern !== undefined) patch.pattern = pattern;
+    if (Object.keys(patch).length === 0) { res.status(400).json({ error: "No fields to update" }); return; }
+    const [updated] = await db.update(liveModerationRulesTable)
+      .set(patch)
+      .where(and(eq(liveModerationRulesTable.id, Number(req.params.id)), eq(liveModerationRulesTable.userId, user.id)))
+      .returning();
+    if (!updated) { res.status(404).json({ error: "Rule not found" }); return; }
+    res.json(updated);
+  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to update moderation rule" }); }
+});
+
+// DELETE /live-moderation-rules/:id
+router.delete("/live-moderation-rules/:id", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const [deleted] = await db.delete(liveModerationRulesTable)
+      .where(and(eq(liveModerationRulesTable.id, Number(req.params.id)), eq(liveModerationRulesTable.userId, user.id)))
+      .returning();
+    if (!deleted) { res.status(404).json({ error: "Rule not found" }); return; }
+    res.status(204).end();
+  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to delete moderation rule" }); }
+});
+
+// POST /live-chat/:id/check-moderation — run active rules against a message, apply action
+router.post("/live-chat/:id/check-moderation", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const [message] = await db.select().from(liveChatMessagesTable)
+      .where(eq(liveChatMessagesTable.id, Number(req.params.id)));
+    if (!message) { res.status(404).json({ error: "Message not found" }); return; }
+    const rules = await db.select().from(liveModerationRulesTable)
+      .where(and(eq(liveModerationRulesTable.userId, user.id), eq(liveModerationRulesTable.active, true)));
+    const text = message.message.toLowerCase();
+    const triggered: Array<{ ruleId: number; pattern: string; action: string }> = [];
+    for (const rule of rules) {
+      const pattern = rule.pattern.toLowerCase();
+      const matches = rule.ruleType === "regex"
+        ? (() => { try { return new RegExp(rule.pattern, "i").test(message.message); } catch { return false; } })()
+        : text.includes(pattern);
+      if (matches) {
+        triggered.push({ ruleId: rule.id, pattern: rule.pattern, action: rule.action });
+        await db.update(liveModerationRulesTable)
+          .set({ hitCount: rule.hitCount + 1 })
+          .where(eq(liveModerationRulesTable.id, rule.id));
+      }
+    }
+    // Apply the highest-severity action triggered
+    const severityOrder = ["timeout", "delete", "flag", "hide"];
+    const topAction = triggered.length > 0
+      ? severityOrder.find(a => triggered.some(t => t.action === a)) ?? triggered[0].action
+      : null;
+    if (topAction === "hide" || topAction === "delete" || topAction === "flag") {
+      await db.update(liveChatMessagesTable)
+        .set({ isModerated: true })
+        .where(eq(liveChatMessagesTable.id, message.id));
+    }
+    res.json({ triggered, topAction, messageId: message.id, message: triggered.length > 0 ? `${triggered.length} rule(s) triggered — action: ${topAction}` : "No rules triggered" });
+  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to run moderation check" }); }
+});
+
+// GET /live-notification-events — delivery log for current user's sessions
+router.get("/live-notification-events", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const { sessionId } = req.query;
+    const conditions = [eq(liveNotificationEventsTable.userId, user.id)];
+    if (sessionId) conditions.push(eq(liveNotificationEventsTable.sessionId, Number(sessionId)));
+    const events = await db.select().from(liveNotificationEventsTable)
+      .where(and(...conditions))
+      .orderBy(desc(liveNotificationEventsTable.createdAt))
+      .limit(200);
+    res.json(events);
+  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to fetch notification events" }); }
 });
 
 export default router;

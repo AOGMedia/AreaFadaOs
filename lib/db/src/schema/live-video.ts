@@ -87,3 +87,30 @@ export const liveReminderSignupsTable = pgTable("live_reminder_signups", {
   remindedAt: timestamp("reminded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+export const liveModerationRulesTable = pgTable("live_moderation_rules", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  ruleType: text("rule_type").notNull().default("keyword"),
+  pattern: text("pattern").notNull(),
+  action: text("action").notNull().default("hide"),
+  active: boolean("active").notNull().default(true),
+  hitCount: integer("hit_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const liveNotificationEventsTable = pgTable("live_notification_events", {
+  id: serial("id").primaryKey(),
+  sessionId: integer("session_id").notNull(),
+  userId: integer("user_id").notNull(),
+  recipientId: integer("recipient_id"),
+  channel: text("channel").notNull(),
+  recipient: text("recipient").notNull(),
+  subject: text("subject"),
+  body: text("body").notNull(),
+  status: text("status").notNull().default("queued"),
+  providerMessageId: text("provider_message_id"),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});

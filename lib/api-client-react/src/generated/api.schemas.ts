@@ -1151,6 +1151,70 @@ export interface HypeScheduleResponse {
   sessionId: number;
 }
 
+export type LiveModerationRuleRuleType = typeof LiveModerationRuleRuleType[keyof typeof LiveModerationRuleRuleType];
+
+
+export const LiveModerationRuleRuleType = {
+  keyword: 'keyword',
+  ban: 'ban',
+  regex: 'regex',
+} as const;
+
+export type LiveModerationRuleAction = typeof LiveModerationRuleAction[keyof typeof LiveModerationRuleAction];
+
+
+export const LiveModerationRuleAction = {
+  hide: 'hide',
+  delete: 'delete',
+  flag: 'flag',
+  timeout: 'timeout',
+} as const;
+
+export interface LiveModerationRule {
+  id: number;
+  userId: number;
+  ruleType: LiveModerationRuleRuleType;
+  pattern: string;
+  action: LiveModerationRuleAction;
+  active: boolean;
+  hitCount: number;
+  createdAt: string;
+}
+
+export type LiveNotificationEventChannel = typeof LiveNotificationEventChannel[keyof typeof LiveNotificationEventChannel];
+
+
+export const LiveNotificationEventChannel = {
+  email: 'email',
+  whatsapp: 'whatsapp',
+  sms: 'sms',
+} as const;
+
+export type LiveNotificationEventStatus = typeof LiveNotificationEventStatus[keyof typeof LiveNotificationEventStatus];
+
+
+export const LiveNotificationEventStatus = {
+  queued: 'queued',
+  sent: 'sent',
+  failed: 'failed',
+} as const;
+
+export interface LiveNotificationEvent {
+  id: number;
+  sessionId: number;
+  userId: number;
+  recipientId?: number;
+  channel: LiveNotificationEventChannel;
+  recipient: string;
+  subject?: string;
+  body: string;
+  status: LiveNotificationEventStatus;
+  providerMessageId?: string;
+  errorMessage?: string;
+  sentAt?: string;
+  createdAt: string;
+}
+
 export type ListPostsParams = {
 status?: ListPostsStatus;
 campaignId?: number;
@@ -1364,14 +1428,65 @@ export type QueueReplayDistributionBody = {
   distributeClips?: boolean;
 };
 
-export type QueueReplayDistribution200ReplayQueueItem = { [key: string]: unknown };
+export type QueueReplayDistribution200ReplayPostsItem = {
+  id?: number;
+  platform?: string;
+};
 
-export type QueueReplayDistribution200ClipQueueItem = { [key: string]: unknown };
+export type QueueReplayDistribution200ClipPostsItem = {
+  id?: number;
+  clipId?: number;
+  platform?: string;
+};
 
 export type QueueReplayDistribution200 = {
   message?: string;
-  replayQueue?: QueueReplayDistribution200ReplayQueueItem[];
-  clipQueue?: QueueReplayDistribution200ClipQueueItem[];
+  replayPosts?: QueueReplayDistribution200ReplayPostsItem[];
+  clipPosts?: QueueReplayDistribution200ClipPostsItem[];
   sessionId?: number;
+};
+
+export type CreateModerationRuleBodyRuleType = typeof CreateModerationRuleBodyRuleType[keyof typeof CreateModerationRuleBodyRuleType];
+
+
+export const CreateModerationRuleBodyRuleType = {
+  keyword: 'keyword',
+  ban: 'ban',
+  regex: 'regex',
+} as const;
+
+export type CreateModerationRuleBodyAction = typeof CreateModerationRuleBodyAction[keyof typeof CreateModerationRuleBodyAction];
+
+
+export const CreateModerationRuleBodyAction = {
+  hide: 'hide',
+  delete: 'delete',
+  flag: 'flag',
+  timeout: 'timeout',
+} as const;
+
+export type CreateModerationRuleBody = {
+  ruleType?: CreateModerationRuleBodyRuleType;
+  pattern: string;
+  action?: CreateModerationRuleBodyAction;
+};
+
+export type UpdateModerationRuleBody = {
+  active?: boolean;
+  action?: string;
+  pattern?: string;
+};
+
+export type CheckChatModeration200TriggeredItem = { [key: string]: unknown };
+
+export type CheckChatModeration200 = {
+  triggered?: CheckChatModeration200TriggeredItem[];
+  topAction?: string | null;
+  messageId?: number;
+  message?: string;
+};
+
+export type ListNotificationEventsParams = {
+sessionId?: number;
 };
 

@@ -2131,16 +2131,169 @@ paths:
                 properties:
                   message:
                     type: string
-                  replayQueue:
+                  replayPosts:
                     type: array
                     items:
                       type: object
-                  clipQueue:
+                      properties:
+                        id:
+                          type: integer
+                        platform:
+                          type: string
+                  clipPosts:
                     type: array
                     items:
                       type: object
+                      properties:
+                        id:
+                          type: integer
+                        clipId:
+                          type: integer
+                        platform:
+                          type: string
                   sessionId:
                     type: integer
+
+  /live-moderation-rules:
+    get:
+      operationId: listModerationRules
+      tags: [liveVideo]
+      summary: List all keyword/ban moderation rules for the current user
+      responses:
+        "200":
+          description: List of moderation rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveModerationRule"
+    post:
+      operationId: createModerationRule
+      tags: [liveVideo]
+      summary: Create a keyword filter or ban rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pattern]
+              properties:
+                ruleType:
+                  type: string
+                  enum: [keyword, ban, regex]
+                pattern:
+                  type: string
+                action:
+                  type: string
+                  enum: [hide, delete, flag, timeout]
+      responses:
+        "201":
+          description: Rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveModerationRule"
+
+  /live-moderation-rules/{id}:
+    patch:
+      operationId: updateModerationRule
+      tags: [liveVideo]
+      summary: Toggle active status or update action/pattern
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                active:
+                  type: boolean
+                action:
+                  type: string
+                pattern:
+                  type: string
+      responses:
+        "200":
+          description: Rule updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveModerationRule"
+        "404":
+          description: Rule not found
+    delete:
+      operationId: deleteModerationRule
+      tags: [liveVideo]
+      summary: Delete a moderation rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Rule not found
+
+  /live-chat/{id}/check-moderation:
+    post:
+      operationId: checkChatModeration
+      tags: [liveVideo]
+      summary: Run active keyword/ban rules against a chat message and apply action
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Moderation check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  triggered:
+                    type: array
+                    items:
+                      type: object
+                  topAction:
+                    type: string
+                    nullable: true
+                  messageId:
+                    type: integer
+                  message:
+                    type: string
+
+  /live-notification-events:
+    get:
+      operationId: listNotificationEvents
+      tags: [liveVideo]
+      summary: Delivery log of reminder notifications for the current user's sessions
+      parameters:
+        - name: sessionId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of notification events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveNotificationEvent"
 
 components:
   schemas:
@@ -4076,3 +4229,62 @@ components:
             $ref: "#/components/schemas/HypeDripPost"
         sessionId:
           type: integer
+
+    LiveModerationRule:
+      type: object
+      required: [id, userId, ruleType, pattern, action, active, hitCount, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        ruleType:
+          type: string
+          enum: [keyword, ban, regex]
+        pattern:
+          type: string
+        action:
+          type: string
+          enum: [hide, delete, flag, timeout]
+        active:
+          type: boolean
+        hitCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    LiveNotificationEvent:
+      type: object
+      required: [id, sessionId, userId, channel, recipient, body, status, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        recipientId:
+          type: integer
+        channel:
+          type: string
+          enum: [email, whatsapp, sms]
+        recipient:
+          type: string
+        subject:
+          type: string
+        body:
+          type: string
+        status:
+          type: string
+          enum: [queued, sent, failed]
+        providerMessageId:
+          type: string
+        errorMessage:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time

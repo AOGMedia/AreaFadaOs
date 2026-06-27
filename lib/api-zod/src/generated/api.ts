@@ -2547,13 +2547,130 @@ export const QueueReplayDistributionBody = zod.object({
 
 export const QueueReplayDistributionResponse = zod.object({
   "message": zod.string().optional(),
-  "replayQueue": zod.array(zod.object({
-
-}).passthrough()).optional(),
-  "clipQueue": zod.array(zod.object({
-
-}).passthrough()).optional(),
+  "replayPosts": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "platform": zod.string().optional()
+})).optional(),
+  "clipPosts": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "clipId": zod.number().optional(),
+  "platform": zod.string().optional()
+})).optional(),
   "sessionId": zod.number().optional()
 })
+
+
+/**
+ * @summary List all keyword/ban moderation rules for the current user
+ */
+export const ListModerationRulesResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "ruleType": zod.enum(['keyword', 'ban', 'regex']),
+  "pattern": zod.string(),
+  "action": zod.enum(['hide', 'delete', 'flag', 'timeout']),
+  "active": zod.boolean(),
+  "hitCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListModerationRulesResponse = zod.array(ListModerationRulesResponseItem)
+
+
+/**
+ * @summary Create a keyword filter or ban rule
+ */
+export const CreateModerationRuleBody = zod.object({
+  "ruleType": zod.enum(['keyword', 'ban', 'regex']).optional(),
+  "pattern": zod.string(),
+  "action": zod.enum(['hide', 'delete', 'flag', 'timeout']).optional()
+})
+
+export const CreateModerationRuleResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "ruleType": zod.enum(['keyword', 'ban', 'regex']),
+  "pattern": zod.string(),
+  "action": zod.enum(['hide', 'delete', 'flag', 'timeout']),
+  "active": zod.boolean(),
+  "hitCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Toggle active status or update action/pattern
+ */
+export const UpdateModerationRuleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateModerationRuleBody = zod.object({
+  "active": zod.boolean().optional(),
+  "action": zod.string().optional(),
+  "pattern": zod.string().optional()
+})
+
+export const UpdateModerationRuleResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "ruleType": zod.enum(['keyword', 'ban', 'regex']),
+  "pattern": zod.string(),
+  "action": zod.enum(['hide', 'delete', 'flag', 'timeout']),
+  "active": zod.boolean(),
+  "hitCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a moderation rule
+ */
+export const DeleteModerationRuleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteModerationRuleResponse = zod.void()
+
+
+/**
+ * @summary Run active keyword/ban rules against a chat message and apply action
+ */
+export const CheckChatModerationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CheckChatModerationResponse = zod.object({
+  "triggered": zod.array(zod.object({
+
+}).passthrough()).optional(),
+  "topAction": zod.string().nullish(),
+  "messageId": zod.number().optional(),
+  "message": zod.string().optional()
+})
+
+
+/**
+ * @summary Delivery log of reminder notifications for the current user's sessions
+ */
+export const ListNotificationEventsQueryParams = zod.object({
+  "sessionId": zod.coerce.number().optional()
+})
+
+export const ListNotificationEventsResponseItem = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "recipientId": zod.number().optional(),
+  "channel": zod.enum(['email', 'whatsapp', 'sms']),
+  "recipient": zod.string(),
+  "subject": zod.string().optional(),
+  "body": zod.string(),
+  "status": zod.enum(['queued', 'sent', 'failed']),
+  "providerMessageId": zod.string().optional(),
+  "errorMessage": zod.string().optional(),
+  "sentAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+export const ListNotificationEventsResponse = zod.array(ListNotificationEventsResponseItem)
 
 

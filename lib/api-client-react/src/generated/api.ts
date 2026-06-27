@@ -37,6 +37,7 @@ import type {
   BulkUploadBody,
   BulkUploadResult,
   Campaign,
+  CheckChatModeration200,
   CompleteAmbassadorTask200,
   CompleteAmbassadorTaskBody,
   CreateAffiliateBody,
@@ -50,6 +51,7 @@ import type {
   CreateLiveClipBody,
   CreateLiveSessionBody,
   CreateMicroInfluencerBody,
+  CreateModerationRuleBody,
   CreatePostBody,
   CreatePromoCampaignBody,
   CreatePromoLinkBody,
@@ -80,9 +82,12 @@ import type {
   ListBrandDealsParams,
   ListInvoicesParams,
   ListMicroInfluencersParams,
+  ListNotificationEventsParams,
   ListPostsParams,
   ListPurchaseVerificationsParams,
   LiveChatMessage,
+  LiveModerationRule,
+  LiveNotificationEvent,
   LivePlatformConfig,
   LiveReminderSignup,
   LiveRevenueData,
@@ -116,6 +121,7 @@ import type {
   TierInfo,
   UpdateLivePlatformConfigBody,
   UpdateLiveSessionBody,
+  UpdateModerationRuleBody,
   UpdatePostBody,
   UserProfile,
   UserProfileUpdate,
@@ -7717,4 +7723,446 @@ export const useQueueReplayDistribution = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getQueueReplayDistributionMutationOptions(options));
     }
+
+export const getListModerationRulesUrl = () => {
+
+
+
+
+  return `/api/live-moderation-rules`
+}
+
+/**
+ * @summary List all keyword/ban moderation rules for the current user
+ */
+export const listModerationRules = async ( options?: RequestInit): Promise<LiveModerationRule[]> => {
+
+  return customFetch<LiveModerationRule[]>(getListModerationRulesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListModerationRulesQueryKey = () => {
+    return [
+    `/api/live-moderation-rules`
+    ] as const;
+    }
+
+
+export const getListModerationRulesQueryOptions = <TData = Awaited<ReturnType<typeof listModerationRules>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listModerationRules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListModerationRulesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listModerationRules>>> = ({ signal }) => listModerationRules({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listModerationRules>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListModerationRulesQueryResult = NonNullable<Awaited<ReturnType<typeof listModerationRules>>>
+export type ListModerationRulesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all keyword/ban moderation rules for the current user
+ */
+
+export function useListModerationRules<TData = Awaited<ReturnType<typeof listModerationRules>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listModerationRules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListModerationRulesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateModerationRuleUrl = () => {
+
+
+
+
+  return `/api/live-moderation-rules`
+}
+
+/**
+ * @summary Create a keyword filter or ban rule
+ */
+export const createModerationRule = async (createModerationRuleBody: CreateModerationRuleBody, options?: RequestInit): Promise<LiveModerationRule> => {
+
+  return customFetch<LiveModerationRule>(getCreateModerationRuleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createModerationRuleBody)
+  }
+);}
+
+
+
+
+export const getCreateModerationRuleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createModerationRule>>, TError,{data: BodyType<CreateModerationRuleBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createModerationRule>>, TError,{data: BodyType<CreateModerationRuleBody>}, TContext> => {
+
+const mutationKey = ['createModerationRule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createModerationRule>>, {data: BodyType<CreateModerationRuleBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createModerationRule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateModerationRuleMutationResult = NonNullable<Awaited<ReturnType<typeof createModerationRule>>>
+    export type CreateModerationRuleMutationBody = BodyType<CreateModerationRuleBody>
+    export type CreateModerationRuleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a keyword filter or ban rule
+ */
+export const useCreateModerationRule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createModerationRule>>, TError,{data: BodyType<CreateModerationRuleBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createModerationRule>>,
+        TError,
+        {data: BodyType<CreateModerationRuleBody>},
+        TContext
+      > => {
+      return useMutation(getCreateModerationRuleMutationOptions(options));
+    }
+
+export const getUpdateModerationRuleUrl = (id: number,) => {
+
+
+
+
+  return `/api/live-moderation-rules/${id}`
+}
+
+/**
+ * @summary Toggle active status or update action/pattern
+ */
+export const updateModerationRule = async (id: number,
+    updateModerationRuleBody?: UpdateModerationRuleBody, options?: RequestInit): Promise<LiveModerationRule> => {
+
+  return customFetch<LiveModerationRule>(getUpdateModerationRuleUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateModerationRuleBody)
+  }
+);}
+
+
+
+
+export const getUpdateModerationRuleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateModerationRule>>, TError,{id: number;data?: BodyType<UpdateModerationRuleBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateModerationRule>>, TError,{id: number;data?: BodyType<UpdateModerationRuleBody>}, TContext> => {
+
+const mutationKey = ['updateModerationRule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateModerationRule>>, {id: number;data?: BodyType<UpdateModerationRuleBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateModerationRule(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateModerationRuleMutationResult = NonNullable<Awaited<ReturnType<typeof updateModerationRule>>>
+    export type UpdateModerationRuleMutationBody = BodyType<UpdateModerationRuleBody> | undefined
+    export type UpdateModerationRuleMutationError = ErrorType<void>
+
+    /**
+ * @summary Toggle active status or update action/pattern
+ */
+export const useUpdateModerationRule = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateModerationRule>>, TError,{id: number;data?: BodyType<UpdateModerationRuleBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateModerationRule>>,
+        TError,
+        {id: number;data?: BodyType<UpdateModerationRuleBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateModerationRuleMutationOptions(options));
+    }
+
+export const getDeleteModerationRuleUrl = (id: number,) => {
+
+
+
+
+  return `/api/live-moderation-rules/${id}`
+}
+
+/**
+ * @summary Delete a moderation rule
+ */
+export const deleteModerationRule = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteModerationRuleUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteModerationRuleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteModerationRule>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteModerationRule>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteModerationRule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteModerationRule>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteModerationRule(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteModerationRuleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteModerationRule>>>
+
+    export type DeleteModerationRuleMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a moderation rule
+ */
+export const useDeleteModerationRule = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteModerationRule>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteModerationRule>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteModerationRuleMutationOptions(options));
+    }
+
+export const getCheckChatModerationUrl = (id: number,) => {
+
+
+
+
+  return `/api/live-chat/${id}/check-moderation`
+}
+
+/**
+ * @summary Run active keyword/ban rules against a chat message and apply action
+ */
+export const checkChatModeration = async (id: number, options?: RequestInit): Promise<CheckChatModeration200> => {
+
+  return customFetch<CheckChatModeration200>(getCheckChatModerationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCheckChatModerationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkChatModeration>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof checkChatModeration>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['checkChatModeration'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkChatModeration>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  checkChatModeration(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CheckChatModerationMutationResult = NonNullable<Awaited<ReturnType<typeof checkChatModeration>>>
+
+    export type CheckChatModerationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Run active keyword/ban rules against a chat message and apply action
+ */
+export const useCheckChatModeration = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkChatModeration>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof checkChatModeration>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getCheckChatModerationMutationOptions(options));
+    }
+
+export const getListNotificationEventsUrl = (params?: ListNotificationEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/live-notification-events?${stringifiedParams}` : `/api/live-notification-events`
+}
+
+/**
+ * @summary Delivery log of reminder notifications for the current user's sessions
+ */
+export const listNotificationEvents = async (params?: ListNotificationEventsParams, options?: RequestInit): Promise<LiveNotificationEvent[]> => {
+
+  return customFetch<LiveNotificationEvent[]>(getListNotificationEventsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListNotificationEventsQueryKey = (params?: ListNotificationEventsParams,) => {
+    return [
+    `/api/live-notification-events`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListNotificationEventsQueryOptions = <TData = Awaited<ReturnType<typeof listNotificationEvents>>, TError = ErrorType<unknown>>(params?: ListNotificationEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listNotificationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListNotificationEventsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listNotificationEvents>>> = ({ signal }) => listNotificationEvents(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listNotificationEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListNotificationEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listNotificationEvents>>>
+export type ListNotificationEventsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Delivery log of reminder notifications for the current user's sessions
+ */
+
+export function useListNotificationEvents<TData = Awaited<ReturnType<typeof listNotificationEvents>>, TError = ErrorType<unknown>>(
+ params?: ListNotificationEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listNotificationEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListNotificationEventsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
