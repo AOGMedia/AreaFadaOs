@@ -1085,6 +1085,553 @@ export const DownloadAnalyticsReportPdfResponse = zod.unknown()
 
 
 /**
+ * @summary List ambassadors, optionally filtered by state/zone/tier/status
+ */
+export const ListAmbassadorsQueryParams = zod.object({
+  "state": zod.coerce.string().optional(),
+  "zone": zod.coerce.string().optional(),
+  "tier": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional()
+})
+
+export const ListAmbassadorsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "state": zod.string(),
+  "zone": zod.string(),
+  "city": zod.string().nullish(),
+  "tier": zod.string(),
+  "status": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarInitials": zod.string().nullish(),
+  "platform": zod.string().nullish(),
+  "handle": zod.string().nullish(),
+  "followerCount": zod.number(),
+  "totalPoints": zod.number(),
+  "tasksCompleted": zod.number(),
+  "referrals": zod.number(),
+  "rank": zod.number().nullish(),
+  "joinedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+export const ListAmbassadorsResponse = zod.array(ListAmbassadorsResponseItem)
+
+
+/**
+ * @summary Add a new ambassador
+ */
+export const CreateAmbassadorBody = zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().optional(),
+  "state": zod.string(),
+  "zone": zod.string(),
+  "city": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "followerCount": zod.number().optional(),
+  "bio": zod.string().optional()
+})
+
+export const CreateAmbassadorResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "state": zod.string(),
+  "zone": zod.string(),
+  "city": zod.string().nullish(),
+  "tier": zod.string(),
+  "status": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarInitials": zod.string().nullish(),
+  "platform": zod.string().nullish(),
+  "handle": zod.string().nullish(),
+  "followerCount": zod.number(),
+  "totalPoints": zod.number(),
+  "tasksCompleted": zod.number(),
+  "referrals": zod.number(),
+  "rank": zod.number().nullish(),
+  "joinedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an ambassador
+ */
+export const UpdateAmbassadorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateAmbassadorBody = zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().optional(),
+  "state": zod.string(),
+  "zone": zod.string(),
+  "city": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "followerCount": zod.number().optional(),
+  "bio": zod.string().optional()
+})
+
+export const UpdateAmbassadorResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "state": zod.string(),
+  "zone": zod.string(),
+  "city": zod.string().nullish(),
+  "tier": zod.string(),
+  "status": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarInitials": zod.string().nullish(),
+  "platform": zod.string().nullish(),
+  "handle": zod.string().nullish(),
+  "followerCount": zod.number(),
+  "totalPoints": zod.number(),
+  "tasksCompleted": zod.number(),
+  "referrals": zod.number(),
+  "rank": zod.number().nullish(),
+  "joinedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an ambassador
+ */
+export const DeleteAmbassadorParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAmbassadorResponse = zod.void()
+
+
+/**
+ * @summary Get ranked ambassador leaderboard
+ */
+export const GetAmbassadorLeaderboardResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "state": zod.string(),
+  "zone": zod.string(),
+  "city": zod.string().nullish(),
+  "tier": zod.string(),
+  "status": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarInitials": zod.string().nullish(),
+  "platform": zod.string().nullish(),
+  "handle": zod.string().nullish(),
+  "followerCount": zod.number(),
+  "totalPoints": zod.number(),
+  "tasksCompleted": zod.number(),
+  "referrals": zod.number(),
+  "rank": zod.number().nullish(),
+  "joinedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+export const GetAmbassadorLeaderboardResponse = zod.array(GetAmbassadorLeaderboardResponseItem)
+
+
+/**
+ * @summary Download leaderboard as CSV
+ */
+export const DownloadLeaderboardCsvResponse = zod.unknown()
+
+
+/**
+ * @summary Award points to an ambassador
+ */
+export const AwardPointsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AwardPointsBody = zod.object({
+  "action": zod.string(),
+  "points": zod.number(),
+  "description": zod.string().optional()
+})
+
+export const AwardPointsResponse = zod.object({
+  "ambassador": zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "phone": zod.string().nullish(),
+  "state": zod.string(),
+  "zone": zod.string(),
+  "city": zod.string().nullish(),
+  "tier": zod.string(),
+  "status": zod.string(),
+  "bio": zod.string().nullish(),
+  "avatarInitials": zod.string().nullish(),
+  "platform": zod.string().nullish(),
+  "handle": zod.string().nullish(),
+  "followerCount": zod.number(),
+  "totalPoints": zod.number(),
+  "tasksCompleted": zod.number(),
+  "referrals": zod.number(),
+  "rank": zod.number().nullish(),
+  "joinedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+}).optional(),
+  "pointsAwarded": zod.number().optional()
+})
+
+
+/**
+ * @summary List ambassador tasks
+ */
+export const ListAmbassadorTasksResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "deadline": zod.coerce.date().nullish(),
+  "targetGroup": zod.string(),
+  "targetStates": zod.array(zod.string()).optional(),
+  "pointReward": zod.number(),
+  "status": zod.string(),
+  "totalAssigned": zod.number(),
+  "completedCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListAmbassadorTasksResponse = zod.array(ListAmbassadorTasksResponseItem)
+
+
+/**
+ * @summary Create an ambassador task
+ */
+export const CreateAmbassadorTaskBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "deadline": zod.coerce.date().optional(),
+  "targetGroup": zod.string().optional(),
+  "targetStates": zod.array(zod.string()).optional(),
+  "pointReward": zod.number().optional(),
+  "status": zod.string().optional()
+})
+
+export const CreateAmbassadorTaskResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "deadline": zod.coerce.date().nullish(),
+  "targetGroup": zod.string(),
+  "targetStates": zod.array(zod.string()).optional(),
+  "pointReward": zod.number(),
+  "status": zod.string(),
+  "totalAssigned": zod.number(),
+  "completedCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update or cancel a task
+ */
+export const UpdateAmbassadorTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateAmbassadorTaskBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "deadline": zod.coerce.date().optional(),
+  "targetGroup": zod.string().optional(),
+  "targetStates": zod.array(zod.string()).optional(),
+  "pointReward": zod.number().optional(),
+  "status": zod.string().optional()
+})
+
+export const UpdateAmbassadorTaskResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "deadline": zod.coerce.date().nullish(),
+  "targetGroup": zod.string(),
+  "targetStates": zod.array(zod.string()).optional(),
+  "pointReward": zod.number(),
+  "status": zod.string(),
+  "totalAssigned": zod.number(),
+  "completedCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Mark a task as completed by an ambassador
+ */
+export const CompleteAmbassadorTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CompleteAmbassadorTaskBody = zod.object({
+  "ambassadorId": zod.number(),
+  "notes": zod.string().optional()
+})
+
+export const CompleteAmbassadorTaskResponse = zod.object({
+  "success": zod.boolean().optional(),
+  "pointsAwarded": zod.number().optional()
+})
+
+
+/**
+ * @summary Get gamification point configuration and reward tiers
+ */
+export const GetGamificationConfigsResponse = zod.object({
+  "configs": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "actionKey": zod.string(),
+  "label": zod.string(),
+  "description": zod.string().nullish(),
+  "pointValue": zod.number(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})).optional(),
+  "rewardTiers": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "minPoints": zod.number(),
+  "maxPoints": zod.number().nullish(),
+  "badgeColor": zod.string(),
+  "rewardDescription": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})).optional()
+})
+
+
+/**
+ * @summary Add a new gamification action
+ */
+export const CreateGamificationConfigBody = zod.object({
+  "actionKey": zod.string(),
+  "label": zod.string(),
+  "description": zod.string().optional(),
+  "pointValue": zod.number().optional(),
+  "active": zod.boolean().optional()
+})
+
+export const CreateGamificationConfigResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "actionKey": zod.string(),
+  "label": zod.string(),
+  "description": zod.string().nullish(),
+  "pointValue": zod.number(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a gamification action
+ */
+export const UpdateGamificationConfigParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateGamificationConfigBody = zod.object({
+  "actionKey": zod.string(),
+  "label": zod.string(),
+  "description": zod.string().optional(),
+  "pointValue": zod.number().optional(),
+  "active": zod.boolean().optional()
+})
+
+export const UpdateGamificationConfigResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "actionKey": zod.string(),
+  "label": zod.string(),
+  "description": zod.string().nullish(),
+  "pointValue": zod.number(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List micro-influencer directory with optional filters
+ */
+export const ListMicroInfluencersQueryParams = zod.object({
+  "state": zod.coerce.string().optional(),
+  "niche": zod.coerce.string().optional(),
+  "platform": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional(),
+  "minFollowers": zod.coerce.number().optional(),
+  "maxFollowers": zod.coerce.number().optional()
+})
+
+export const ListMicroInfluencersResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "handle": zod.string(),
+  "platform": zod.string(),
+  "state": zod.string(),
+  "zone": zod.string().nullish(),
+  "niche": zod.string(),
+  "followerCount": zod.number(),
+  "engagementRate": zod.string(),
+  "contactEmail": zod.string().nullish(),
+  "contactPhone": zod.string().nullish(),
+  "status": zod.string(),
+  "lastContactAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListMicroInfluencersResponse = zod.array(ListMicroInfluencersResponseItem)
+
+
+/**
+ * @summary Add a creator to the micro-influencer directory
+ */
+export const AddMicroInfluencerBody = zod.object({
+  "name": zod.string(),
+  "handle": zod.string(),
+  "platform": zod.string(),
+  "state": zod.string(),
+  "zone": zod.string().optional(),
+  "niche": zod.string(),
+  "followerCount": zod.number().optional(),
+  "engagementRate": zod.number().optional(),
+  "contactEmail": zod.string().optional(),
+  "contactPhone": zod.string().optional(),
+  "notes": zod.string().optional()
+})
+
+export const AddMicroInfluencerResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "handle": zod.string(),
+  "platform": zod.string(),
+  "state": zod.string(),
+  "zone": zod.string().nullish(),
+  "niche": zod.string(),
+  "followerCount": zod.number(),
+  "engagementRate": zod.string(),
+  "contactEmail": zod.string().nullish(),
+  "contactPhone": zod.string().nullish(),
+  "status": zod.string(),
+  "lastContactAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Generate collaboration outreach draft for a micro-influencer
+ */
+export const GenerateOutreachParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GenerateOutreachBody = zod.object({
+  "campaignBrief": zod.string().optional()
+})
+
+export const GenerateOutreachResponse = zod.object({
+  "outreachDraft": zod.string().optional(),
+  "influencer": zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "handle": zod.string(),
+  "platform": zod.string(),
+  "state": zod.string(),
+  "zone": zod.string().nullish(),
+  "niche": zod.string(),
+  "followerCount": zod.number(),
+  "engagementRate": zod.string(),
+  "contactEmail": zod.string().nullish(),
+  "contactPhone": zod.string().nullish(),
+  "status": zod.string(),
+  "lastContactAt": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+}).optional()
+})
+
+
+/**
+ * @summary List WhatsApp broadcast logs
+ */
+export const ListWhatsappBroadcastsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "listName": zod.string(),
+  "message": zod.string(),
+  "sentCount": zod.number(),
+  "deliveryCount": zod.number(),
+  "linkClicks": zod.number(),
+  "responseCount": zod.number(),
+  "broadcastDate": zod.coerce.date(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListWhatsappBroadcastsResponse = zod.array(ListWhatsappBroadcastsResponseItem)
+
+
+/**
+ * @summary Log a WhatsApp broadcast campaign
+ */
+export const LogWhatsappBroadcastBody = zod.object({
+  "listName": zod.string(),
+  "message": zod.string(),
+  "sentCount": zod.number().optional(),
+  "deliveryCount": zod.number().optional(),
+  "linkClicks": zod.number().optional(),
+  "responseCount": zod.number().optional(),
+  "broadcastDate": zod.coerce.date(),
+  "notes": zod.string().optional()
+})
+
+export const LogWhatsappBroadcastResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "listName": zod.string(),
+  "message": zod.string(),
+  "sentCount": zod.number(),
+  "deliveryCount": zod.number(),
+  "linkClicks": zod.number(),
+  "responseCount": zod.number(),
+  "broadcastDate": zod.coerce.date(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a broadcast log
+ */
+export const DeleteWhatsappBroadcastParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteWhatsappBroadcastResponse = zod.void()
+
+
+/**
  * @summary Generate weekly performance digest narrative
  */
 export const GenerateWeeklyDigestResponse = zod.object({

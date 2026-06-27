@@ -22,26 +22,40 @@ import type {
 import type {
   ActivityItem,
   AffiliateLink,
+  Ambassador,
+  AmbassadorTask,
   AnalyticsReport,
   AnalyticsSummary,
   AudienceGeography,
+  AwardPoints200,
+  AwardPointsBody,
   BestPostTimes,
   BrandDeal,
   BulkUploadBody,
   BulkUploadResult,
   Campaign,
+  CompleteAmbassadorTask200,
+  CompleteAmbassadorTaskBody,
   CreateAffiliateLinkBody,
+  CreateAmbassadorBody,
+  CreateAmbassadorTaskBody,
   CreateBrandDealBody,
   CreateCampaignBody,
+  CreateGamificationConfigBody,
   CreateInvoiceBody,
+  CreateMicroInfluencerBody,
   CreatePostBody,
   DashboardSummary,
+  GamificationConfig,
   GenerateCaptionsBody,
   GenerateCaptionsResponse,
+  GenerateOutreach200,
+  GenerateOutreachBody,
   GeneratePaymentLinkBody,
   GenerateReportBody,
   GetAudienceGeographyParams,
   GetBestPostTimesParams,
+  GetGamificationConfigs200,
   GetPostPerformanceParams,
   GetRevenueWaterfallParams,
   GetTrendingHashtagsParams,
@@ -49,9 +63,13 @@ import type {
   HealthStatus,
   Invoice,
   InvoiceDetail,
+  ListAmbassadorsParams,
   ListBrandDealsParams,
   ListInvoicesParams,
+  ListMicroInfluencersParams,
   ListPostsParams,
+  LogBroadcastBody,
+  MicroInfluencer,
   PaymentLinkResponse,
   PaymentReminder,
   PlatformAccount,
@@ -65,7 +83,8 @@ import type {
   UpdatePostBody,
   UserProfile,
   UserProfileUpdate,
-  WeeklyDigest
+  WeeklyDigest,
+  WhatsappBroadcast
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -3307,6 +3326,1475 @@ export function useDownloadAnalyticsReportPdf<TData = Awaited<ReturnType<typeof 
 
 
 
+
+export const getListAmbassadorsUrl = (params?: ListAmbassadorsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/ambassadors?${stringifiedParams}` : `/api/ambassadors`
+}
+
+/**
+ * @summary List ambassadors, optionally filtered by state/zone/tier/status
+ */
+export const listAmbassadors = async (params?: ListAmbassadorsParams, options?: RequestInit): Promise<Ambassador[]> => {
+
+  return customFetch<Ambassador[]>(getListAmbassadorsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAmbassadorsQueryKey = (params?: ListAmbassadorsParams,) => {
+    return [
+    `/api/ambassadors`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAmbassadorsQueryOptions = <TData = Awaited<ReturnType<typeof listAmbassadors>>, TError = ErrorType<unknown>>(params?: ListAmbassadorsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAmbassadors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAmbassadorsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAmbassadors>>> = ({ signal }) => listAmbassadors(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAmbassadors>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAmbassadorsQueryResult = NonNullable<Awaited<ReturnType<typeof listAmbassadors>>>
+export type ListAmbassadorsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List ambassadors, optionally filtered by state/zone/tier/status
+ */
+
+export function useListAmbassadors<TData = Awaited<ReturnType<typeof listAmbassadors>>, TError = ErrorType<unknown>>(
+ params?: ListAmbassadorsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAmbassadors>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAmbassadorsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAmbassadorUrl = () => {
+
+
+
+
+  return `/api/ambassadors`
+}
+
+/**
+ * @summary Add a new ambassador
+ */
+export const createAmbassador = async (createAmbassadorBody: CreateAmbassadorBody, options?: RequestInit): Promise<Ambassador> => {
+
+  return customFetch<Ambassador>(getCreateAmbassadorUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAmbassadorBody)
+  }
+);}
+
+
+
+
+export const getCreateAmbassadorMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAmbassador>>, TError,{data: BodyType<CreateAmbassadorBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAmbassador>>, TError,{data: BodyType<CreateAmbassadorBody>}, TContext> => {
+
+const mutationKey = ['createAmbassador'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAmbassador>>, {data: BodyType<CreateAmbassadorBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAmbassador(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAmbassadorMutationResult = NonNullable<Awaited<ReturnType<typeof createAmbassador>>>
+    export type CreateAmbassadorMutationBody = BodyType<CreateAmbassadorBody>
+    export type CreateAmbassadorMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a new ambassador
+ */
+export const useCreateAmbassador = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAmbassador>>, TError,{data: BodyType<CreateAmbassadorBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAmbassador>>,
+        TError,
+        {data: BodyType<CreateAmbassadorBody>},
+        TContext
+      > => {
+      return useMutation(getCreateAmbassadorMutationOptions(options));
+    }
+
+export const getUpdateAmbassadorUrl = (id: number,) => {
+
+
+
+
+  return `/api/ambassadors/${id}`
+}
+
+/**
+ * @summary Update an ambassador
+ */
+export const updateAmbassador = async (id: number,
+    createAmbassadorBody: CreateAmbassadorBody, options?: RequestInit): Promise<Ambassador> => {
+
+  return customFetch<Ambassador>(getUpdateAmbassadorUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAmbassadorBody)
+  }
+);}
+
+
+
+
+export const getUpdateAmbassadorMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAmbassador>>, TError,{id: number;data: BodyType<CreateAmbassadorBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAmbassador>>, TError,{id: number;data: BodyType<CreateAmbassadorBody>}, TContext> => {
+
+const mutationKey = ['updateAmbassador'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAmbassador>>, {id: number;data: BodyType<CreateAmbassadorBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAmbassador(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAmbassadorMutationResult = NonNullable<Awaited<ReturnType<typeof updateAmbassador>>>
+    export type UpdateAmbassadorMutationBody = BodyType<CreateAmbassadorBody>
+    export type UpdateAmbassadorMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update an ambassador
+ */
+export const useUpdateAmbassador = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAmbassador>>, TError,{id: number;data: BodyType<CreateAmbassadorBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAmbassador>>,
+        TError,
+        {id: number;data: BodyType<CreateAmbassadorBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateAmbassadorMutationOptions(options));
+    }
+
+export const getDeleteAmbassadorUrl = (id: number,) => {
+
+
+
+
+  return `/api/ambassadors/${id}`
+}
+
+/**
+ * @summary Delete an ambassador
+ */
+export const deleteAmbassador = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteAmbassadorUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAmbassadorMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAmbassador>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAmbassador>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteAmbassador'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAmbassador>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAmbassador(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAmbassadorMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAmbassador>>>
+
+    export type DeleteAmbassadorMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete an ambassador
+ */
+export const useDeleteAmbassador = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAmbassador>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAmbassador>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteAmbassadorMutationOptions(options));
+    }
+
+export const getGetAmbassadorLeaderboardUrl = () => {
+
+
+
+
+  return `/api/ambassadors/leaderboard`
+}
+
+/**
+ * @summary Get ranked ambassador leaderboard
+ */
+export const getAmbassadorLeaderboard = async ( options?: RequestInit): Promise<Ambassador[]> => {
+
+  return customFetch<Ambassador[]>(getGetAmbassadorLeaderboardUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAmbassadorLeaderboardQueryKey = () => {
+    return [
+    `/api/ambassadors/leaderboard`
+    ] as const;
+    }
+
+
+export const getGetAmbassadorLeaderboardQueryOptions = <TData = Awaited<ReturnType<typeof getAmbassadorLeaderboard>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAmbassadorLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAmbassadorLeaderboardQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAmbassadorLeaderboard>>> = ({ signal }) => getAmbassadorLeaderboard({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAmbassadorLeaderboard>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAmbassadorLeaderboardQueryResult = NonNullable<Awaited<ReturnType<typeof getAmbassadorLeaderboard>>>
+export type GetAmbassadorLeaderboardQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get ranked ambassador leaderboard
+ */
+
+export function useGetAmbassadorLeaderboard<TData = Awaited<ReturnType<typeof getAmbassadorLeaderboard>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAmbassadorLeaderboard>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAmbassadorLeaderboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDownloadLeaderboardCsvUrl = () => {
+
+
+
+
+  return `/api/ambassadors/leaderboard/csv`
+}
+
+/**
+ * @summary Download leaderboard as CSV
+ */
+export const downloadLeaderboardCsv = async ( options?: RequestInit): Promise<string> => {
+
+  return customFetch<string>(getDownloadLeaderboardCsvUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadLeaderboardCsvQueryKey = () => {
+    return [
+    `/api/ambassadors/leaderboard/csv`
+    ] as const;
+    }
+
+
+export const getDownloadLeaderboardCsvQueryOptions = <TData = Awaited<ReturnType<typeof downloadLeaderboardCsv>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadLeaderboardCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadLeaderboardCsvQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadLeaderboardCsv>>> = ({ signal }) => downloadLeaderboardCsv({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadLeaderboardCsv>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadLeaderboardCsvQueryResult = NonNullable<Awaited<ReturnType<typeof downloadLeaderboardCsv>>>
+export type DownloadLeaderboardCsvQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download leaderboard as CSV
+ */
+
+export function useDownloadLeaderboardCsv<TData = Awaited<ReturnType<typeof downloadLeaderboardCsv>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadLeaderboardCsv>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadLeaderboardCsvQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAwardPointsUrl = (id: number,) => {
+
+
+
+
+  return `/api/ambassadors/${id}/points`
+}
+
+/**
+ * @summary Award points to an ambassador
+ */
+export const awardPoints = async (id: number,
+    awardPointsBody: AwardPointsBody, options?: RequestInit): Promise<AwardPoints200> => {
+
+  return customFetch<AwardPoints200>(getAwardPointsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(awardPointsBody)
+  }
+);}
+
+
+
+
+export const getAwardPointsMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof awardPoints>>, TError,{id: number;data: BodyType<AwardPointsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof awardPoints>>, TError,{id: number;data: BodyType<AwardPointsBody>}, TContext> => {
+
+const mutationKey = ['awardPoints'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof awardPoints>>, {id: number;data: BodyType<AwardPointsBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  awardPoints(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AwardPointsMutationResult = NonNullable<Awaited<ReturnType<typeof awardPoints>>>
+    export type AwardPointsMutationBody = BodyType<AwardPointsBody>
+    export type AwardPointsMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Award points to an ambassador
+ */
+export const useAwardPoints = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof awardPoints>>, TError,{id: number;data: BodyType<AwardPointsBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof awardPoints>>,
+        TError,
+        {id: number;data: BodyType<AwardPointsBody>},
+        TContext
+      > => {
+      return useMutation(getAwardPointsMutationOptions(options));
+    }
+
+export const getListAmbassadorTasksUrl = () => {
+
+
+
+
+  return `/api/ambassador-tasks`
+}
+
+/**
+ * @summary List ambassador tasks
+ */
+export const listAmbassadorTasks = async ( options?: RequestInit): Promise<AmbassadorTask[]> => {
+
+  return customFetch<AmbassadorTask[]>(getListAmbassadorTasksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAmbassadorTasksQueryKey = () => {
+    return [
+    `/api/ambassador-tasks`
+    ] as const;
+    }
+
+
+export const getListAmbassadorTasksQueryOptions = <TData = Awaited<ReturnType<typeof listAmbassadorTasks>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAmbassadorTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAmbassadorTasksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAmbassadorTasks>>> = ({ signal }) => listAmbassadorTasks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAmbassadorTasks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAmbassadorTasksQueryResult = NonNullable<Awaited<ReturnType<typeof listAmbassadorTasks>>>
+export type ListAmbassadorTasksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List ambassador tasks
+ */
+
+export function useListAmbassadorTasks<TData = Awaited<ReturnType<typeof listAmbassadorTasks>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAmbassadorTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAmbassadorTasksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAmbassadorTaskUrl = () => {
+
+
+
+
+  return `/api/ambassador-tasks`
+}
+
+/**
+ * @summary Create an ambassador task
+ */
+export const createAmbassadorTask = async (createAmbassadorTaskBody: CreateAmbassadorTaskBody, options?: RequestInit): Promise<AmbassadorTask> => {
+
+  return customFetch<AmbassadorTask>(getCreateAmbassadorTaskUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAmbassadorTaskBody)
+  }
+);}
+
+
+
+
+export const getCreateAmbassadorTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAmbassadorTask>>, TError,{data: BodyType<CreateAmbassadorTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAmbassadorTask>>, TError,{data: BodyType<CreateAmbassadorTaskBody>}, TContext> => {
+
+const mutationKey = ['createAmbassadorTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAmbassadorTask>>, {data: BodyType<CreateAmbassadorTaskBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAmbassadorTask(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAmbassadorTaskMutationResult = NonNullable<Awaited<ReturnType<typeof createAmbassadorTask>>>
+    export type CreateAmbassadorTaskMutationBody = BodyType<CreateAmbassadorTaskBody>
+    export type CreateAmbassadorTaskMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create an ambassador task
+ */
+export const useCreateAmbassadorTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAmbassadorTask>>, TError,{data: BodyType<CreateAmbassadorTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAmbassadorTask>>,
+        TError,
+        {data: BodyType<CreateAmbassadorTaskBody>},
+        TContext
+      > => {
+      return useMutation(getCreateAmbassadorTaskMutationOptions(options));
+    }
+
+export const getUpdateAmbassadorTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/ambassador-tasks/${id}`
+}
+
+/**
+ * @summary Update or cancel a task
+ */
+export const updateAmbassadorTask = async (id: number,
+    createAmbassadorTaskBody: CreateAmbassadorTaskBody, options?: RequestInit): Promise<AmbassadorTask> => {
+
+  return customFetch<AmbassadorTask>(getUpdateAmbassadorTaskUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAmbassadorTaskBody)
+  }
+);}
+
+
+
+
+export const getUpdateAmbassadorTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAmbassadorTask>>, TError,{id: number;data: BodyType<CreateAmbassadorTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAmbassadorTask>>, TError,{id: number;data: BodyType<CreateAmbassadorTaskBody>}, TContext> => {
+
+const mutationKey = ['updateAmbassadorTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAmbassadorTask>>, {id: number;data: BodyType<CreateAmbassadorTaskBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAmbassadorTask(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAmbassadorTaskMutationResult = NonNullable<Awaited<ReturnType<typeof updateAmbassadorTask>>>
+    export type UpdateAmbassadorTaskMutationBody = BodyType<CreateAmbassadorTaskBody>
+    export type UpdateAmbassadorTaskMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update or cancel a task
+ */
+export const useUpdateAmbassadorTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAmbassadorTask>>, TError,{id: number;data: BodyType<CreateAmbassadorTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAmbassadorTask>>,
+        TError,
+        {id: number;data: BodyType<CreateAmbassadorTaskBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateAmbassadorTaskMutationOptions(options));
+    }
+
+export const getCompleteAmbassadorTaskUrl = (id: number,) => {
+
+
+
+
+  return `/api/ambassador-tasks/${id}/complete`
+}
+
+/**
+ * @summary Mark a task as completed by an ambassador
+ */
+export const completeAmbassadorTask = async (id: number,
+    completeAmbassadorTaskBody: CompleteAmbassadorTaskBody, options?: RequestInit): Promise<CompleteAmbassadorTask200> => {
+
+  return customFetch<CompleteAmbassadorTask200>(getCompleteAmbassadorTaskUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(completeAmbassadorTaskBody)
+  }
+);}
+
+
+
+
+export const getCompleteAmbassadorTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeAmbassadorTask>>, TError,{id: number;data: BodyType<CompleteAmbassadorTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeAmbassadorTask>>, TError,{id: number;data: BodyType<CompleteAmbassadorTaskBody>}, TContext> => {
+
+const mutationKey = ['completeAmbassadorTask'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeAmbassadorTask>>, {id: number;data: BodyType<CompleteAmbassadorTaskBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  completeAmbassadorTask(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteAmbassadorTaskMutationResult = NonNullable<Awaited<ReturnType<typeof completeAmbassadorTask>>>
+    export type CompleteAmbassadorTaskMutationBody = BodyType<CompleteAmbassadorTaskBody>
+    export type CompleteAmbassadorTaskMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Mark a task as completed by an ambassador
+ */
+export const useCompleteAmbassadorTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeAmbassadorTask>>, TError,{id: number;data: BodyType<CompleteAmbassadorTaskBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeAmbassadorTask>>,
+        TError,
+        {id: number;data: BodyType<CompleteAmbassadorTaskBody>},
+        TContext
+      > => {
+      return useMutation(getCompleteAmbassadorTaskMutationOptions(options));
+    }
+
+export const getGetGamificationConfigsUrl = () => {
+
+
+
+
+  return `/api/gamification-configs`
+}
+
+/**
+ * @summary Get gamification point configuration and reward tiers
+ */
+export const getGamificationConfigs = async ( options?: RequestInit): Promise<GetGamificationConfigs200> => {
+
+  return customFetch<GetGamificationConfigs200>(getGetGamificationConfigsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGamificationConfigsQueryKey = () => {
+    return [
+    `/api/gamification-configs`
+    ] as const;
+    }
+
+
+export const getGetGamificationConfigsQueryOptions = <TData = Awaited<ReturnType<typeof getGamificationConfigs>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGamificationConfigs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGamificationConfigsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGamificationConfigs>>> = ({ signal }) => getGamificationConfigs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGamificationConfigs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGamificationConfigsQueryResult = NonNullable<Awaited<ReturnType<typeof getGamificationConfigs>>>
+export type GetGamificationConfigsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get gamification point configuration and reward tiers
+ */
+
+export function useGetGamificationConfigs<TData = Awaited<ReturnType<typeof getGamificationConfigs>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGamificationConfigs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGamificationConfigsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateGamificationConfigUrl = () => {
+
+
+
+
+  return `/api/gamification-configs`
+}
+
+/**
+ * @summary Add a new gamification action
+ */
+export const createGamificationConfig = async (createGamificationConfigBody: CreateGamificationConfigBody, options?: RequestInit): Promise<GamificationConfig> => {
+
+  return customFetch<GamificationConfig>(getCreateGamificationConfigUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createGamificationConfigBody)
+  }
+);}
+
+
+
+
+export const getCreateGamificationConfigMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGamificationConfig>>, TError,{data: BodyType<CreateGamificationConfigBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createGamificationConfig>>, TError,{data: BodyType<CreateGamificationConfigBody>}, TContext> => {
+
+const mutationKey = ['createGamificationConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createGamificationConfig>>, {data: BodyType<CreateGamificationConfigBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createGamificationConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateGamificationConfigMutationResult = NonNullable<Awaited<ReturnType<typeof createGamificationConfig>>>
+    export type CreateGamificationConfigMutationBody = BodyType<CreateGamificationConfigBody>
+    export type CreateGamificationConfigMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a new gamification action
+ */
+export const useCreateGamificationConfig = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGamificationConfig>>, TError,{data: BodyType<CreateGamificationConfigBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createGamificationConfig>>,
+        TError,
+        {data: BodyType<CreateGamificationConfigBody>},
+        TContext
+      > => {
+      return useMutation(getCreateGamificationConfigMutationOptions(options));
+    }
+
+export const getUpdateGamificationConfigUrl = (id: number,) => {
+
+
+
+
+  return `/api/gamification-configs/${id}`
+}
+
+/**
+ * @summary Update a gamification action
+ */
+export const updateGamificationConfig = async (id: number,
+    createGamificationConfigBody: CreateGamificationConfigBody, options?: RequestInit): Promise<GamificationConfig> => {
+
+  return customFetch<GamificationConfig>(getUpdateGamificationConfigUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createGamificationConfigBody)
+  }
+);}
+
+
+
+
+export const getUpdateGamificationConfigMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGamificationConfig>>, TError,{id: number;data: BodyType<CreateGamificationConfigBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateGamificationConfig>>, TError,{id: number;data: BodyType<CreateGamificationConfigBody>}, TContext> => {
+
+const mutationKey = ['updateGamificationConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateGamificationConfig>>, {id: number;data: BodyType<CreateGamificationConfigBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateGamificationConfig(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateGamificationConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateGamificationConfig>>>
+    export type UpdateGamificationConfigMutationBody = BodyType<CreateGamificationConfigBody>
+    export type UpdateGamificationConfigMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a gamification action
+ */
+export const useUpdateGamificationConfig = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGamificationConfig>>, TError,{id: number;data: BodyType<CreateGamificationConfigBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateGamificationConfig>>,
+        TError,
+        {id: number;data: BodyType<CreateGamificationConfigBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateGamificationConfigMutationOptions(options));
+    }
+
+export const getListMicroInfluencersUrl = (params?: ListMicroInfluencersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/micro-influencers?${stringifiedParams}` : `/api/micro-influencers`
+}
+
+/**
+ * @summary List micro-influencer directory with optional filters
+ */
+export const listMicroInfluencers = async (params?: ListMicroInfluencersParams, options?: RequestInit): Promise<MicroInfluencer[]> => {
+
+  return customFetch<MicroInfluencer[]>(getListMicroInfluencersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMicroInfluencersQueryKey = (params?: ListMicroInfluencersParams,) => {
+    return [
+    `/api/micro-influencers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListMicroInfluencersQueryOptions = <TData = Awaited<ReturnType<typeof listMicroInfluencers>>, TError = ErrorType<unknown>>(params?: ListMicroInfluencersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMicroInfluencers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMicroInfluencersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMicroInfluencers>>> = ({ signal }) => listMicroInfluencers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMicroInfluencers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMicroInfluencersQueryResult = NonNullable<Awaited<ReturnType<typeof listMicroInfluencers>>>
+export type ListMicroInfluencersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List micro-influencer directory with optional filters
+ */
+
+export function useListMicroInfluencers<TData = Awaited<ReturnType<typeof listMicroInfluencers>>, TError = ErrorType<unknown>>(
+ params?: ListMicroInfluencersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMicroInfluencers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMicroInfluencersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddMicroInfluencerUrl = () => {
+
+
+
+
+  return `/api/micro-influencers`
+}
+
+/**
+ * @summary Add a creator to the micro-influencer directory
+ */
+export const addMicroInfluencer = async (createMicroInfluencerBody: CreateMicroInfluencerBody, options?: RequestInit): Promise<MicroInfluencer> => {
+
+  return customFetch<MicroInfluencer>(getAddMicroInfluencerUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createMicroInfluencerBody)
+  }
+);}
+
+
+
+
+export const getAddMicroInfluencerMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMicroInfluencer>>, TError,{data: BodyType<CreateMicroInfluencerBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addMicroInfluencer>>, TError,{data: BodyType<CreateMicroInfluencerBody>}, TContext> => {
+
+const mutationKey = ['addMicroInfluencer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addMicroInfluencer>>, {data: BodyType<CreateMicroInfluencerBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  addMicroInfluencer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddMicroInfluencerMutationResult = NonNullable<Awaited<ReturnType<typeof addMicroInfluencer>>>
+    export type AddMicroInfluencerMutationBody = BodyType<CreateMicroInfluencerBody>
+    export type AddMicroInfluencerMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a creator to the micro-influencer directory
+ */
+export const useAddMicroInfluencer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addMicroInfluencer>>, TError,{data: BodyType<CreateMicroInfluencerBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addMicroInfluencer>>,
+        TError,
+        {data: BodyType<CreateMicroInfluencerBody>},
+        TContext
+      > => {
+      return useMutation(getAddMicroInfluencerMutationOptions(options));
+    }
+
+export const getGenerateOutreachUrl = (id: number,) => {
+
+
+
+
+  return `/api/micro-influencers/${id}/outreach`
+}
+
+/**
+ * @summary Generate collaboration outreach draft for a micro-influencer
+ */
+export const generateOutreach = async (id: number,
+    generateOutreachBody?: GenerateOutreachBody, options?: RequestInit): Promise<GenerateOutreach200> => {
+
+  return customFetch<GenerateOutreach200>(getGenerateOutreachUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(generateOutreachBody)
+  }
+);}
+
+
+
+
+export const getGenerateOutreachMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateOutreach>>, TError,{id: number;data?: BodyType<GenerateOutreachBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateOutreach>>, TError,{id: number;data?: BodyType<GenerateOutreachBody>}, TContext> => {
+
+const mutationKey = ['generateOutreach'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateOutreach>>, {id: number;data?: BodyType<GenerateOutreachBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  generateOutreach(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateOutreachMutationResult = NonNullable<Awaited<ReturnType<typeof generateOutreach>>>
+    export type GenerateOutreachMutationBody = BodyType<GenerateOutreachBody> | undefined
+    export type GenerateOutreachMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate collaboration outreach draft for a micro-influencer
+ */
+export const useGenerateOutreach = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateOutreach>>, TError,{id: number;data?: BodyType<GenerateOutreachBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateOutreach>>,
+        TError,
+        {id: number;data?: BodyType<GenerateOutreachBody>},
+        TContext
+      > => {
+      return useMutation(getGenerateOutreachMutationOptions(options));
+    }
+
+export const getListWhatsappBroadcastsUrl = () => {
+
+
+
+
+  return `/api/whatsapp-broadcasts`
+}
+
+/**
+ * @summary List WhatsApp broadcast logs
+ */
+export const listWhatsappBroadcasts = async ( options?: RequestInit): Promise<WhatsappBroadcast[]> => {
+
+  return customFetch<WhatsappBroadcast[]>(getListWhatsappBroadcastsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListWhatsappBroadcastsQueryKey = () => {
+    return [
+    `/api/whatsapp-broadcasts`
+    ] as const;
+    }
+
+
+export const getListWhatsappBroadcastsQueryOptions = <TData = Awaited<ReturnType<typeof listWhatsappBroadcasts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWhatsappBroadcasts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListWhatsappBroadcastsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listWhatsappBroadcasts>>> = ({ signal }) => listWhatsappBroadcasts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listWhatsappBroadcasts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListWhatsappBroadcastsQueryResult = NonNullable<Awaited<ReturnType<typeof listWhatsappBroadcasts>>>
+export type ListWhatsappBroadcastsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List WhatsApp broadcast logs
+ */
+
+export function useListWhatsappBroadcasts<TData = Awaited<ReturnType<typeof listWhatsappBroadcasts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listWhatsappBroadcasts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListWhatsappBroadcastsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLogWhatsappBroadcastUrl = () => {
+
+
+
+
+  return `/api/whatsapp-broadcasts`
+}
+
+/**
+ * @summary Log a WhatsApp broadcast campaign
+ */
+export const logWhatsappBroadcast = async (logBroadcastBody: LogBroadcastBody, options?: RequestInit): Promise<WhatsappBroadcast> => {
+
+  return customFetch<WhatsappBroadcast>(getLogWhatsappBroadcastUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(logBroadcastBody)
+  }
+);}
+
+
+
+
+export const getLogWhatsappBroadcastMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logWhatsappBroadcast>>, TError,{data: BodyType<LogBroadcastBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof logWhatsappBroadcast>>, TError,{data: BodyType<LogBroadcastBody>}, TContext> => {
+
+const mutationKey = ['logWhatsappBroadcast'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logWhatsappBroadcast>>, {data: BodyType<LogBroadcastBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  logWhatsappBroadcast(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogWhatsappBroadcastMutationResult = NonNullable<Awaited<ReturnType<typeof logWhatsappBroadcast>>>
+    export type LogWhatsappBroadcastMutationBody = BodyType<LogBroadcastBody>
+    export type LogWhatsappBroadcastMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Log a WhatsApp broadcast campaign
+ */
+export const useLogWhatsappBroadcast = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logWhatsappBroadcast>>, TError,{data: BodyType<LogBroadcastBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof logWhatsappBroadcast>>,
+        TError,
+        {data: BodyType<LogBroadcastBody>},
+        TContext
+      > => {
+      return useMutation(getLogWhatsappBroadcastMutationOptions(options));
+    }
+
+export const getDeleteWhatsappBroadcastUrl = (id: number,) => {
+
+
+
+
+  return `/api/whatsapp-broadcasts/${id}`
+}
+
+/**
+ * @summary Delete a broadcast log
+ */
+export const deleteWhatsappBroadcast = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteWhatsappBroadcastUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteWhatsappBroadcastMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWhatsappBroadcast>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteWhatsappBroadcast>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteWhatsappBroadcast'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWhatsappBroadcast>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteWhatsappBroadcast(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteWhatsappBroadcastMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWhatsappBroadcast>>>
+
+    export type DeleteWhatsappBroadcastMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a broadcast log
+ */
+export const useDeleteWhatsappBroadcast = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteWhatsappBroadcast>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteWhatsappBroadcast>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteWhatsappBroadcastMutationOptions(options));
+    }
 
 export const getGenerateWeeklyDigestUrl = () => {
 

@@ -5,6 +5,7 @@ import dashboardRouter from "./dashboard";
 import schedulingRouter from "./scheduling";
 import monetizationRouter from "./monetization";
 import analyticsRouter from "./analytics";
+import ambassadorsRouter from "./ambassadors";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(dashboardRouter);
 router.use(schedulingRouter);
 router.use(monetizationRouter);
 router.use(analyticsRouter);
+router.use(ambassadorsRouter);
 
 export default router;

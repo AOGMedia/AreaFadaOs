@@ -14,6 +14,7 @@ import NotFound from "@/pages/not-found";
 import SchedulingPage from "@/pages/scheduling";
 import MonetizationPage from "@/pages/monetization";
 import AnalyticsPage from "@/pages/analytics";
+import { AmbassadorsPage } from "@/pages/ambassadors";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -116,13 +117,6 @@ const TrafficPage = createModulePage({
   requiredTier: "brand",
 });
 
-const AmbassadorsPage = createModulePage({
-  title: "Ambassador CRM",
-  description: "Manage your 36-state ambassador network — assign tasks, track performance, and reward top ambassadors.",
-  icon: "🤝",
-  moduleKey: "ambassadorCrm",
-  requiredTier: "agency",
-});
 
 const FanHubPage = createModulePage({
   title: "Fan Hub",

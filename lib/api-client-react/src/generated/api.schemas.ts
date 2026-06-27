@@ -648,6 +648,162 @@ export interface RevenueWaterfall {
   totalAffiliates: number;
 }
 
+export interface Ambassador {
+  id: number;
+  userId: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  state: string;
+  zone: string;
+  city?: string | null;
+  tier: string;
+  status: string;
+  bio?: string | null;
+  avatarInitials?: string | null;
+  platform?: string | null;
+  handle?: string | null;
+  followerCount: number;
+  totalPoints: number;
+  tasksCompleted: number;
+  referrals: number;
+  rank?: number | null;
+  joinedAt?: string;
+  createdAt: string;
+}
+
+export interface CreateAmbassadorBody {
+  name: string;
+  email: string;
+  phone?: string;
+  state: string;
+  zone: string;
+  city?: string;
+  platform?: string;
+  handle?: string;
+  followerCount?: number;
+  bio?: string;
+}
+
+export interface AwardPointsBody {
+  action: string;
+  points: number;
+  description?: string;
+}
+
+export interface AmbassadorTask {
+  id: number;
+  userId: number;
+  title: string;
+  description?: string | null;
+  deadline?: string | null;
+  targetGroup: string;
+  targetStates?: string[];
+  pointReward: number;
+  status: string;
+  totalAssigned: number;
+  completedCount: number;
+  createdAt: string;
+}
+
+export interface CreateAmbassadorTaskBody {
+  title: string;
+  description?: string;
+  deadline?: string;
+  targetGroup?: string;
+  targetStates?: string[];
+  pointReward?: number;
+  status?: string;
+}
+
+export interface GamificationConfig {
+  id: number;
+  userId: number;
+  actionKey: string;
+  label: string;
+  description?: string | null;
+  pointValue: number;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface CreateGamificationConfigBody {
+  actionKey: string;
+  label: string;
+  description?: string;
+  pointValue?: number;
+  active?: boolean;
+}
+
+export interface RewardTier {
+  id: number;
+  userId: number;
+  name: string;
+  minPoints: number;
+  maxPoints?: number | null;
+  badgeColor: string;
+  rewardDescription?: string | null;
+  createdAt: string;
+}
+
+export interface MicroInfluencer {
+  id: number;
+  userId: number;
+  name: string;
+  handle: string;
+  platform: string;
+  state: string;
+  zone?: string | null;
+  niche: string;
+  followerCount: number;
+  engagementRate: string;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  status: string;
+  lastContactAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface CreateMicroInfluencerBody {
+  name: string;
+  handle: string;
+  platform: string;
+  state: string;
+  zone?: string;
+  niche: string;
+  followerCount?: number;
+  engagementRate?: number;
+  contactEmail?: string;
+  contactPhone?: string;
+  notes?: string;
+}
+
+export interface WhatsappBroadcast {
+  id: number;
+  userId: number;
+  listName: string;
+  message: string;
+  sentCount: number;
+  deliveryCount: number;
+  linkClicks: number;
+  responseCount: number;
+  broadcastDate: string;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface LogBroadcastBody {
+  listName: string;
+  message: string;
+  sentCount?: number;
+  deliveryCount?: number;
+  linkClicks?: number;
+  responseCount?: number;
+  broadcastDate: string;
+  notes?: string;
+}
+
 export type ListPostsParams = {
 status?: ListPostsStatus;
 campaignId?: number;
@@ -689,6 +845,51 @@ platform?: string;
 
 export type GetPostPerformanceParams = {
 platform?: string;
+};
+
+export type ListAmbassadorsParams = {
+state?: string;
+zone?: string;
+tier?: string;
+status?: string;
+};
+
+export type AwardPoints200 = {
+  ambassador?: Ambassador;
+  pointsAwarded?: number;
+};
+
+export type CompleteAmbassadorTaskBody = {
+  ambassadorId: number;
+  notes?: string;
+};
+
+export type CompleteAmbassadorTask200 = {
+  success?: boolean;
+  pointsAwarded?: number;
+};
+
+export type GetGamificationConfigs200 = {
+  configs?: GamificationConfig[];
+  rewardTiers?: RewardTier[];
+};
+
+export type ListMicroInfluencersParams = {
+state?: string;
+niche?: string;
+platform?: string;
+status?: string;
+minFollowers?: number;
+maxFollowers?: number;
+};
+
+export type GenerateOutreachBody = {
+  campaignBrief?: string;
+};
+
+export type GenerateOutreach200 = {
+  outreachDraft?: string;
+  influencer?: MicroInfluencer;
 };
 
 export type GetRevenueWaterfallParams = {

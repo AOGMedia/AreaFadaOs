@@ -24,6 +24,8 @@ tags:
     description: Brand deals, invoices, affiliate links, and revenue analytics
   - name: analytics
     description: Analytics, audience geography, best post times, engagement scores, and reports
+  - name: ambassadors
+    description: Ambassador CRM, gamification, leaderboard, micro-influencer directory, WhatsApp broadcast log
 
 paths:
   /healthz:
@@ -829,6 +831,384 @@ paths:
                 format: binary
         "404":
           description: Report not found
+
+  # ─── Ambassador CRM ──────────────────────────────────────────────────────────
+
+  /ambassadors:
+    get:
+      operationId: listAmbassadors
+      tags: [ambassadors]
+      summary: List ambassadors, optionally filtered by state/zone/tier/status
+      parameters:
+        - { name: state, in: query, schema: { type: string } }
+        - { name: zone, in: query, schema: { type: string } }
+        - { name: tier, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: List of ambassadors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ambassador"
+    post:
+      operationId: createAmbassador
+      tags: [ambassadors]
+      summary: Add a new ambassador
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAmbassadorBody"
+      responses:
+        "201":
+          description: Created ambassador
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ambassador"
+
+  /ambassadors/{id}:
+    patch:
+      operationId: updateAmbassador
+      tags: [ambassadors]
+      summary: Update an ambassador
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAmbassadorBody"
+      responses:
+        "200":
+          description: Updated ambassador
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ambassador"
+    delete:
+      operationId: deleteAmbassador
+      tags: [ambassadors]
+      summary: Delete an ambassador
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "204":
+          description: Deleted
+
+  /ambassadors/leaderboard:
+    get:
+      operationId: getAmbassadorLeaderboard
+      tags: [ambassadors]
+      summary: Get ranked ambassador leaderboard
+      responses:
+        "200":
+          description: Ranked leaderboard
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ambassador"
+
+  /ambassadors/leaderboard/csv:
+    get:
+      operationId: downloadLeaderboardCsv
+      tags: [ambassadors]
+      summary: Download leaderboard as CSV
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+
+  /ambassadors/{id}/points:
+    post:
+      operationId: awardPoints
+      tags: [ambassadors]
+      summary: Award points to an ambassador
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AwardPointsBody"
+      responses:
+        "200":
+          description: Updated ambassador with points
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ambassador:
+                    $ref: "#/components/schemas/Ambassador"
+                  pointsAwarded:
+                    type: integer
+
+  /ambassador-tasks:
+    get:
+      operationId: listAmbassadorTasks
+      tags: [ambassadors]
+      summary: List ambassador tasks
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AmbassadorTask"
+    post:
+      operationId: createAmbassadorTask
+      tags: [ambassadors]
+      summary: Create an ambassador task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAmbassadorTaskBody"
+      responses:
+        "201":
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmbassadorTask"
+
+  /ambassador-tasks/{id}:
+    patch:
+      operationId: updateAmbassadorTask
+      tags: [ambassadors]
+      summary: Update or cancel a task
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAmbassadorTaskBody"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AmbassadorTask"
+
+  /ambassador-tasks/{id}/complete:
+    post:
+      operationId: completeAmbassadorTask
+      tags: [ambassadors]
+      summary: Mark a task as completed by an ambassador
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ambassadorId:
+                  type: integer
+                notes:
+                  type: string
+              required: [ambassadorId]
+      responses:
+        "200":
+          description: Completion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  pointsAwarded:
+                    type: integer
+
+  /gamification-configs:
+    get:
+      operationId: getGamificationConfigs
+      tags: [ambassadors]
+      summary: Get gamification point configuration and reward tiers
+      responses:
+        "200":
+          description: Gamification config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GamificationConfig"
+                  rewardTiers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RewardTier"
+    post:
+      operationId: createGamificationConfig
+      tags: [ambassadors]
+      summary: Add a new gamification action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGamificationConfigBody"
+      responses:
+        "201":
+          description: Created config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GamificationConfig"
+
+  /gamification-configs/{id}:
+    patch:
+      operationId: updateGamificationConfig
+      tags: [ambassadors]
+      summary: Update a gamification action
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGamificationConfigBody"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GamificationConfig"
+
+  /micro-influencers:
+    get:
+      operationId: listMicroInfluencers
+      tags: [ambassadors]
+      summary: List micro-influencer directory with optional filters
+      parameters:
+        - { name: state, in: query, schema: { type: string } }
+        - { name: niche, in: query, schema: { type: string } }
+        - { name: platform, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+        - { name: minFollowers, in: query, schema: { type: integer } }
+        - { name: maxFollowers, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: Micro-influencer list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MicroInfluencer"
+    post:
+      operationId: addMicroInfluencer
+      tags: [ambassadors]
+      summary: Add a creator to the micro-influencer directory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMicroInfluencerBody"
+      responses:
+        "201":
+          description: Added influencer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MicroInfluencer"
+
+  /micro-influencers/{id}/outreach:
+    post:
+      operationId: generateOutreach
+      tags: [ambassadors]
+      summary: Generate collaboration outreach draft for a micro-influencer
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                campaignBrief:
+                  type: string
+      responses:
+        "200":
+          description: Outreach draft
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  outreachDraft:
+                    type: string
+                  influencer:
+                    $ref: "#/components/schemas/MicroInfluencer"
+
+  /whatsapp-broadcasts:
+    get:
+      operationId: listWhatsappBroadcasts
+      tags: [ambassadors]
+      summary: List WhatsApp broadcast logs
+      responses:
+        "200":
+          description: Broadcast logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WhatsappBroadcast"
+    post:
+      operationId: logWhatsappBroadcast
+      tags: [ambassadors]
+      summary: Log a WhatsApp broadcast campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogBroadcastBody"
+      responses:
+        "201":
+          description: Logged broadcast
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappBroadcast"
+
+  /whatsapp-broadcasts/{id}:
+    delete:
+      operationId: deleteWhatsappBroadcast
+      tags: [ambassadors]
+      summary: Delete a broadcast log
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        "204":
+          description: Deleted
 
   /analytics/digest:
     post:
@@ -1909,3 +2289,339 @@ components:
           type: number
         totalAffiliates:
           type: number
+
+    # ─── Ambassador CRM Schemas ────────────────────────────────────────────────
+
+    Ambassador:
+      type: object
+      required: [id, userId, name, email, state, zone, tier, status, totalPoints, followerCount, tasksCompleted, referrals, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        state:
+          type: string
+        zone:
+          type: string
+        city:
+          type: string
+          nullable: true
+        tier:
+          type: string
+        status:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        avatarInitials:
+          type: string
+          nullable: true
+        platform:
+          type: string
+          nullable: true
+        handle:
+          type: string
+          nullable: true
+        followerCount:
+          type: integer
+        totalPoints:
+          type: integer
+        tasksCompleted:
+          type: integer
+        referrals:
+          type: integer
+        rank:
+          type: integer
+          nullable: true
+        joinedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateAmbassadorBody:
+      type: object
+      required: [name, email, state, zone]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        state:
+          type: string
+        zone:
+          type: string
+        city:
+          type: string
+        platform:
+          type: string
+        handle:
+          type: string
+        followerCount:
+          type: integer
+        bio:
+          type: string
+
+    AwardPointsBody:
+      type: object
+      required: [action, points]
+      properties:
+        action:
+          type: string
+        points:
+          type: integer
+        description:
+          type: string
+
+    AmbassadorTask:
+      type: object
+      required: [id, userId, title, status, targetGroup, pointReward, totalAssigned, completedCount, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+        targetGroup:
+          type: string
+        targetStates:
+          type: array
+          items:
+            type: string
+        pointReward:
+          type: integer
+        status:
+          type: string
+        totalAssigned:
+          type: integer
+        completedCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateAmbassadorTaskBody:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        targetGroup:
+          type: string
+        targetStates:
+          type: array
+          items:
+            type: string
+        pointReward:
+          type: integer
+        status:
+          type: string
+
+    GamificationConfig:
+      type: object
+      required: [id, userId, actionKey, label, pointValue, active, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        actionKey:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+          nullable: true
+        pointValue:
+          type: integer
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateGamificationConfigBody:
+      type: object
+      required: [actionKey, label]
+      properties:
+        actionKey:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
+        pointValue:
+          type: integer
+        active:
+          type: boolean
+
+    RewardTier:
+      type: object
+      required: [id, userId, name, minPoints, badgeColor, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        minPoints:
+          type: integer
+        maxPoints:
+          type: integer
+          nullable: true
+        badgeColor:
+          type: string
+        rewardDescription:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    MicroInfluencer:
+      type: object
+      required: [id, userId, name, handle, platform, state, niche, followerCount, engagementRate, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        handle:
+          type: string
+        platform:
+          type: string
+        state:
+          type: string
+        zone:
+          type: string
+          nullable: true
+        niche:
+          type: string
+        followerCount:
+          type: integer
+        engagementRate:
+          type: string
+        contactEmail:
+          type: string
+          nullable: true
+        contactPhone:
+          type: string
+          nullable: true
+        status:
+          type: string
+        lastContactAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateMicroInfluencerBody:
+      type: object
+      required: [name, handle, platform, state, niche]
+      properties:
+        name:
+          type: string
+        handle:
+          type: string
+        platform:
+          type: string
+        state:
+          type: string
+        zone:
+          type: string
+        niche:
+          type: string
+        followerCount:
+          type: integer
+        engagementRate:
+          type: number
+        contactEmail:
+          type: string
+        contactPhone:
+          type: string
+        notes:
+          type: string
+
+    WhatsappBroadcast:
+      type: object
+      required: [id, userId, listName, message, sentCount, deliveryCount, linkClicks, responseCount, broadcastDate, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        listName:
+          type: string
+        message:
+          type: string
+        sentCount:
+          type: integer
+        deliveryCount:
+          type: integer
+        linkClicks:
+          type: integer
+        responseCount:
+          type: integer
+        broadcastDate:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    LogBroadcastBody:
+      type: object
+      required: [listName, message, broadcastDate]
+      properties:
+        listName:
+          type: string
+        message:
+          type: string
+        sentCount:
+          type: integer
+        deliveryCount:
+          type: integer
+        linkClicks:
+          type: integer
+        responseCount:
+          type: integer
+        broadcastDate:
+          type: string
+          format: date-time
+        notes:
+          type: string
