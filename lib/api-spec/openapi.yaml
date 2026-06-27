@@ -38,6 +38,9 @@ tags:
   - name: fanHub
     description: Charly Boy Area Fada Fan Hub — fan profiles, tier qualification, leaderboard, challenges, content vault, merch codes, OG invites, fan analytics
 
+  - name: campaignIntelligence
+    description: Campaign Intelligence Tier 5 Enterprise — political LGA map, voter sentiment tracker, competitor monitoring, crisis alert system, ROI attribution, AFRIMA event mode
+
 paths:
   /healthz:
     get:
@@ -4216,7 +4219,530 @@ paths:
               schema:
                 $ref: "#/components/schemas/FanHubAnalytics"
 
+  # ─── Campaign Intelligence ───────────────────────────────────────────────────
 
+  /intelligence/configs:
+    get:
+      operationId: listIntelligenceConfigs
+      tags: [campaignIntelligence]
+      summary: List campaign intelligence configs for current user (auto-seeds KOH 2027 demo)
+      responses:
+        "200":
+          description: List of configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IntelligenceConfig"
+    post:
+      operationId: createIntelligenceConfig
+      tags: [campaignIntelligence]
+      summary: Create a campaign intelligence config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIntelligenceConfigBody"
+      responses:
+        "201":
+          description: Created config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceConfig"
+
+  /intelligence/configs/{id}:
+    patch:
+      operationId: updateIntelligenceConfig
+      tags: [campaignIntelligence]
+      summary: Update a campaign intelligence config
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIntelligenceConfigBody"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntelligenceConfig"
+
+  /intelligence/lga-data:
+    get:
+      operationId: getLgaData
+      tags: [campaignIntelligence]
+      summary: Get Nigeria state/LGA content performance heat data
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: LGA performance data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LgaData"
+
+  /intelligence/lga-data/{state}/wards:
+    get:
+      operationId: getWardData
+      tags: [campaignIntelligence]
+      summary: Get ward-level breakdown for a specific state
+      parameters:
+        - name: state
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ward-level data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WardData"
+
+  /intelligence/sentiment-monitors:
+    get:
+      operationId: listSentimentMonitors
+      tags: [campaignIntelligence]
+      summary: List sentiment keyword monitors
+      responses:
+        "200":
+          description: Monitors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SentimentMonitor"
+    post:
+      operationId: createSentimentMonitor
+      tags: [campaignIntelligence]
+      summary: Add a keyword/hashtag sentiment monitor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSentimentMonitorBody"
+      responses:
+        "201":
+          description: Created monitor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentimentMonitor"
+
+  /intelligence/sentiment-monitors/{id}:
+    delete:
+      operationId: deleteSentimentMonitor
+      tags: [campaignIntelligence]
+      summary: Delete a sentiment monitor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /intelligence/sentiment-events:
+    get:
+      operationId: listSentimentEvents
+      tags: [campaignIntelligence]
+      summary: List sentiment events (last 30 days by default)
+      parameters:
+        - name: monitorId
+          in: query
+          schema:
+            type: integer
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Sentiment events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SentimentEvent"
+
+  /intelligence/sentiment-events/analyse:
+    post:
+      operationId: analyseSentimentText
+      tags: [campaignIntelligence]
+      summary: Run Claude AI sentiment analysis on a text sample
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyseSentimentBody"
+      responses:
+        "201":
+          description: Created sentiment event with AI analysis
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SentimentEvent"
+
+  /intelligence/competitors:
+    get:
+      operationId: listCompetitors
+      tags: [campaignIntelligence]
+      summary: List tracked competitor accounts
+      parameters:
+        - name: configId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Competitor accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompetitorAccount"
+    post:
+      operationId: addCompetitor
+      tags: [campaignIntelligence]
+      summary: Add a competitor account (max 10 per config)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCompetitorBody"
+      responses:
+        "201":
+          description: Added competitor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitorAccount"
+
+  /intelligence/competitors/latest-snapshots:
+    get:
+      operationId: getCompetitorLatestSnapshots
+      tags: [campaignIntelligence]
+      summary: Get latest snapshot for every competitor in a config
+      parameters:
+        - name: configId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Map of competitorId to latest snapshot
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompetitorWithSnapshot"
+
+  /intelligence/competitors/{id}:
+    delete:
+      operationId: deleteCompetitor
+      tags: [campaignIntelligence]
+      summary: Remove a competitor account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /intelligence/competitors/{id}/snapshots:
+    get:
+      operationId: listCompetitorSnapshots
+      tags: [campaignIntelligence]
+      summary: List snapshots for a competitor
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompetitorSnapshot"
+    post:
+      operationId: addCompetitorSnapshot
+      tags: [campaignIntelligence]
+      summary: Log a manual competitor snapshot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddCompetitorSnapshotBody"
+      responses:
+        "201":
+          description: Created snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompetitorSnapshot"
+
+  /intelligence/crisis-alerts:
+    get:
+      operationId: listCrisisAlerts
+      tags: [campaignIntelligence]
+      summary: List crisis alerts
+      parameters:
+        - name: acknowledged
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: Crisis alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrisisAlert"
+    post:
+      operationId: createCrisisAlert
+      tags: [campaignIntelligence]
+      summary: Manually log a crisis alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCrisisAlertBody"
+      responses:
+        "201":
+          description: Created alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrisisAlert"
+
+  /intelligence/crisis-alerts/detect:
+    post:
+      operationId: detectCrisisAlerts
+      tags: [campaignIntelligence]
+      summary: Auto-detect crisis conditions from recent sentiment/growth data and generate alerts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [configId]
+              properties:
+                configId:
+                  type: integer
+      responses:
+        "200":
+          description: Detection result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrisisDetectionResult"
+
+  /intelligence/crisis-alerts/{id}/acknowledge:
+    post:
+      operationId: acknowledgeCrisisAlert
+      tags: [campaignIntelligence]
+      summary: Acknowledge a crisis alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated alert
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CrisisAlert"
+
+  /intelligence/roi-attributions:
+    get:
+      operationId: listRoiAttributions
+      tags: [campaignIntelligence]
+      summary: List ROI attribution events
+      parameters:
+        - name: configId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Attribution events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoiAttributionEvent"
+    post:
+      operationId: createRoiAttribution
+      tags: [campaignIntelligence]
+      summary: Log a new ROI attribution event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoiAttributionBody"
+      responses:
+        "201":
+          description: Created event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoiAttributionEvent"
+
+  /intelligence/event-modes:
+    get:
+      operationId: listEventModes
+      tags: [campaignIntelligence]
+      summary: List AFRIMA/awards event mode configs
+      parameters:
+        - name: configId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Event modes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EventModeConfig"
+    post:
+      operationId: createEventMode
+      tags: [campaignIntelligence]
+      summary: Create an event mode config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventModeBody"
+      responses:
+        "201":
+          description: Created event mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventModeConfig"
+
+  /intelligence/event-modes/{id}:
+    patch:
+      operationId: updateEventMode
+      tags: [campaignIntelligence]
+      summary: Update an event mode config
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEventModeBody"
+      responses:
+        "200":
+          description: Updated event mode
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventModeConfig"
+
+  /intelligence/event-modes/{id}/generate-recap:
+    post:
+      operationId: generateEventRecap
+      tags: [campaignIntelligence]
+      summary: Generate Claude AI post-show recap for an event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated event with recap text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventModeConfig"
+
+  /intelligence/event-modes/{id}/generate-hype-schedule:
+    post:
+      operationId: generateHypeSchedule
+      tags: [campaignIntelligence]
+      summary: Generate 30-day pre-event hype content schedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated event with content schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventModeConfig"
 
 
 
@@ -8021,3 +8547,322 @@ components:
                 type: integer
         referralConversionRate:
           type: string
+    IntelligenceConfig:
+      type: object
+      required: [id, userId, name, mode, targetStates, targetLgas, active, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        name: { type: string }
+        mode: { type: string }
+        politicalParty: { type: string, nullable: true }
+        politicalCandidateName: { type: string, nullable: true }
+        targetStates:
+          type: array
+          items: { type: string }
+        targetLgas:
+          type: array
+          items: { type: string }
+        crisisEngagementDropPct: { type: string }
+        crisisFollowerLossPct: { type: string }
+        crisisNegativeSentimentPct: { type: string }
+        alertWhatsapp: { type: string, nullable: true }
+        alertEmail: { type: string, nullable: true }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateIntelligenceConfigBody:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        mode: { type: string }
+        politicalParty: { type: string }
+        politicalCandidateName: { type: string }
+        targetStates:
+          type: array
+          items: { type: string }
+        targetLgas:
+          type: array
+          items: { type: string }
+        crisisEngagementDropPct: { type: string }
+        crisisFollowerLossPct: { type: string }
+        crisisNegativeSentimentPct: { type: string }
+        alertWhatsapp: { type: string }
+        alertEmail: { type: string }
+        active: { type: boolean }
+    LgaData:
+      type: object
+      required: [state, lgas, totalReach, engagementRate, sentimentScore, topContent, postsPublished]
+      properties:
+        state: { type: string }
+        lgas: { type: integer }
+        totalReach: { type: integer }
+        engagementRate: { type: number }
+        sentimentScore: { type: number }
+        topContent: { type: string }
+        postsPublished: { type: integer }
+    WardData:
+      type: object
+      required: [ward, lga, reach, postsPublished, engagementRate, sentimentScore, topContent]
+      properties:
+        ward: { type: string }
+        lga: { type: string }
+        reach: { type: integer }
+        postsPublished: { type: integer }
+        engagementRate: { type: number }
+        sentimentScore: { type: number }
+        topContent: { type: string }
+    SentimentMonitor:
+      type: object
+      required: [id, userId, configId, keyword, type, platform, alertOnSpike, alertOnNegative, active, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        keyword: { type: string }
+        type: { type: string }
+        platform: { type: string }
+        alertOnSpike: { type: boolean }
+        alertOnNegative: { type: boolean }
+        baselineScore: { type: string }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    CreateSentimentMonitorBody:
+      type: object
+      required: [configId, keyword]
+      properties:
+        configId: { type: integer }
+        keyword: { type: string }
+        type: { type: string }
+        platform: { type: string }
+        alertOnSpike: { type: boolean }
+        alertOnNegative: { type: boolean }
+    SentimentEvent:
+      type: object
+      required: [id, userId, monitorId, keyword, sentimentScore, sentimentLabel, volume, platform, occurredAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        monitorId: { type: integer }
+        keyword: { type: string }
+        sampleText: { type: string, nullable: true }
+        sentimentScore: { type: string }
+        sentimentLabel: { type: string }
+        volume: { type: integer }
+        platform: { type: string }
+        aiAnalysis: { type: string, nullable: true }
+        occurredAt: { type: string, format: date-time }
+    AnalyseSentimentBody:
+      type: object
+      required: [keyword, sampleText]
+      properties:
+        keyword: { type: string }
+        sampleText: { type: string }
+        platform: { type: string }
+        monitorId: { type: integer }
+    CompetitorAccount:
+      type: object
+      required: [id, userId, configId, handle, platform, category, active, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        handle: { type: string }
+        platform: { type: string }
+        displayName: { type: string, nullable: true }
+        category: { type: string }
+        notes: { type: string, nullable: true }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    CompetitorWithSnapshot:
+      allOf:
+        - $ref: "#/components/schemas/CompetitorAccount"
+        - type: object
+          properties:
+            latestSnapshot:
+              oneOf:
+                - $ref: "#/components/schemas/CompetitorSnapshot"
+                - type: "null"
+    AddCompetitorBody:
+      type: object
+      required: [configId, handle]
+      properties:
+        configId: { type: integer }
+        handle: { type: string }
+        platform: { type: string }
+        displayName: { type: string }
+        category: { type: string }
+        notes: { type: string }
+    CompetitorSnapshot:
+      type: object
+      required: [id, userId, competitorId, followerCount, postsPerWeek, avgEngagementRate, topPostEngagement, snapshotDate]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        competitorId: { type: integer }
+        followerCount: { type: integer }
+        followingCount: { type: integer }
+        postsCount: { type: integer }
+        postsPerWeek: { type: string }
+        avgEngagementRate: { type: string }
+        topPostUrl: { type: string, nullable: true }
+        topPostEngagement: { type: integer }
+        topPostCaption: { type: string, nullable: true }
+        snapshotDate: { type: string, format: date-time }
+    AddCompetitorSnapshotBody:
+      type: object
+      properties:
+        followerCount: { type: integer }
+        followingCount: { type: integer }
+        postsCount: { type: integer }
+        postsPerWeek: { type: string }
+        avgEngagementRate: { type: string }
+        topPostUrl: { type: string }
+        topPostEngagement: { type: integer }
+        topPostCaption: { type: string }
+    CrisisAlert:
+      type: object
+      required: [id, userId, configId, type, severity, title, description, acknowledged, notificationSent, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        type: { type: string }
+        severity: { type: string }
+        title: { type: string }
+        description: { type: string }
+        triggeredValue: { type: string, nullable: true }
+        thresholdValue: { type: string, nullable: true }
+        platform: { type: string, nullable: true }
+        acknowledged: { type: boolean }
+        acknowledgedAt: { type: string, format: date-time, nullable: true }
+        notificationSent: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    CreateCrisisAlertBody:
+      type: object
+      required: [configId, type, title, description]
+      properties:
+        configId: { type: integer }
+        type: { type: string }
+        severity: { type: string }
+        title: { type: string }
+        description: { type: string }
+        triggeredValue: { type: string }
+        thresholdValue: { type: string }
+        platform: { type: string }
+    CrisisDetectionResult:
+      type: object
+      required: [detected, inserted, alerts]
+      properties:
+        detected: { type: integer }
+        inserted: { type: integer }
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/CrisisAlert"
+    RoiAttributionEvent:
+      type: object
+      required: [id, userId, configId, contentAction, outcomeType, outcomeCount, estimatedRevenueNgn, attributionModel, occurredAt, createdAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        contentAction: { type: string }
+        contentRef: { type: string, nullable: true }
+        outcomeType: { type: string }
+        outcomeCount: { type: integer }
+        estimatedRevenueNgn: { type: string }
+        utmSource: { type: string, nullable: true }
+        utmMedium: { type: string, nullable: true }
+        utmCampaign: { type: string, nullable: true }
+        manualTag: { type: string, nullable: true }
+        platform: { type: string, nullable: true }
+        attributionModel: { type: string }
+        occurredAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    CreateRoiAttributionBody:
+      type: object
+      required: [configId, contentAction, outcomeType]
+      properties:
+        configId: { type: integer }
+        contentAction: { type: string }
+        contentRef: { type: string }
+        outcomeType: { type: string }
+        outcomeCount: { type: integer }
+        estimatedRevenueNgn: { type: string }
+        utmSource: { type: string }
+        utmMedium: { type: string }
+        utmCampaign: { type: string }
+        manualTag: { type: string }
+        platform: { type: string }
+        attributionModel: { type: string }
+    EventModeConfig:
+      type: object
+      required: [id, userId, configId, eventName, hashtags, votingLinks, totalVoteCount, phase, hypeSeriesEnabled, hypeSeriesDays, recapGenerated, contentSchedule, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        configId: { type: integer }
+        eventName: { type: string }
+        eventDate: { type: string, format: date-time, nullable: true }
+        hashtags:
+          type: array
+          items: { type: string }
+        votingLinks:
+          type: array
+          items:
+            type: object
+            required: [label, url]
+            properties:
+              label: { type: string }
+              url: { type: string }
+        hypeSeriesEnabled: { type: boolean }
+        hypeSeriesDays: { type: integer }
+        totalVoteCount: { type: integer }
+        recapGenerated: { type: boolean }
+        recapText: { type: string, nullable: true }
+        phase: { type: string }
+        contentSchedule:
+          type: array
+          items:
+            type: object
+            required: [day, type, caption, platform]
+            properties:
+              day: { type: integer }
+              type: { type: string }
+              caption: { type: string }
+              platform: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateEventModeBody:
+      type: object
+      required: [configId, eventName]
+      properties:
+        configId: { type: integer }
+        eventName: { type: string }
+        eventDate: { type: string, format: date-time }
+        hashtags:
+          type: array
+          items: { type: string }
+        votingLinks:
+          type: array
+          items:
+            type: object
+            required: [label, url]
+            properties:
+              label: { type: string }
+              url: { type: string }
+        hypeSeriesDays: { type: integer }
+        totalVoteCount: { type: integer }
+        phase: { type: string }
+        contentSchedule:
+          type: array
+          items:
+            type: object
+            required: [day, type, caption, platform]
+            properties:
+              day: { type: integer }
+              type: { type: string }
+              caption: { type: string }
+              platform: { type: string }

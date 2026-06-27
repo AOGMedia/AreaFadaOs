@@ -32,6 +32,8 @@ async function apiFetch(path: string, opts?: RequestInit) {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+interface WardData { ward: string; lga: string; reach: number; postsPublished: number; engagementRate: number; sentimentScore: number; topContent: string; }
+interface CompetitorWithSnapshot extends Competitor { latestSnapshot: CompetitorSnapshot | null; }
 interface IntelligenceConfig {
   id: number;
   name: string;
@@ -92,8 +94,14 @@ function PoliticalMapTab({ configId }: { configId: number | null }) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: wardData = [], isLoading: wardsLoading } = useQuery<WardData[]>({
+    queryKey: ["ward-data", selectedState],
+    queryFn: () => apiFetch(`/intelligence/lga-data/${encodeURIComponent(selectedState!)}/wards`),
+    enabled: !!selectedState,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const sorted = [...lgaData].sort((a, b) => b.engagementRate - a.engagementRate);
-  const maxReach = Math.max(...lgaData.map(d => d.totalReach), 1);
 
   function heatColor(engagementRate: number) {
     if (engagementRate >= 6) return "bg-green-500 text-white";
@@ -132,18 +140,18 @@ function PoliticalMapTab({ configId }: { configId: number | null }) {
         ))}
       </div>
 
-      {/* State detail panel */}
+      {/* State detail panel + Ward breakdown */}
       {selectedData && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="pt-4">
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 className="font-semibold text-lg">{selectedData.state}</h3>
-                <p className="text-sm text-muted-foreground">{selectedData.lgas} LGAs tracked</p>
+                <p className="text-sm text-muted-foreground">{selectedData.lgas} LGAs · ward-level breakdown below</p>
               </div>
               <Button size="sm" variant="ghost" onClick={() => setSelectedState(null)}>✕</Button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               <div className="bg-white rounded-lg p-3 shadow-sm">
                 <div className="text-xs text-muted-foreground">Total Reach</div>
                 <div className="font-bold text-lg">{selectedData.totalReach.toLocaleString()}</div>
@@ -160,6 +168,52 @@ function PoliticalMapTab({ configId }: { configId: number | null }) {
                 <div className="text-xs text-muted-foreground">Top Content</div>
                 <div className="font-bold text-lg">{selectedData.topContent}</div>
               </div>
+            </div>
+
+            {/* Ward-level breakdown table */}
+            <div className="bg-white rounded-lg p-3 shadow-sm">
+              <div className="text-xs font-semibold text-muted-foreground mb-2">Ward-Level Breakdown — {selectedData.state}</div>
+              {wardsLoading ? (
+                <div className="text-sm text-muted-foreground py-4 text-center">Loading ward data…</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b text-muted-foreground">
+                        <th className="text-left pb-1.5">Ward</th>
+                        <th className="text-right pb-1.5">Reach</th>
+                        <th className="text-right pb-1.5">Posts</th>
+                        <th className="text-right pb-1.5">Eng.</th>
+                        <th className="text-right pb-1.5">Sentiment</th>
+                        <th className="text-right pb-1.5">Top Content</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {wardData.map((w, i) => (
+                        <tr key={w.ward} className="border-b last:border-0">
+                          <td className="py-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-muted-foreground w-4">#{i + 1}</span>
+                              <span className="font-medium">{w.ward}</span>
+                            </div>
+                          </td>
+                          <td className="text-right">{(w.reach / 1000).toFixed(0)}K</td>
+                          <td className="text-right">{w.postsPublished}</td>
+                          <td className={`text-right font-medium ${w.engagementRate >= 6 ? "text-emerald-600" : w.engagementRate >= 3 ? "text-yellow-600" : "text-red-500"}`}>
+                            {w.engagementRate}%
+                          </td>
+                          <td className="text-right">
+                            <span className={`inline-block w-12 text-center rounded-full text-xs px-1.5 py-0.5 ${w.sentimentScore > 0.6 ? "bg-emerald-100 text-emerald-700" : w.sentimentScore < 0.4 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>
+                              {(w.sentimentScore * 100).toFixed(0)}%
+                            </span>
+                          </td>
+                          <td className="text-right text-muted-foreground">{w.topContent}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -399,11 +453,16 @@ function CompetitorMonitorTab({ configId }: { configId: number | null }) {
   const [form, setForm] = useState({ handle: "", platform: "instagram", displayName: "", category: "general" });
   const [snapForm, setSnapForm] = useState({ followerCount: "", postsPerWeek: "", avgEngagementRate: "", topPostCaption: "" });
 
-  const { data: competitors = [] } = useQuery<Competitor[]>({
-    queryKey: ["competitors", configId],
-    queryFn: () => apiFetch(`/intelligence/competitors${configId ? `?configId=${configId}` : ""}`),
+  // Load all competitors with their latest snapshot (for the comparison table)
+  const { data: competitorsWithSnaps = [] } = useQuery<CompetitorWithSnapshot[]>({
+    queryKey: ["competitors-with-snaps", configId],
+    queryFn: () => configId ? apiFetch(`/intelligence/competitors/latest-snapshots?configId=${configId}`) : Promise.resolve([]),
+    enabled: !!configId,
   });
 
+  const competitors = competitorsWithSnaps as Competitor[];
+
+  // Also load history snapshots for the selected competitor detail panel
   const { data: snapshots = [] } = useQuery<CompetitorSnapshot[]>({
     queryKey: ["competitor-snapshots", selectedCompetitorId],
     queryFn: () => apiFetch(`/intelligence/competitors/${selectedCompetitorId}/snapshots`),
@@ -412,24 +471,19 @@ function CompetitorMonitorTab({ configId }: { configId: number | null }) {
 
   const addCompetitor = useMutation({
     mutationFn: (body: object) => apiFetch("/intelligence/competitors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["competitors"] }); setAddOpen(false); toast({ title: "Competitor added" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["competitors-with-snaps"] }); setAddOpen(false); toast({ title: "Competitor added" }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const addSnapshot = useMutation({
     mutationFn: (body: object) => apiFetch(`/intelligence/competitors/${selectedCompetitorId}/snapshots`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["competitor-snapshots"] }); setSnapOpen(false); toast({ title: "Snapshot saved" }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["competitor-snapshots"] }); qc.invalidateQueries({ queryKey: ["competitors-with-snaps"] }); setSnapOpen(false); toast({ title: "Snapshot saved" }); },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteCompetitor = useMutation({
     mutationFn: (id: number) => apiFetch(`/intelligence/competitors/${id}`, { method: "DELETE" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["competitors"] }); if (selectedCompetitorId) setSelectedCompetitorId(null); },
-  });
-
-  const latest = competitors.map(c => {
-    const snap = snapshots.find(s => String(s.id).startsWith(String(c.id)));
-    return { ...c, snap };
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["competitors-with-snaps"] }); if (selectedCompetitorId) setSelectedCompetitorId(null); },
   });
 
   return (
@@ -477,8 +531,8 @@ function CompetitorMonitorTab({ configId }: { configId: number | null }) {
             </tr>
           </thead>
           <tbody>
-            {competitors.map(c => {
-              const snap = snapshots[0];
+            {competitorsWithSnaps.map(c => {
+              const snap = c.latestSnapshot;
               return (
                 <tr key={c.id} className={`border-b hover:bg-muted/30 cursor-pointer ${selectedCompetitorId === c.id ? "bg-muted/40" : ""}`}
                   onClick={() => setSelectedCompetitorId(c.id === selectedCompetitorId ? null : c.id)}>

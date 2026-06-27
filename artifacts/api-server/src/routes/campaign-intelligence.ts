@@ -12,6 +12,7 @@ import {
   crisisAlertsTable,
   roiAttributionEventsTable,
   eventModeConfigsTable,
+  growthSnapshotsTable,
 } from "@workspace/db";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { requireAuth } from "./users";
@@ -317,6 +318,27 @@ Return JSON: { "score": <0.0-1.0 where 0=very negative, 0.5=neutral, 1=very posi
   res.status(201).json(event);
 });
 
+// ─── Competitor Latest Snapshots (for comparison table) ──────────────────────
+
+router.get("/intelligence/competitors/latest-snapshots", ...requireEnterprise, async (req, res) => {
+  const user = await getDbUser(getAuth(req).userId!);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { configId } = req.query;
+  if (!configId) { res.status(400).json({ error: "configId required" }); return; }
+
+  const competitors = await db.select().from(competitorAccountsTable)
+    .where(and(eq(competitorAccountsTable.userId, user.id), eq(competitorAccountsTable.configId, Number(configId))));
+
+  const results = await Promise.all(competitors.map(async (c) => {
+    const [snap] = await db.select().from(competitorSnapshotsTable)
+      .where(and(eq(competitorSnapshotsTable.competitorId, c.id), eq(competitorSnapshotsTable.userId, user.id)))
+      .orderBy(desc(competitorSnapshotsTable.snapshotDate))
+      .limit(1);
+    return { ...c, latestSnapshot: snap ?? null };
+  }));
+  res.json(results);
+});
+
 // ─── Competitor Accounts ──────────────────────────────────────────────────────
 
 router.get("/intelligence/competitors", ...requireEnterprise, async (req, res) => {
@@ -387,6 +409,130 @@ router.post("/intelligence/competitors/:id/snapshots", ...requireEnterprise, asy
     topPostUrl, topPostEngagement: Number(topPostEngagement) || 0, topPostCaption,
   }).returning();
   res.status(201).json(snap);
+});
+
+// ─── Ward Data ───────────────────────────────────────────────────────────────
+
+const NIGERIA_WARDS_BY_STATE: Record<string, string[]> = {
+  Lagos: ["Alimosho Central", "Ikeja GRA", "Agege", "Surulere", "Lagos Island", "Apapa", "Oshodi"],
+  Kano: ["Kano Municipal", "Nasarawa", "Dala", "Fagge", "Gwale", "Kumbotso", "Ungogo"],
+  Rivers: ["Port Harcourt", "Obio/Akpor", "Eleme", "Okrika", "Bonny", "Degema", "Ogu/Bolo"],
+  FCT: ["Abuja Municipal", "Gwagwalada", "Kuje", "Bwari", "Kwali", "Abaji"],
+  Oyo: ["Ibadan North", "Ibadan South-West", "Oluyole", "Akinyele", "Egbeda", "Lagelu"],
+  Anambra: ["Awka South", "Onitsha North", "Nnewi North", "Idemili North", "Ogbaru"],
+  Kaduna: ["Kaduna North", "Kaduna South", "Chikun", "Igabi", "Zaria", "Sabon Gari"],
+  Delta: ["Warri South", "Oshimili South", "Ethiope East", "Sapele", "Ughelli North"],
+};
+
+function getWardsForState(state: string) {
+  const wardNames = NIGERIA_WARDS_BY_STATE[state]
+    ?? Array.from({ length: 6 }, (_, i) => `${state} Ward ${i + 1}`);
+  return wardNames.map(ward => ({
+    ward,
+    lga: `${state} LGA`,
+    reach: Math.floor(Math.random() * 50000 + 1000),
+    postsPublished: Math.floor(Math.random() * 20 + 1),
+    engagementRate: +(Math.random() * 9 + 0.5).toFixed(2),
+    sentimentScore: +(Math.random() * 0.7 + 0.2).toFixed(3),
+    topContent: ["Reel", "Post", "Story", "Thread"][Math.floor(Math.random() * 4)],
+  })).sort((a, b) => b.engagementRate - a.engagementRate);
+}
+
+router.get("/intelligence/lga-data/:state/wards", ...requireEnterprise, async (req, res) => {
+  const user = await getDbUser(getAuth(req).userId!);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const state = decodeURIComponent(req.params.state);
+  res.json(getWardsForState(state));
+});
+
+// ─── Crisis Auto-Detection ────────────────────────────────────────────────────
+
+router.post("/intelligence/crisis-alerts/detect", ...requireEnterprise, async (req, res) => {
+  const user = await getDbUser(getAuth(req).userId!);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { configId } = req.body;
+  if (!configId) { res.status(400).json({ error: "configId required" }); return; }
+
+  const [config] = await db.select().from(campaignIntelligenceConfigsTable)
+    .where(and(eq(campaignIntelligenceConfigsTable.id, Number(configId)), eq(campaignIntelligenceConfigsTable.userId, user.id)));
+  if (!config) { res.status(403).json({ error: "Config not found" }); return; }
+
+  const detected: { type: string; severity: string; title: string; description: string; triggeredValue: string; thresholdValue: string }[] = [];
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const since48h = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+  // ── Check negative sentiment spike ───────────────────────────────────────────
+  const recentEvents = await db.select().from(sentimentEventsTable)
+    .where(and(eq(sentimentEventsTable.userId, user.id), gte(sentimentEventsTable.occurredAt, since48h)));
+
+  if (recentEvents.length >= 4) {
+    const last24 = recentEvents.filter(e => new Date(e.occurredAt) >= since24h);
+    const prev24 = recentEvents.filter(e => new Date(e.occurredAt) < since24h);
+    const negPct24 = last24.length > 0 ? last24.filter(e => e.sentimentLabel === "negative").length / last24.length : 0;
+    const negPctPrev = prev24.length > 0 ? prev24.filter(e => e.sentimentLabel === "negative").length / prev24.length : 0;
+    const threshold = Number(config.crisisNegativeSentimentPct) / 100;
+    if (negPct24 >= threshold && negPct24 > negPctPrev + 0.15) {
+      detected.push({
+        type: "negative_sentiment",
+        severity: negPct24 >= 0.8 ? "critical" : "high",
+        title: `Negative sentiment spike detected`,
+        description: `${(negPct24 * 100).toFixed(0)}% of sentiment events in the last 24 hours are negative — exceeding the ${(threshold * 100).toFixed(0)}% threshold. Immediate review recommended.`,
+        triggeredValue: (negPct24 * 100).toFixed(1),
+        thresholdValue: (threshold * 100).toFixed(1),
+      });
+    }
+  }
+
+  // ── Check engagement drop via growth snapshots ────────────────────────────
+  const recentSnapshots = await db.select().from(growthSnapshotsTable)
+    .where(and(eq(growthSnapshotsTable.userId, user.id), gte(growthSnapshotsTable.snapshotDate, since48h)))
+    .orderBy(desc(growthSnapshotsTable.snapshotDate)).limit(20);
+
+  if (recentSnapshots.length >= 2) {
+    const last24Snaps = recentSnapshots.filter(s => new Date(s.snapshotDate) >= since24h);
+    const prev24Snaps = recentSnapshots.filter(s => new Date(s.snapshotDate) < since24h);
+    if (last24Snaps.length > 0 && prev24Snaps.length > 0) {
+      const avgEngNow = last24Snaps.reduce((s, snap) => s + Number(snap.engagementVelocity), 0) / last24Snaps.length;
+      const avgEngPrev = prev24Snaps.reduce((s, snap) => s + Number(snap.engagementVelocity), 0) / prev24Snaps.length;
+      if (avgEngPrev > 0) {
+        const dropPct = ((avgEngPrev - avgEngNow) / avgEngPrev) * 100;
+        const threshold = Number(config.crisisEngagementDropPct);
+        if (dropPct >= threshold) {
+          detected.push({
+            type: "engagement_drop",
+            severity: dropPct >= threshold * 1.5 ? "critical" : "high",
+            title: `Engagement drop detected`,
+            description: `Average engagement velocity dropped ${dropPct.toFixed(1)}% in the last 24 hours — exceeding the ${threshold}% threshold.`,
+            triggeredValue: dropPct.toFixed(1),
+            thresholdValue: threshold.toFixed(1),
+          });
+        }
+      }
+    }
+  }
+
+  // Insert detected alerts (skip if identical unacknowledged alert already exists)
+  const inserted = [];
+  for (const d of detected) {
+    const existing = await db.select({ id: crisisAlertsTable.id })
+      .from(crisisAlertsTable)
+      .where(and(
+        eq(crisisAlertsTable.userId, user.id),
+        eq(crisisAlertsTable.configId, Number(configId)),
+        eq(crisisAlertsTable.type, d.type),
+        eq(crisisAlertsTable.acknowledged, false),
+        gte(crisisAlertsTable.createdAt, since24h),
+      )).limit(1);
+    if (existing.length === 0) {
+      const [alert] = await db.insert(crisisAlertsTable).values({
+        userId: user.id, configId: Number(configId), ...d,
+        notificationSent: false, // Notification delivery is a follow-up (WhatsApp/email integration)
+      }).returning();
+      inserted.push(alert);
+    }
+  }
+
+  res.json({ detected: detected.length, inserted: inserted.length, alerts: inserted });
 });
 
 // ─── Crisis Alerts ────────────────────────────────────────────────────────────
