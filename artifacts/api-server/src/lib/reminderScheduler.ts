@@ -1,6 +1,6 @@
 import { db } from "@workspace/db";
-import { invoicesTable, paymentRemindersTable } from "@workspace/db";
-import { eq, and, gte, lte, lt, sql } from "drizzle-orm";
+import { invoicesTable, paymentRemindersTable, analyticsSnapshots, weeklyDigests, usersTable } from "@workspace/db";
+import { eq, and, gte, lte, lt, sql, desc } from "drizzle-orm";
 import { logger } from "./logger";
 
 const REMINDER_DAYS = [3, 7, 14];
@@ -76,6 +76,100 @@ async function processOverdueReminders(now: Date): Promise<number> {
   return totalLogged;
 }
 
+// ─── Weekly digest job ────────────────────────────────────────────────────
+
+async function generateWeeklyDigests(): Promise<number> {
+  const now = new Date();
+  const dayOfWeek = now.getUTCDay(); // 0 = Sunday
+  if (dayOfWeek !== 0) return 0; // Only run on Sundays
+
+  const weekStart = new Date(now); weekStart.setUTCDate(weekStart.getUTCDate() - 7);
+  const weekEnd = new Date(now);
+
+  // Get all users who have analytics snapshots but no digest this week
+  const usersWithSnaps = await db
+    .selectDistinct({ userId: analyticsSnapshots.userId })
+    .from(analyticsSnapshots)
+    .where(gte(analyticsSnapshots.snapshotDate, weekStart));
+
+  let generated = 0;
+
+  for (const { userId } of usersWithSnaps) {
+    // Skip if already generated this week
+    const [existing] = await db.select({ id: weeklyDigests.id })
+      .from(weeklyDigests)
+      .where(and(eq(weeklyDigests.userId, userId), gte(weeklyDigests.weekStart, weekStart)))
+      .limit(1);
+    if (existing) continue;
+
+    // Fetch latest snapshots for the user
+    const snaps = await db.select().from(analyticsSnapshots)
+      .where(eq(analyticsSnapshots.userId, userId))
+      .orderBy(desc(analyticsSnapshots.snapshotDate))
+      .limit(70);
+
+    if (snaps.length === 0) continue;
+
+    // Aggregate by platform
+    const byPlatform: Record<string, typeof snaps> = {};
+    for (const s of snaps) {
+      if (!byPlatform[s.platform]) byPlatform[s.platform] = [];
+      byPlatform[s.platform].push(s);
+    }
+
+    const platforms = Object.entries(byPlatform).map(([platform, data]) => ({
+      platform,
+      followers: data[0].followers,
+      reach: data[0].reach,
+      engagementRate: Number(data[0].engagementRate),
+      followerGrowth: data[0].followers - (data[data.length - 1]?.followers ?? data[0].followers),
+    }));
+
+    const topPlatform = [...platforms].sort((a, b) => b.engagementRate - a.engagementRate)[0];
+    const totalReach = platforms.reduce((s, p) => s + p.reach, 0);
+    const avgEng = platforms.reduce((s, p) => s + p.engagementRate, 0) / (platforms.length || 1);
+
+    const narrative = `📊 Area Fada OS — Weekly Performance Digest (w/e ${weekEnd.toLocaleDateString("en-GB")})
+
+Best platform this week: ${topPlatform?.platform ?? "Instagram"} with ${topPlatform?.engagementRate.toFixed(1) ?? 0}% engagement.
+Total reach: ${(totalReach / 1000).toFixed(0)}K across ${platforms.length} platforms.
+Avg engagement: ${avgEng.toFixed(2)}% (${avgEng > 4 ? "above" : "below"} industry average).
+
+Action items: Post 999 content 8-10am WAT weekdays. Engage comments within 1hr.
+
+Keep grinding, Fada 🤘`;
+
+    // Stub: Resend email delivery
+    const userRow = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    const email = userRow[0]?.email;
+    if (email) {
+      // TODO: Replace with Resend SDK call when RESEND_API_KEY is configured
+      // const resend = new Resend(process.env.RESEND_API_KEY);
+      // await resend.emails.send({ from: "digest@areafada.com", to: email, subject: "Your weekly performance digest", text: narrative });
+      logger.info({ userId, email, weekEnd: weekEnd.toISOString() }, "[DIGEST EMAIL STUB] Weekly digest ready — Resend delivery pending API key configuration");
+    }
+
+    await db.insert(weeklyDigests).values({
+      userId,
+      weekStart,
+      weekEnd,
+      narrative,
+      topPlatform: topPlatform?.platform,
+      totalReach,
+      totalEngagements: Math.round(totalReach * avgEng / 100),
+      avgEngagementRate: String(avgEng.toFixed(2)),
+      followersGained: topPlatform?.followerGrowth ?? 0,
+      emailSent: false,
+      whatsappLogged: true,
+    });
+
+    logger.info({ userId, weekEnd: weekEnd.toISOString() }, "Weekly digest generated");
+    generated++;
+  }
+
+  return generated;
+}
+
 async function runCycle() {
   try {
     const now = new Date();
@@ -89,10 +183,28 @@ async function runCycle() {
   }
 }
 
+async function runWeeklyCycle() {
+  try {
+    const generated = await generateWeeklyDigests();
+    if (generated > 0) {
+      logger.info({ generated }, "Weekly digest scheduler: digests generated");
+    }
+  } catch (err) {
+    logger.error({ err }, "Weekly digest scheduler error");
+  }
+}
+
+const WEEKLY_INTERVAL_MS = 60 * 60 * 1000; // check every hour; generateWeeklyDigests guards on Sunday
+
 export function startReminderScheduler() {
-  // Run immediately on startup then every hour
+  // Hourly: invoice reminders + overdue transitions
   runCycle();
-  const interval = setInterval(runCycle, INTERVAL_MS);
-  logger.info({ intervalMs: INTERVAL_MS }, "Payment reminder scheduler started");
-  return interval;
+  const hourlyInterval = setInterval(runCycle, INTERVAL_MS);
+
+  // Hourly check for weekly digest (only generates on Sundays)
+  runWeeklyCycle();
+  const weeklyInterval = setInterval(runWeeklyCycle, WEEKLY_INTERVAL_MS);
+
+  logger.info({ intervalMs: INTERVAL_MS }, "Payment reminder + weekly digest scheduler started");
+  return hourlyInterval;
 }

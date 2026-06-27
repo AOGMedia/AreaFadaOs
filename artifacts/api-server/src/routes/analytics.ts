@@ -11,6 +11,7 @@ import {
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
+import { PDFDocument, StandardFonts, rgb, grayscale } from "pdf-lib";
 
 const router = Router();
 
@@ -113,7 +114,6 @@ async function seedAnalyticsForUser(userId: number) {
   ];
 
   const posts: typeof postPerformance.$inferInsert[] = [];
-  const scores: typeof engagementScores.$inferInsert[] = [];
 
   for (let i = 0; i < 30; i++) {
     const daysAgo = Math.floor(Math.random() * 30);
@@ -473,7 +473,7 @@ router.post("/analytics/reports/generate", requireAuth, requireTier("brand"), as
       clientName: report.clientName,
       status: report.status,
       generatedAt: report.generatedAt,
-      downloadUrl: `/api/analytics/reports/${report.id}/pdf-view`,
+      downloadUrl: `/analytics/reports/${report.id}/pdf`,
       reportData,
     });
   } catch (err) {
@@ -482,8 +482,14 @@ router.post("/analytics/reports/generate", requireAuth, requireTier("brand"), as
   }
 });
 
-// ─── GET /analytics/reports/:id/pdf-view ────────────────────────────────
-router.get("/analytics/reports/:id/pdf-view", requireAuth, async (req: any, res): Promise<void> => {
+// ─── pdf-lib helper: parse hex colour ────────────────────────────────────
+function hexColor(hex: string) {
+  const h = hex.replace("#", "");
+  return rgb(parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255);
+}
+
+// ─── GET /analytics/reports/:id/pdf ──────────────────────────────────────
+router.get("/analytics/reports/:id/pdf", requireAuth, async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -494,80 +500,119 @@ router.get("/analytics/reports/:id/pdf-view", requireAuth, async (req: any, res)
     if (!report) { res.status(404).json({ error: "Report not found" }); return; }
 
     const data = report.reportData as any;
-    const platforms = (report.platforms as string[]).join(", ");
-    const color = report.brandColor || "#7c3aed";
+    const brandColor = hexColor(report.brandColor || "#7c3aed");
+    const platsArr = (report.platforms as string[]) ?? [];
+    const summary = data?.summary ?? {};
+    const platformRows = (summary.platforms ?? []) as any[];
+    const recommendations = (data?.recommendations ?? []) as string[];
 
-    res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>${report.title}</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap');
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'DM Sans',sans-serif; color:#111; background:#fff; padding:40px; }
-  .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; padding-bottom:24px; border-bottom:3px solid ${color}; }
-  .title { font-size:28px; font-weight:700; color:${color}; }
-  .subtitle { font-size:14px; color:#666; margin-top:4px; }
-  .meta { text-align:right; font-size:13px; color:#888; }
-  .section { margin-bottom:32px; }
-  .section-title { font-size:18px; font-weight:700; color:#111; margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid #eee; }
-  .metrics-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
-  .metric { background:#f9f9f9; border-radius:12px; padding:16px; text-align:center; }
-  .metric-value { font-size:24px; font-weight:700; color:${color}; }
-  .metric-label { font-size:12px; color:#888; margin-top:4px; }
-  .rec-list { list-style:none; }
-  .rec-list li { padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:14px; }
-  .rec-list li::before { content:"→ "; color:${color}; font-weight:700; }
-  .platform-row { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0; font-size:14px; }
-  .footer { margin-top:40px; padding-top:16px; border-top:1px solid #eee; font-size:12px; color:#aaa; text-align:center; }
-</style>
-</head>
-<body>
-<div class="header">
-  <div>
-    <div class="title">${report.title}</div>
-    <div class="subtitle">Prepared for: ${report.clientName} · Platforms: ${platforms}</div>
-  </div>
-  <div class="meta">Generated: ${new Date(report.generatedAt!).toLocaleDateString()}<br/>AreaFada OS Analytics Engine</div>
-</div>
+    // ── Build PDF with pdf-lib ──
+    const pdfDoc = await PDFDocument.create();
+    const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-<div class="section">
-  <div class="section-title">Overall Performance</div>
-  <div class="metrics-grid">
-    <div class="metric"><div class="metric-value">${(data?.summary?.totalFollowers / 1_000_000).toFixed(1)}M</div><div class="metric-label">Total Followers</div></div>
-    <div class="metric"><div class="metric-value">${(data?.summary?.totalReach / 1_000).toFixed(0)}K</div><div class="metric-label">Weekly Reach</div></div>
-    <div class="metric"><div class="metric-value">${data?.summary?.avgEngagementRate?.toFixed(1)}%</div><div class="metric-label">Avg Engagement</div></div>
-    <div class="metric"><div class="metric-value">${data?.summary?.platforms?.length ?? 0}</div><div class="metric-label">Platforms</div></div>
-  </div>
-</div>
+    const page = pdfDoc.addPage([595, 842]); // A4
+    const { width, height } = page.getSize();
+    const margin = 40;
+    let y = height - margin;
 
-<div class="section">
-  <div class="section-title">Platform Breakdown</div>
-  ${(data?.summary?.platforms ?? []).map((p: any) => `
-    <div class="platform-row">
-      <span style="text-transform:capitalize;font-weight:600">${p.platform}</span>
-      <span>${(p.followers / 1_000_000).toFixed(2)}M followers</span>
-      <span>${p.engagementRate?.toFixed(1)}% engagement</span>
-      <span>+${p.followerGrowth?.toLocaleString()} growth</span>
-    </div>
-  `).join("")}
-</div>
+    // Brand colour header bar
+    page.drawRectangle({ x: margin, y: y - 4, width: width - margin * 2, height: 4, color: brandColor });
+    y -= 20;
 
-<div class="section">
-  <div class="section-title">Strategic Recommendations</div>
-  <ul class="rec-list">
-    ${(data?.recommendations ?? []).map((r: string) => `<li>${r}</li>`).join("")}
-  </ul>
-</div>
+    // Title
+    page.drawText(report.title, { x: margin, y, font: helveticaBold, size: 18, color: brandColor, maxWidth: width - margin * 2 });
+    y -= 18;
+    page.drawText(`Prepared for: ${report.clientName}  |  Platforms: ${platsArr.join(", ")}`, { x: margin, y, font: helvetica, size: 9, color: grayscale(0.5) });
+    y -= 12;
+    page.drawText(`Generated: ${new Date(report.generatedAt!).toLocaleDateString("en-GB")}  |  AreaFada OS Analytics Engine`, { x: margin, y, font: helvetica, size: 9, color: grayscale(0.6) });
+    y -= 24;
 
-<div class="footer">Confidential — AreaFada OS · areafada.com · Generated ${new Date().toISOString()}</div>
-</body>
-</html>`);
+    // Divider
+    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: grayscale(0.85) });
+    y -= 18;
+
+    // Section: Overall Performance
+    page.drawText("OVERALL PERFORMANCE", { x: margin, y, font: helveticaBold, size: 11, color: grayscale(0.15) });
+    y -= 18;
+
+    const metrics = [
+      { label: "Total Followers", value: `${((summary.totalFollowers ?? 0) / 1_000_000).toFixed(1)}M` },
+      { label: "Weekly Reach", value: `${((summary.totalReach ?? 0) / 1_000).toFixed(0)}K` },
+      { label: "Avg Engagement", value: `${(summary.avgEngagementRate ?? 0).toFixed(1)}%` },
+      { label: "Platforms", value: `${platformRows.length}` },
+    ];
+    const colW = (width - margin * 2) / metrics.length;
+    for (let i = 0; i < metrics.length; i++) {
+      const mx = margin + i * colW;
+      page.drawRectangle({ x: mx + 4, y: y - 36, width: colW - 8, height: 44, color: rgb(0.97, 0.97, 0.98), borderColor: grayscale(0.9), borderWidth: 0.5 });
+      page.drawText(metrics[i].value, { x: mx + 8, y: y - 14, font: helveticaBold, size: 16, color: brandColor });
+      page.drawText(metrics[i].label, { x: mx + 8, y: y - 28, font: helvetica, size: 8, color: grayscale(0.55) });
+    }
+    y -= 58;
+
+    // Section: Platform Breakdown
+    page.drawText("PLATFORM BREAKDOWN", { x: margin, y, font: helveticaBold, size: 11, color: grayscale(0.15) });
+    y -= 14;
+
+    // Table header
+    page.drawRectangle({ x: margin, y: y - 12, width: width - margin * 2, height: 16, color: rgb(0.97, 0.97, 0.98) });
+    const cols = [0, 200, 320, 420];
+    const headers = ["Platform", "Followers", "Engagement", "Growth"];
+    for (let i = 0; i < headers.length; i++) {
+      page.drawText(headers[i], { x: margin + cols[i] + 4, y: y - 8, font: helveticaBold, size: 8, color: grayscale(0.35) });
+    }
+    y -= 18;
+
+    for (const p of platformRows) {
+      page.drawLine({ start: { x: margin, y: y + 8 }, end: { x: width - margin, y: y + 8 }, thickness: 0.3, color: grayscale(0.9) });
+      page.drawText(p.platform.charAt(0).toUpperCase() + p.platform.slice(1), { x: margin + cols[0] + 4, y, font: helveticaBold, size: 9, color: grayscale(0.1) });
+      page.drawText(`${(p.followers / 1_000_000).toFixed(2)}M`, { x: margin + cols[1] + 4, y, font: helvetica, size: 9, color: grayscale(0.2) });
+      page.drawText(`${(p.engagementRate ?? 0).toFixed(1)}%`, { x: margin + cols[2] + 4, y, font: helvetica, size: 9, color: grayscale(0.2) });
+      page.drawText(`+${(p.followerGrowth ?? 0).toLocaleString()}`, { x: margin + cols[3] + 4, y, font: helvetica, size: 9, color: rgb(0.09, 0.64, 0.24) });
+      y -= 16;
+    }
+    y -= 12;
+
+    // Section: Recommendations
+    page.drawText("STRATEGIC RECOMMENDATIONS", { x: margin, y, font: helveticaBold, size: 11, color: grayscale(0.15) });
+    y -= 16;
+
+    for (let i = 0; i < recommendations.length; i++) {
+      const rec = recommendations[i];
+      // Bullet
+      page.drawCircle({ x: margin + 5, y: y + 4, size: 3, color: brandColor });
+      // Wrap long text manually (approx 85 chars per line)
+      const words = rec.split(" ");
+      let line = `${i + 1}. `;
+      for (const word of words) {
+        if ((line + word).length > 82) {
+          page.drawText(line, { x: margin + 14, y, font: helvetica, size: 9, color: grayscale(0.25) });
+          y -= 12;
+          line = "   " + word + " ";
+        } else {
+          line += word + " ";
+        }
+      }
+      if (line.trim()) {
+        page.drawText(line.trim(), { x: margin + 14, y, font: helvetica, size: 9, color: grayscale(0.25) });
+        y -= 16;
+      }
+    }
+
+    // Footer
+    y = 36;
+    page.drawLine({ start: { x: margin, y: y + 12 }, end: { x: width - margin, y: y + 12 }, thickness: 0.4, color: grayscale(0.88) });
+    page.drawText(`Confidential — AreaFada OS · areafada.com · Generated ${new Date().toISOString().slice(0, 10)}`, { x: margin, y, font: helvetica, size: 7.5, color: grayscale(0.65) });
+
+    const pdfBytes = await pdfDoc.save();
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${report.title.replace(/[^a-zA-Z0-9]/g, "_")}.pdf"`);
+    res.end(Buffer.from(pdfBytes));
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to generate PDF view" });
+    res.status(500).json({ error: "Failed to generate PDF" });
   }
 });
 
