@@ -803,12 +803,12 @@ export const GeneratePaymentLinkParams = zod.object({
 })
 
 export const GeneratePaymentLinkBody = zod.object({
-  "gateway": zod.enum(['paystack', 'flutterwave', 'manual'])
+  "gateway": zod.enum(['paystack', 'flutterwave'])
 })
 
 export const GeneratePaymentLinkResponse = zod.object({
   "paymentLink": zod.string(),
-  "gateway": zod.enum(['paystack', 'flutterwave', 'manual']),
+  "gateway": zod.enum(['paystack', 'flutterwave']),
   "invoiceId": zod.number(),
   "reference": zod.string().optional()
 })

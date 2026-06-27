@@ -94,7 +94,6 @@ export type PaymentGateway = typeof PaymentGateway[keyof typeof PaymentGateway];
 export const PaymentGateway = {
   paystack: 'paystack',
   flutterwave: 'flutterwave',
-  manual: 'manual',
 } as const;
 
 export interface UserProfile {

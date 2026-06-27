@@ -762,7 +762,7 @@ components:
 
     PaymentGateway:
       type: string
-      enum: [paystack, flutterwave, manual]
+      enum: [paystack, flutterwave]
 
     UserProfile:
       type: object

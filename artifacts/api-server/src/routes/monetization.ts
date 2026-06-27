@@ -159,7 +159,7 @@ router.get("/brand-deals", ...requireMonetization, async (req: any, res): Promis
 
     if (deals.length === 0) {
       const seeds: typeof brandDealsTable.$inferInsert[] = [
-        { userId: user.id, brandName: "Paystack Nigeria", contactName: "Temi Adeyemi", contactEmail: "temi@paystack.com", dealValue: "1500000", currency: "NGN", status: "active", deliverables: "3 Instagram posts + 1 TikTok video", platforms: ["instagram", "tiktok"] },
+        { userId: user.id, brandName: "Paystack Nigeria", contactName: "Temi Adeyemi", contactEmail: "temi@paystack.com", dealValue: "1500000", currency: "NGN", status: "agreed", deliverables: "3 Instagram posts + 1 TikTok video", platforms: ["instagram", "tiktok"] },
         { userId: user.id, brandName: "Guinness Africa", contactName: "Chidi Okafor", contactEmail: "chidi@guinness.com", dealValue: "800000", currency: "NGN", status: "negotiating", deliverables: "2 YouTube integrations", platforms: ["youtube"] },
         { userId: user.id, brandName: "Flutterwave", contactName: "Amaka Eze", contactEmail: "amaka@flutterwave.com", dealValue: "2000000", currency: "NGN", status: "inbound", deliverables: "4-post campaign TBD", platforms: ["instagram", "x", "tiktok"] },
         { userId: user.id, brandName: "TechPoint Africa", contactName: "Bola Adesanya", contactEmail: "bola@techpoint.africa", dealValue: "350000", currency: "NGN", status: "paid", deliverables: "Brand mention in podcast", platforms: ["youtube"] },
@@ -405,20 +405,35 @@ router.post("/invoices/:id/payment-link", ...requireMonetization, async (req: an
     const [invoice] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, user.id)));
     if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
 
+    const invoiceCurrency = invoice.currency;
+    const invoiceTotal = Number(invoice.total);
     const reference = `AF-${invoice.invoiceNumber}-${Date.now()}`;
     let paymentLink = "";
 
+    // Paystack only processes NGN natively. For non-NGN invoices, convert to NGN.
+    // Flutterwave handles GHS/KES/ZAR/USD natively; NGN invoices can use either gateway.
     if (gateway === "paystack") {
       const psKey = process.env.PAYSTACK_SECRET_KEY;
       if (!psKey) { res.status(500).json({ error: "Paystack not configured" }); return; }
 
-      const amountKobo = Math.round(Number(invoice.total) * 100);
+      // Convert invoice amount to NGN if needed
+      const amountNGN = invoiceCurrency === "NGN" ? invoiceTotal : await toNGN(invoiceTotal, invoiceCurrency);
+      const amountKobo = Math.round(amountNGN * 100);
+
       const psRes = await fetch("https://api.paystack.co/transaction/initialize", {
         method: "POST",
         headers: { Authorization: `Bearer ${psKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: invoice.clientEmail, amount: amountKobo, currency: "NGN", reference,
-          metadata: { invoice_number: invoice.invoiceNumber, client: invoice.clientName },
+          email: invoice.clientEmail,
+          amount: amountKobo,
+          currency: "NGN",
+          reference,
+          metadata: {
+            invoice_number: invoice.invoiceNumber,
+            client: invoice.clientName,
+            original_currency: invoiceCurrency,
+            original_amount: invoiceTotal,
+          },
           callback_url: `${process.env.APP_URL ?? "https://areafadaos.app"}/monetization?paid=1`,
         }),
       });
@@ -430,11 +445,14 @@ router.post("/invoices/:id/payment-link", ...requireMonetization, async (req: an
       const fwKey = process.env.FLUTTERWAVE_SECRET_KEY;
       if (!fwKey) { res.status(500).json({ error: "Flutterwave not configured" }); return; }
 
+      // Flutterwave accepts NGN/GHS/KES/ZAR/USD natively — pass invoice currency directly
       const fwRes = await fetch("https://api.flutterwave.com/v3/payments", {
         method: "POST",
         headers: { Authorization: `Bearer ${fwKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          tx_ref: reference, amount: Number(invoice.total), currency: invoice.currency,
+          tx_ref: reference,
+          amount: invoiceTotal,
+          currency: invoiceCurrency,
           redirect_url: `${process.env.APP_URL ?? "https://areafadaos.app"}/monetization?paid=1`,
           customer: { email: invoice.clientEmail, name: invoice.clientName },
           meta: { invoice_number: invoice.invoiceNumber },
@@ -446,7 +464,7 @@ router.post("/invoices/:id/payment-link", ...requireMonetization, async (req: an
       paymentLink = fwData.data.link;
 
     } else {
-      res.status(400).json({ error: "Unsupported gateway" }); return;
+      res.status(400).json({ error: "Unsupported gateway. Use 'paystack' or 'flutterwave'" }); return;
     }
 
     await db.update(invoicesTable).set({
