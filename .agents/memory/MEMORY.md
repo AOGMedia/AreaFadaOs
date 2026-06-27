@@ -2,3 +2,4 @@
 - [Clerk Auth Setup](clerk-auth-setup.md) — Clerk provisioned (not_configured→managed); canonical wiring patterns and pitfalls for this project.
 - [DB Schema](db-schema.md) — users, activity_log, posts, campaigns, platform_accounts, hashtag_cache; typed column casting gotcha; orval index.ts patch.
 - [Ambassador CRM](ambassador-crm.md) — Task #5: 8 tables, 18 API routes, 6-tab frontend; requireTier("agency"); seed auto-fires when table empty in non-prod.
+- [DB Project References](db-project-references.md) — adding schema files to lib/db requires rebuilding dist/ before api-server can see new exports.

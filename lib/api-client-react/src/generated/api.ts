@@ -21,6 +21,7 @@ import type {
 
 import type {
   ActivityItem,
+  AffiliateCommission,
   AffiliateLink,
   Ambassador,
   AmbassadorTask,
@@ -36,6 +37,7 @@ import type {
   Campaign,
   CompleteAmbassadorTask200,
   CompleteAmbassadorTaskBody,
+  CreateAffiliateBody,
   CreateAffiliateLinkBody,
   CreateAmbassadorBody,
   CreateAmbassadorTaskBody,
@@ -45,7 +47,10 @@ import type {
   CreateInvoiceBody,
   CreateMicroInfluencerBody,
   CreatePostBody,
+  CreatePromoCampaignBody,
+  CreatePromoLinkBody,
   DashboardSummary,
+  DripScheduleResult,
   GamificationConfig,
   GenerateCaptionsBody,
   GenerateCaptionsResponse,
@@ -57,17 +62,20 @@ import type {
   GetBestPostTimesParams,
   GetGamificationConfigs200,
   GetPostPerformanceParams,
+  GetPromoQrCodeParams,
   GetRevenueWaterfallParams,
   GetTrendingHashtagsParams,
   HashtagItem,
   HealthStatus,
   Invoice,
   InvoiceDetail,
+  ListAffiliateCommissionsParams,
   ListAmbassadorsParams,
   ListBrandDealsParams,
   ListInvoicesParams,
   ListMicroInfluencersParams,
   ListPostsParams,
+  ListPurchaseVerificationsParams,
   LogBroadcastBody,
   MicroInfluencer,
   PaymentLinkResponse,
@@ -77,8 +85,15 @@ import type {
   Post,
   PostPerformanceItem,
   PostRevision,
+  PromoCampaign,
+  PromoFunnelData,
+  PromoLink,
+  PurchaseVerification,
   RecyclePostBody,
   RevenueWaterfall,
+  ReviewVerificationBody,
+  SubmitPurchaseVerification201,
+  SubmitVerificationBody,
   TierInfo,
   UpdatePostBody,
   UserProfile,
@@ -4949,4 +4964,1200 @@ export function useGetRevenueWaterfall<TData = Awaited<ReturnType<typeof getReve
 
 
 
+
+export const getListPromoCampaignsUrl = () => {
+
+
+
+
+  return `/api/promo-campaigns`
+}
+
+/**
+ * @summary List book promo campaigns
+ */
+export const listPromoCampaigns = async ( options?: RequestInit): Promise<PromoCampaign[]> => {
+
+  return customFetch<PromoCampaign[]>(getListPromoCampaignsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPromoCampaignsQueryKey = () => {
+    return [
+    `/api/promo-campaigns`
+    ] as const;
+    }
+
+
+export const getListPromoCampaignsQueryOptions = <TData = Awaited<ReturnType<typeof listPromoCampaigns>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPromoCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPromoCampaignsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPromoCampaigns>>> = ({ signal }) => listPromoCampaigns({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPromoCampaigns>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPromoCampaignsQueryResult = NonNullable<Awaited<ReturnType<typeof listPromoCampaigns>>>
+export type ListPromoCampaignsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List book promo campaigns
+ */
+
+export function useListPromoCampaigns<TData = Awaited<ReturnType<typeof listPromoCampaigns>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPromoCampaigns>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPromoCampaignsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePromoCampaignUrl = () => {
+
+
+
+
+  return `/api/promo-campaigns`
+}
+
+/**
+ * @summary Create a new promo campaign
+ */
+export const createPromoCampaign = async (createPromoCampaignBody: CreatePromoCampaignBody, options?: RequestInit): Promise<PromoCampaign> => {
+
+  return customFetch<PromoCampaign>(getCreatePromoCampaignUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPromoCampaignBody)
+  }
+);}
+
+
+
+
+export const getCreatePromoCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPromoCampaign>>, TError,{data: BodyType<CreatePromoCampaignBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPromoCampaign>>, TError,{data: BodyType<CreatePromoCampaignBody>}, TContext> => {
+
+const mutationKey = ['createPromoCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPromoCampaign>>, {data: BodyType<CreatePromoCampaignBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPromoCampaign(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePromoCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof createPromoCampaign>>>
+    export type CreatePromoCampaignMutationBody = BodyType<CreatePromoCampaignBody>
+    export type CreatePromoCampaignMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new promo campaign
+ */
+export const useCreatePromoCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPromoCampaign>>, TError,{data: BodyType<CreatePromoCampaignBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPromoCampaign>>,
+        TError,
+        {data: BodyType<CreatePromoCampaignBody>},
+        TContext
+      > => {
+      return useMutation(getCreatePromoCampaignMutationOptions(options));
+    }
+
+export const getUpdatePromoCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/promo-campaigns/${id}`
+}
+
+/**
+ * @summary Update a promo campaign
+ */
+export const updatePromoCampaign = async (id: number,
+    createPromoCampaignBody: CreatePromoCampaignBody, options?: RequestInit): Promise<PromoCampaign> => {
+
+  return customFetch<PromoCampaign>(getUpdatePromoCampaignUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPromoCampaignBody)
+  }
+);}
+
+
+
+
+export const getUpdatePromoCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePromoCampaign>>, TError,{id: number;data: BodyType<CreatePromoCampaignBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePromoCampaign>>, TError,{id: number;data: BodyType<CreatePromoCampaignBody>}, TContext> => {
+
+const mutationKey = ['updatePromoCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePromoCampaign>>, {id: number;data: BodyType<CreatePromoCampaignBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updatePromoCampaign(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePromoCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof updatePromoCampaign>>>
+    export type UpdatePromoCampaignMutationBody = BodyType<CreatePromoCampaignBody>
+    export type UpdatePromoCampaignMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a promo campaign
+ */
+export const useUpdatePromoCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePromoCampaign>>, TError,{id: number;data: BodyType<CreatePromoCampaignBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePromoCampaign>>,
+        TError,
+        {id: number;data: BodyType<CreatePromoCampaignBody>},
+        TContext
+      > => {
+      return useMutation(getUpdatePromoCampaignMutationOptions(options));
+    }
+
+export const getDeletePromoCampaignUrl = (id: number,) => {
+
+
+
+
+  return `/api/promo-campaigns/${id}`
+}
+
+/**
+ * @summary Delete a promo campaign
+ */
+export const deletePromoCampaign = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeletePromoCampaignUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeletePromoCampaignMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePromoCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePromoCampaign>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deletePromoCampaign'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePromoCampaign>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePromoCampaign(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePromoCampaignMutationResult = NonNullable<Awaited<ReturnType<typeof deletePromoCampaign>>>
+
+    export type DeletePromoCampaignMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a promo campaign
+ */
+export const useDeletePromoCampaign = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePromoCampaign>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePromoCampaign>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeletePromoCampaignMutationOptions(options));
+    }
+
+export const getListPromoLinksUrl = (id: number,) => {
+
+
+
+
+  return `/api/promo-campaigns/${id}/links`
+}
+
+/**
+ * @summary List tracked links for a campaign
+ */
+export const listPromoLinks = async (id: number, options?: RequestInit): Promise<PromoLink[]> => {
+
+  return customFetch<PromoLink[]>(getListPromoLinksUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPromoLinksQueryKey = (id: number,) => {
+    return [
+    `/api/promo-campaigns/${id}/links`
+    ] as const;
+    }
+
+
+export const getListPromoLinksQueryOptions = <TData = Awaited<ReturnType<typeof listPromoLinks>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPromoLinks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPromoLinksQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPromoLinks>>> = ({ signal }) => listPromoLinks(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPromoLinks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPromoLinksQueryResult = NonNullable<Awaited<ReturnType<typeof listPromoLinks>>>
+export type ListPromoLinksQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List tracked links for a campaign
+ */
+
+export function useListPromoLinks<TData = Awaited<ReturnType<typeof listPromoLinks>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPromoLinks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPromoLinksQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePromoLinkUrl = (id: number,) => {
+
+
+
+
+  return `/api/promo-campaigns/${id}/links`
+}
+
+/**
+ * @summary Add a tracked link to a campaign
+ */
+export const createPromoLink = async (id: number,
+    createPromoLinkBody: CreatePromoLinkBody, options?: RequestInit): Promise<PromoLink> => {
+
+  return customFetch<PromoLink>(getCreatePromoLinkUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createPromoLinkBody)
+  }
+);}
+
+
+
+
+export const getCreatePromoLinkMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPromoLink>>, TError,{id: number;data: BodyType<CreatePromoLinkBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPromoLink>>, TError,{id: number;data: BodyType<CreatePromoLinkBody>}, TContext> => {
+
+const mutationKey = ['createPromoLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPromoLink>>, {id: number;data: BodyType<CreatePromoLinkBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createPromoLink(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePromoLinkMutationResult = NonNullable<Awaited<ReturnType<typeof createPromoLink>>>
+    export type CreatePromoLinkMutationBody = BodyType<CreatePromoLinkBody>
+    export type CreatePromoLinkMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a tracked link to a campaign
+ */
+export const useCreatePromoLink = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPromoLink>>, TError,{id: number;data: BodyType<CreatePromoLinkBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPromoLink>>,
+        TError,
+        {id: number;data: BodyType<CreatePromoLinkBody>},
+        TContext
+      > => {
+      return useMutation(getCreatePromoLinkMutationOptions(options));
+    }
+
+export const getDeletePromoLinkUrl = (id: number,) => {
+
+
+
+
+  return `/api/promo-links/${id}`
+}
+
+/**
+ * @summary Delete a promo link
+ */
+export const deletePromoLink = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeletePromoLinkUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeletePromoLinkMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePromoLink>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePromoLink>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deletePromoLink'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePromoLink>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePromoLink(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePromoLinkMutationResult = NonNullable<Awaited<ReturnType<typeof deletePromoLink>>>
+
+    export type DeletePromoLinkMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a promo link
+ */
+export const useDeletePromoLink = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePromoLink>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePromoLink>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeletePromoLinkMutationOptions(options));
+    }
+
+export const getGetPromoQrCodeUrl = (id: number,
+    channel: string,
+    params?: GetPromoQrCodeParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/promo-campaigns/${id}/qr/${channel}?${stringifiedParams}` : `/api/promo-campaigns/${id}/qr/${channel}`
+}
+
+/**
+ * @summary Download QR code PNG or SVG for a promo link channel
+ */
+export const getPromoQrCode = async (id: number,
+    channel: string,
+    params?: GetPromoQrCodeParams, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetPromoQrCodeUrl(id,channel,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPromoQrCodeQueryKey = (id: number,
+    channel: string,
+    params?: GetPromoQrCodeParams,) => {
+    return [
+    `/api/promo-campaigns/${id}/qr/${channel}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPromoQrCodeQueryOptions = <TData = Awaited<ReturnType<typeof getPromoQrCode>>, TError = ErrorType<unknown>>(id: number,
+    channel: string,
+    params?: GetPromoQrCodeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoQrCode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPromoQrCodeQueryKey(id,channel,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPromoQrCode>>> = ({ signal }) => getPromoQrCode(id,channel,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined && channel !== null && channel !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPromoQrCode>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPromoQrCodeQueryResult = NonNullable<Awaited<ReturnType<typeof getPromoQrCode>>>
+export type GetPromoQrCodeQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download QR code PNG or SVG for a promo link channel
+ */
+
+export function useGetPromoQrCode<TData = Awaited<ReturnType<typeof getPromoQrCode>>, TError = ErrorType<unknown>>(
+ id: number,
+    channel: string,
+    params?: GetPromoQrCodeParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoQrCode>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPromoQrCodeQueryOptions(id,channel,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPromoFunnelUrl = (id: number,) => {
+
+
+
+
+  return `/api/promo-campaigns/${id}/funnel`
+}
+
+/**
+ * @summary Get funnel analytics for a campaign
+ */
+export const getPromoFunnel = async (id: number, options?: RequestInit): Promise<PromoFunnelData> => {
+
+  return customFetch<PromoFunnelData>(getGetPromoFunnelUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPromoFunnelQueryKey = (id: number,) => {
+    return [
+    `/api/promo-campaigns/${id}/funnel`
+    ] as const;
+    }
+
+
+export const getGetPromoFunnelQueryOptions = <TData = Awaited<ReturnType<typeof getPromoFunnel>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoFunnel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPromoFunnelQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPromoFunnel>>> = ({ signal }) => getPromoFunnel(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPromoFunnel>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPromoFunnelQueryResult = NonNullable<Awaited<ReturnType<typeof getPromoFunnel>>>
+export type GetPromoFunnelQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get funnel analytics for a campaign
+ */
+
+export function useGetPromoFunnel<TData = Awaited<ReturnType<typeof getPromoFunnel>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPromoFunnel>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPromoFunnelQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGenerateDripScheduleUrl = (id: number,) => {
+
+
+
+
+  return `/api/promo-campaigns/${id}/drip-schedule`
+}
+
+/**
+ * @summary Generate 30-day drip content schedule for a campaign
+ */
+export const generateDripSchedule = async (id: number, options?: RequestInit): Promise<DripScheduleResult> => {
+
+  return customFetch<DripScheduleResult>(getGenerateDripScheduleUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getGenerateDripScheduleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateDripSchedule>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateDripSchedule>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['generateDripSchedule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateDripSchedule>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  generateDripSchedule(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateDripScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof generateDripSchedule>>>
+
+    export type GenerateDripScheduleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate 30-day drip content schedule for a campaign
+ */
+export const useGenerateDripSchedule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateDripSchedule>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateDripSchedule>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getGenerateDripScheduleMutationOptions(options));
+    }
+
+export const getListPurchaseVerificationsUrl = (params?: ListPurchaseVerificationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/purchase-verifications?${stringifiedParams}` : `/api/purchase-verifications`
+}
+
+/**
+ * @summary List fan purchase verifications (admin)
+ */
+export const listPurchaseVerifications = async (params?: ListPurchaseVerificationsParams, options?: RequestInit): Promise<PurchaseVerification[]> => {
+
+  return customFetch<PurchaseVerification[]>(getListPurchaseVerificationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPurchaseVerificationsQueryKey = (params?: ListPurchaseVerificationsParams,) => {
+    return [
+    `/api/purchase-verifications`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListPurchaseVerificationsQueryOptions = <TData = Awaited<ReturnType<typeof listPurchaseVerifications>>, TError = ErrorType<unknown>>(params?: ListPurchaseVerificationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPurchaseVerifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPurchaseVerificationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPurchaseVerifications>>> = ({ signal }) => listPurchaseVerifications(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPurchaseVerifications>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPurchaseVerificationsQueryResult = NonNullable<Awaited<ReturnType<typeof listPurchaseVerifications>>>
+export type ListPurchaseVerificationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List fan purchase verifications (admin)
+ */
+
+export function useListPurchaseVerifications<TData = Awaited<ReturnType<typeof listPurchaseVerifications>>, TError = ErrorType<unknown>>(
+ params?: ListPurchaseVerificationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPurchaseVerifications>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPurchaseVerificationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitPurchaseVerificationUrl = () => {
+
+
+
+
+  return `/api/purchase-verifications`
+}
+
+/**
+ * @summary Fan submits a purchase verification (public)
+ */
+export const submitPurchaseVerification = async (submitVerificationBody: SubmitVerificationBody, options?: RequestInit): Promise<SubmitPurchaseVerification201> => {
+
+  return customFetch<SubmitPurchaseVerification201>(getSubmitPurchaseVerificationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(submitVerificationBody)
+  }
+);}
+
+
+
+
+export const getSubmitPurchaseVerificationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPurchaseVerification>>, TError,{data: BodyType<SubmitVerificationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitPurchaseVerification>>, TError,{data: BodyType<SubmitVerificationBody>}, TContext> => {
+
+const mutationKey = ['submitPurchaseVerification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitPurchaseVerification>>, {data: BodyType<SubmitVerificationBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitPurchaseVerification(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitPurchaseVerificationMutationResult = NonNullable<Awaited<ReturnType<typeof submitPurchaseVerification>>>
+    export type SubmitPurchaseVerificationMutationBody = BodyType<SubmitVerificationBody>
+    export type SubmitPurchaseVerificationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Fan submits a purchase verification (public)
+ */
+export const useSubmitPurchaseVerification = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPurchaseVerification>>, TError,{data: BodyType<SubmitVerificationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitPurchaseVerification>>,
+        TError,
+        {data: BodyType<SubmitVerificationBody>},
+        TContext
+      > => {
+      return useMutation(getSubmitPurchaseVerificationMutationOptions(options));
+    }
+
+export const getReviewPurchaseVerificationUrl = (id: number,) => {
+
+
+
+
+  return `/api/purchase-verifications/${id}`
+}
+
+/**
+ * @summary Admin approve or reject a fan purchase verification
+ */
+export const reviewPurchaseVerification = async (id: number,
+    reviewVerificationBody: ReviewVerificationBody, options?: RequestInit): Promise<PurchaseVerification> => {
+
+  return customFetch<PurchaseVerification>(getReviewPurchaseVerificationUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reviewVerificationBody)
+  }
+);}
+
+
+
+
+export const getReviewPurchaseVerificationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewPurchaseVerification>>, TError,{id: number;data: BodyType<ReviewVerificationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewPurchaseVerification>>, TError,{id: number;data: BodyType<ReviewVerificationBody>}, TContext> => {
+
+const mutationKey = ['reviewPurchaseVerification'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewPurchaseVerification>>, {id: number;data: BodyType<ReviewVerificationBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  reviewPurchaseVerification(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewPurchaseVerificationMutationResult = NonNullable<Awaited<ReturnType<typeof reviewPurchaseVerification>>>
+    export type ReviewPurchaseVerificationMutationBody = BodyType<ReviewVerificationBody>
+    export type ReviewPurchaseVerificationMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Admin approve or reject a fan purchase verification
+ */
+export const useReviewPurchaseVerification = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewPurchaseVerification>>, TError,{id: number;data: BodyType<ReviewVerificationBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewPurchaseVerification>>,
+        TError,
+        {id: number;data: BodyType<ReviewVerificationBody>},
+        TContext
+      > => {
+      return useMutation(getReviewPurchaseVerificationMutationOptions(options));
+    }
+
+export const getListAffiliateCommissionsUrl = (params?: ListAffiliateCommissionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/affiliate-commissions?${stringifiedParams}` : `/api/affiliate-commissions`
+}
+
+/**
+ * @summary List affiliate commissions for a campaign
+ */
+export const listAffiliateCommissions = async (params?: ListAffiliateCommissionsParams, options?: RequestInit): Promise<AffiliateCommission[]> => {
+
+  return customFetch<AffiliateCommission[]>(getListAffiliateCommissionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAffiliateCommissionsQueryKey = (params?: ListAffiliateCommissionsParams,) => {
+    return [
+    `/api/affiliate-commissions`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAffiliateCommissionsQueryOptions = <TData = Awaited<ReturnType<typeof listAffiliateCommissions>>, TError = ErrorType<unknown>>(params?: ListAffiliateCommissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAffiliateCommissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAffiliateCommissionsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAffiliateCommissions>>> = ({ signal }) => listAffiliateCommissions(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAffiliateCommissions>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAffiliateCommissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listAffiliateCommissions>>>
+export type ListAffiliateCommissionsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List affiliate commissions for a campaign
+ */
+
+export function useListAffiliateCommissions<TData = Awaited<ReturnType<typeof listAffiliateCommissions>>, TError = ErrorType<unknown>>(
+ params?: ListAffiliateCommissionsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAffiliateCommissions>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAffiliateCommissionsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAffiliateCommissionUrl = () => {
+
+
+
+
+  return `/api/affiliate-commissions`
+}
+
+/**
+ * @summary Add an affiliate ambassador to a campaign
+ */
+export const createAffiliateCommission = async (createAffiliateBody: CreateAffiliateBody, options?: RequestInit): Promise<AffiliateCommission> => {
+
+  return customFetch<AffiliateCommission>(getCreateAffiliateCommissionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createAffiliateBody)
+  }
+);}
+
+
+
+
+export const getCreateAffiliateCommissionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAffiliateCommission>>, TError,{data: BodyType<CreateAffiliateBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAffiliateCommission>>, TError,{data: BodyType<CreateAffiliateBody>}, TContext> => {
+
+const mutationKey = ['createAffiliateCommission'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAffiliateCommission>>, {data: BodyType<CreateAffiliateBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAffiliateCommission(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAffiliateCommissionMutationResult = NonNullable<Awaited<ReturnType<typeof createAffiliateCommission>>>
+    export type CreateAffiliateCommissionMutationBody = BodyType<CreateAffiliateBody>
+    export type CreateAffiliateCommissionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add an affiliate ambassador to a campaign
+ */
+export const useCreateAffiliateCommission = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAffiliateCommission>>, TError,{data: BodyType<CreateAffiliateBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAffiliateCommission>>,
+        TError,
+        {data: BodyType<CreateAffiliateBody>},
+        TContext
+      > => {
+      return useMutation(getCreateAffiliateCommissionMutationOptions(options));
+    }
+
+export const getTriggerAffiliatePayoutUrl = (id: number,) => {
+
+
+
+
+  return `/api/affiliate-commissions/${id}/payout`
+}
+
+/**
+ * @summary Mark affiliate commission as paid (triggers Paystack payout)
+ */
+export const triggerAffiliatePayout = async (id: number, options?: RequestInit): Promise<AffiliateCommission> => {
+
+  return customFetch<AffiliateCommission>(getTriggerAffiliatePayoutUrl(id),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+export const getTriggerAffiliatePayoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerAffiliatePayout>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof triggerAffiliatePayout>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['triggerAffiliatePayout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof triggerAffiliatePayout>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  triggerAffiliatePayout(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TriggerAffiliatePayoutMutationResult = NonNullable<Awaited<ReturnType<typeof triggerAffiliatePayout>>>
+
+    export type TriggerAffiliatePayoutMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Mark affiliate commission as paid (triggers Paystack payout)
+ */
+export const useTriggerAffiliatePayout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof triggerAffiliatePayout>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof triggerAffiliatePayout>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getTriggerAffiliatePayoutMutationOptions(options));
+    }
 

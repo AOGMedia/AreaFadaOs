@@ -1672,3 +1672,399 @@ export const GetRevenueWaterfallResponse = zod.object({
 })
 
 
+/**
+ * @summary List book promo campaigns
+ */
+export const ListPromoCampaignsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullish(),
+  "bookTitle": zod.string(),
+  "coverImageUrl": zod.string().nullish(),
+  "synopsis": zod.string().nullish(),
+  "chapterPreview": zod.string().nullish(),
+  "destinationUrl": zod.string(),
+  "paystackLink": zod.string().nullish(),
+  "launchDate": zod.coerce.date().nullish(),
+  "primaryColor": zod.string(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListPromoCampaignsResponse = zod.array(ListPromoCampaignsResponseItem)
+
+
+/**
+ * @summary Create a new promo campaign
+ */
+export const CreatePromoCampaignBody = zod.object({
+  "name": zod.string(),
+  "bookTitle": zod.string().optional(),
+  "synopsis": zod.string().optional(),
+  "chapterPreview": zod.string().optional(),
+  "destinationUrl": zod.string(),
+  "paystackLink": zod.string().optional(),
+  "launchDate": zod.coerce.date().optional(),
+  "primaryColor": zod.string().optional(),
+  "description": zod.string().optional(),
+  "coverImageUrl": zod.string().optional(),
+  "active": zod.boolean().optional()
+})
+
+export const CreatePromoCampaignResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullish(),
+  "bookTitle": zod.string(),
+  "coverImageUrl": zod.string().nullish(),
+  "synopsis": zod.string().nullish(),
+  "chapterPreview": zod.string().nullish(),
+  "destinationUrl": zod.string(),
+  "paystackLink": zod.string().nullish(),
+  "launchDate": zod.coerce.date().nullish(),
+  "primaryColor": zod.string(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a promo campaign
+ */
+export const UpdatePromoCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePromoCampaignBody = zod.object({
+  "name": zod.string(),
+  "bookTitle": zod.string().optional(),
+  "synopsis": zod.string().optional(),
+  "chapterPreview": zod.string().optional(),
+  "destinationUrl": zod.string(),
+  "paystackLink": zod.string().optional(),
+  "launchDate": zod.coerce.date().optional(),
+  "primaryColor": zod.string().optional(),
+  "description": zod.string().optional(),
+  "coverImageUrl": zod.string().optional(),
+  "active": zod.boolean().optional()
+})
+
+export const UpdatePromoCampaignResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullish(),
+  "bookTitle": zod.string(),
+  "coverImageUrl": zod.string().nullish(),
+  "synopsis": zod.string().nullish(),
+  "chapterPreview": zod.string().nullish(),
+  "destinationUrl": zod.string(),
+  "paystackLink": zod.string().nullish(),
+  "launchDate": zod.coerce.date().nullish(),
+  "primaryColor": zod.string(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a promo campaign
+ */
+export const DeletePromoCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePromoCampaignResponse = zod.void()
+
+
+/**
+ * @summary List tracked links for a campaign
+ */
+export const ListPromoLinksParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListPromoLinksResponseItem = zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "userId": zod.number(),
+  "channel": zod.string(),
+  "label": zod.string(),
+  "clickCount": zod.number(),
+  "conversionCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListPromoLinksResponse = zod.array(ListPromoLinksResponseItem)
+
+
+/**
+ * @summary Add a tracked link to a campaign
+ */
+export const CreatePromoLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CreatePromoLinkBody = zod.object({
+  "channel": zod.string(),
+  "label": zod.string()
+})
+
+export const CreatePromoLinkResponse = zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "userId": zod.number(),
+  "channel": zod.string(),
+  "label": zod.string(),
+  "clickCount": zod.number(),
+  "conversionCount": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a promo link
+ */
+export const DeletePromoLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePromoLinkResponse = zod.void()
+
+
+/**
+ * @summary Download QR code PNG or SVG for a promo link channel
+ */
+export const GetPromoQrCodeParams = zod.object({
+  "id": zod.coerce.number(),
+  "channel": zod.coerce.string()
+})
+
+export const getPromoQrCodeQueryFormatDefault = `png`;
+
+export const GetPromoQrCodeQueryParams = zod.object({
+  "format": zod.enum(['png', 'svg']).default(getPromoQrCodeQueryFormatDefault)
+})
+
+export const GetPromoQrCodeResponse = zod.unknown()
+
+
+/**
+ * @summary Get funnel analytics for a campaign
+ */
+export const GetPromoFunnelParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPromoFunnelResponse = zod.object({
+  "campaign": zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().nullish(),
+  "bookTitle": zod.string(),
+  "coverImageUrl": zod.string().nullish(),
+  "synopsis": zod.string().nullish(),
+  "chapterPreview": zod.string().nullish(),
+  "destinationUrl": zod.string(),
+  "paystackLink": zod.string().nullish(),
+  "launchDate": zod.coerce.date().nullish(),
+  "primaryColor": zod.string(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "funnelSteps": zod.array(zod.object({
+  "step": zod.string(),
+  "value": zod.number()
+})),
+  "channelBreakdown": zod.array(zod.object({
+  "channel": zod.string(),
+  "label": zod.string(),
+  "clicks": zod.number(),
+  "conversions": zod.number(),
+  "conversionRate": zod.string()
+})),
+  "totalClicks": zod.number(),
+  "totalConversions": zod.number(),
+  "pendingVerifications": zod.number()
+})
+
+
+/**
+ * @summary Generate 30-day drip content schedule for a campaign
+ */
+export const GenerateDripScheduleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GenerateDripScheduleResponse = zod.object({
+  "message": zod.string(),
+  "posts": zod.array(zod.object({
+  "platform": zod.string(),
+  "content": zod.string(),
+  "scheduledDate": zod.coerce.date()
+})),
+  "campaignId": zod.number()
+})
+
+
+/**
+ * @summary List fan purchase verifications (admin)
+ */
+export const ListPurchaseVerificationsQueryParams = zod.object({
+  "campaignId": zod.coerce.number().optional(),
+  "status": zod.enum(['pending', 'approved', 'rejected']).optional()
+})
+
+export const ListPurchaseVerificationsResponseItem = zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "userId": zod.number(),
+  "fanName": zod.string(),
+  "fanEmail": zod.string(),
+  "fanPhone": zod.string().nullish(),
+  "paymentRef": zod.string().nullish(),
+  "receiptNote": zod.string().nullish(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "bonusCode": zod.string().nullish(),
+  "reviewNote": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListPurchaseVerificationsResponse = zod.array(ListPurchaseVerificationsResponseItem)
+
+
+/**
+ * @summary Fan submits a purchase verification (public)
+ */
+export const SubmitPurchaseVerificationBody = zod.object({
+  "campaignId": zod.number(),
+  "fanName": zod.string(),
+  "fanEmail": zod.string(),
+  "fanPhone": zod.string().optional(),
+  "paymentRef": zod.string().optional(),
+  "receiptNote": zod.string().optional()
+})
+
+export const SubmitPurchaseVerificationResponse = zod.object({
+  "message": zod.string().optional(),
+  "id": zod.number().optional()
+})
+
+
+/**
+ * @summary Admin approve or reject a fan purchase verification
+ */
+export const ReviewPurchaseVerificationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ReviewPurchaseVerificationBody = zod.object({
+  "status": zod.enum(['approved', 'rejected']),
+  "reviewNote": zod.string().optional()
+})
+
+export const ReviewPurchaseVerificationResponse = zod.object({
+  "id": zod.number(),
+  "campaignId": zod.number(),
+  "userId": zod.number(),
+  "fanName": zod.string(),
+  "fanEmail": zod.string(),
+  "fanPhone": zod.string().nullish(),
+  "paymentRef": zod.string().nullish(),
+  "receiptNote": zod.string().nullish(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "bonusCode": zod.string().nullish(),
+  "reviewNote": zod.string().nullish(),
+  "reviewedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List affiliate commissions for a campaign
+ */
+export const ListAffiliateCommissionsQueryParams = zod.object({
+  "campaignId": zod.coerce.number().optional()
+})
+
+export const ListAffiliateCommissionsResponseItem = zod.object({
+  "id": zod.number(),
+  "promoLinkId": zod.number(),
+  "campaignId": zod.number(),
+  "userId": zod.number(),
+  "ambassadorName": zod.string(),
+  "ambassadorEmail": zod.string(),
+  "commissionRate": zod.string(),
+  "totalClicks": zod.number(),
+  "totalConversions": zod.number(),
+  "totalEarned": zod.string(),
+  "paidAmount": zod.string(),
+  "payoutStatus": zod.string(),
+  "referralUrl": zod.string().optional(),
+  "createdAt": zod.coerce.date()
+})
+export const ListAffiliateCommissionsResponse = zod.array(ListAffiliateCommissionsResponseItem)
+
+
+/**
+ * @summary Add an affiliate ambassador to a campaign
+ */
+export const CreateAffiliateCommissionBody = zod.object({
+  "campaignId": zod.number(),
+  "ambassadorName": zod.string(),
+  "ambassadorEmail": zod.string(),
+  "commissionRate": zod.string().optional()
+})
+
+export const CreateAffiliateCommissionResponse = zod.object({
+  "id": zod.number(),
+  "promoLinkId": zod.number(),
+  "campaignId": zod.number(),
+  "userId": zod.number(),
+  "ambassadorName": zod.string(),
+  "ambassadorEmail": zod.string(),
+  "commissionRate": zod.string(),
+  "totalClicks": zod.number(),
+  "totalConversions": zod.number(),
+  "totalEarned": zod.string(),
+  "paidAmount": zod.string(),
+  "payoutStatus": zod.string(),
+  "referralUrl": zod.string().optional(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Mark affiliate commission as paid (triggers Paystack payout)
+ */
+export const TriggerAffiliatePayoutParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const TriggerAffiliatePayoutResponse = zod.object({
+  "id": zod.number(),
+  "promoLinkId": zod.number(),
+  "campaignId": zod.number(),
+  "userId": zod.number(),
+  "ambassadorName": zod.string(),
+  "ambassadorEmail": zod.string(),
+  "commissionRate": zod.string(),
+  "totalClicks": zod.number(),
+  "totalConversions": zod.number(),
+  "totalEarned": zod.string(),
+  "paidAmount": zod.string(),
+  "payoutStatus": zod.string(),
+  "referralUrl": zod.string().optional(),
+  "createdAt": zod.coerce.date()
+})
+
+

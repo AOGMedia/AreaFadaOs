@@ -26,6 +26,8 @@ tags:
     description: Analytics, audience geography, best post times, engagement scores, and reports
   - name: ambassadors
     description: Ambassador CRM, gamification, leaderboard, micro-influencer directory, WhatsApp broadcast log
+  - name: bookPromo
+    description: Book Download Promotion Engine — campaigns, tracked links, QR codes, funnel analytics, drip scheduler, fan verifications, affiliate commissions
 
 paths:
   /healthz:
@@ -1246,6 +1248,337 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RevenueWaterfall"
+
+  # ─── Book Promo Engine ────────────────────────────────────────────────────────
+
+  /promo-campaigns:
+    get:
+      operationId: listPromoCampaigns
+      tags: [bookPromo]
+      summary: List book promo campaigns
+      responses:
+        "200":
+          description: List of promo campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PromoCampaign"
+    post:
+      operationId: createPromoCampaign
+      tags: [bookPromo]
+      summary: Create a new promo campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromoCampaignBody"
+      responses:
+        "201":
+          description: Created campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoCampaign"
+
+  /promo-campaigns/{id}:
+    patch:
+      operationId: updatePromoCampaign
+      tags: [bookPromo]
+      summary: Update a promo campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromoCampaignBody"
+      responses:
+        "200":
+          description: Updated campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoCampaign"
+    delete:
+      operationId: deletePromoCampaign
+      tags: [bookPromo]
+      summary: Delete a promo campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /promo-campaigns/{id}/links:
+    get:
+      operationId: listPromoLinks
+      tags: [bookPromo]
+      summary: List tracked links for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of promo links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PromoLink"
+    post:
+      operationId: createPromoLink
+      tags: [bookPromo]
+      summary: Add a tracked link to a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromoLinkBody"
+      responses:
+        "201":
+          description: Created link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoLink"
+
+  /promo-links/{id}:
+    delete:
+      operationId: deletePromoLink
+      tags: [bookPromo]
+      summary: Delete a promo link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /promo-campaigns/{id}/qr/{channel}:
+    get:
+      operationId: getPromoQrCode
+      tags: [bookPromo]
+      summary: Download QR code PNG or SVG for a promo link channel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: channel
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [png, svg]
+            default: png
+      responses:
+        "200":
+          description: QR code image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/svg+xml:
+              schema:
+                type: string
+
+  /promo-campaigns/{id}/funnel:
+    get:
+      operationId: getPromoFunnel
+      tags: [bookPromo]
+      summary: Get funnel analytics for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Funnel analytics data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoFunnelData"
+
+  /promo-campaigns/{id}/drip-schedule:
+    post:
+      operationId: generateDripSchedule
+      tags: [bookPromo]
+      summary: Generate 30-day drip content schedule for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Generated drip posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DripScheduleResult"
+
+  /purchase-verifications:
+    get:
+      operationId: listPurchaseVerifications
+      tags: [bookPromo]
+      summary: List fan purchase verifications (admin)
+      parameters:
+        - name: campaignId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+      responses:
+        "200":
+          description: List of verifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PurchaseVerification"
+    post:
+      operationId: submitPurchaseVerification
+      tags: [bookPromo]
+      summary: Fan submits a purchase verification (public)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitVerificationBody"
+      responses:
+        "201":
+          description: Submission received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  id:
+                    type: integer
+
+  /purchase-verifications/{id}:
+    patch:
+      operationId: reviewPurchaseVerification
+      tags: [bookPromo]
+      summary: Admin approve or reject a fan purchase verification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewVerificationBody"
+      responses:
+        "200":
+          description: Updated verification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PurchaseVerification"
+
+  /affiliate-commissions:
+    get:
+      operationId: listAffiliateCommissions
+      tags: [bookPromo]
+      summary: List affiliate commissions for a campaign
+      parameters:
+        - name: campaignId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of commissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AffiliateCommission"
+    post:
+      operationId: createAffiliateCommission
+      tags: [bookPromo]
+      summary: Add an affiliate ambassador to a campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAffiliateBody"
+      responses:
+        "201":
+          description: Created affiliate record with referral URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateCommission"
+
+  /affiliate-commissions/{id}/payout:
+    patch:
+      operationId: triggerAffiliatePayout
+      tags: [bookPromo]
+      summary: Mark affiliate commission as paid (triggers Paystack payout)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Payout triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateCommission"
 
 components:
   schemas:
@@ -2624,4 +2957,283 @@ components:
           type: string
           format: date-time
         notes:
+          type: string
+
+    # ─── Book Promo Schemas ────────────────────────────────────────────────────
+
+    PromoCampaign:
+      type: object
+      required: [id, userId, name, slug, bookTitle, destinationUrl, primaryColor, active, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: ["string", "null"]
+        bookTitle:
+          type: string
+        coverImageUrl:
+          type: ["string", "null"]
+        synopsis:
+          type: ["string", "null"]
+        chapterPreview:
+          type: ["string", "null"]
+        destinationUrl:
+          type: string
+        paystackLink:
+          type: ["string", "null"]
+        launchDate:
+          type: ["string", "null"]
+          format: date-time
+        primaryColor:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePromoCampaignBody:
+      type: object
+      required: [name, destinationUrl]
+      properties:
+        name:
+          type: string
+        bookTitle:
+          type: string
+        synopsis:
+          type: string
+        chapterPreview:
+          type: string
+        destinationUrl:
+          type: string
+        paystackLink:
+          type: string
+        launchDate:
+          type: string
+          format: date-time
+        primaryColor:
+          type: string
+        description:
+          type: string
+        coverImageUrl:
+          type: string
+        active:
+          type: boolean
+
+    PromoLink:
+      type: object
+      required: [id, campaignId, userId, channel, label, clickCount, conversionCount, createdAt]
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        channel:
+          type: string
+        label:
+          type: string
+        clickCount:
+          type: integer
+        conversionCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreatePromoLinkBody:
+      type: object
+      required: [channel, label]
+      properties:
+        channel:
+          type: string
+        label:
+          type: string
+
+    PromoFunnelStep:
+      type: object
+      required: [step, value]
+      properties:
+        step:
+          type: string
+        value:
+          type: integer
+
+    PromoChannelBreakdown:
+      type: object
+      required: [channel, label, clicks, conversions, conversionRate]
+      properties:
+        channel:
+          type: string
+        label:
+          type: string
+        clicks:
+          type: integer
+        conversions:
+          type: integer
+        conversionRate:
+          type: string
+
+    PromoFunnelData:
+      type: object
+      required: [campaign, funnelSteps, channelBreakdown, totalClicks, totalConversions, pendingVerifications]
+      properties:
+        campaign:
+          $ref: "#/components/schemas/PromoCampaign"
+        funnelSteps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromoFunnelStep"
+        channelBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/PromoChannelBreakdown"
+        totalClicks:
+          type: integer
+        totalConversions:
+          type: integer
+        pendingVerifications:
+          type: integer
+
+    DripPost:
+      type: object
+      required: [platform, content, scheduledDate]
+      properties:
+        platform:
+          type: string
+        content:
+          type: string
+        scheduledDate:
+          type: string
+          format: date-time
+
+    DripScheduleResult:
+      type: object
+      required: [message, posts, campaignId]
+      properties:
+        message:
+          type: string
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/DripPost"
+        campaignId:
+          type: integer
+
+    PurchaseVerification:
+      type: object
+      required: [id, campaignId, userId, fanName, fanEmail, status, createdAt]
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        fanName:
+          type: string
+        fanEmail:
+          type: string
+        fanPhone:
+          type: ["string", "null"]
+        paymentRef:
+          type: ["string", "null"]
+        receiptNote:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        bonusCode:
+          type: ["string", "null"]
+        reviewNote:
+          type: ["string", "null"]
+        reviewedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    SubmitVerificationBody:
+      type: object
+      required: [campaignId, fanName, fanEmail]
+      properties:
+        campaignId:
+          type: integer
+        fanName:
+          type: string
+        fanEmail:
+          type: string
+        fanPhone:
+          type: string
+        paymentRef:
+          type: string
+        receiptNote:
+          type: string
+
+    ReviewVerificationBody:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected]
+        reviewNote:
+          type: string
+
+    AffiliateCommission:
+      type: object
+      required: [id, promoLinkId, campaignId, userId, ambassadorName, ambassadorEmail, commissionRate, totalClicks, totalConversions, totalEarned, paidAmount, payoutStatus, createdAt]
+      properties:
+        id:
+          type: integer
+        promoLinkId:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        ambassadorName:
+          type: string
+        ambassadorEmail:
+          type: string
+        commissionRate:
+          type: string
+        totalClicks:
+          type: integer
+        totalConversions:
+          type: integer
+        totalEarned:
+          type: string
+        paidAmount:
+          type: string
+        payoutStatus:
+          type: string
+        referralUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateAffiliateBody:
+      type: object
+      required: [campaignId, ambassadorName, ambassadorEmail]
+      properties:
+        campaignId:
+          type: integer
+        ambassadorName:
+          type: string
+        ambassadorEmail:
+          type: string
+        commissionRate:
           type: string

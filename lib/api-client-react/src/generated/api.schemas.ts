@@ -804,6 +804,172 @@ export interface LogBroadcastBody {
   notes?: string;
 }
 
+export interface PromoCampaign {
+  id: number;
+  userId: number;
+  name: string;
+  slug: string;
+  /** @nullable */
+  description?: string | null;
+  bookTitle: string;
+  /** @nullable */
+  coverImageUrl?: string | null;
+  /** @nullable */
+  synopsis?: string | null;
+  /** @nullable */
+  chapterPreview?: string | null;
+  destinationUrl: string;
+  /** @nullable */
+  paystackLink?: string | null;
+  /** @nullable */
+  launchDate?: string | null;
+  primaryColor: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePromoCampaignBody {
+  name: string;
+  bookTitle?: string;
+  synopsis?: string;
+  chapterPreview?: string;
+  destinationUrl: string;
+  paystackLink?: string;
+  launchDate?: string;
+  primaryColor?: string;
+  description?: string;
+  coverImageUrl?: string;
+  active?: boolean;
+}
+
+export interface PromoLink {
+  id: number;
+  campaignId: number;
+  userId: number;
+  channel: string;
+  label: string;
+  clickCount: number;
+  conversionCount: number;
+  createdAt: string;
+}
+
+export interface CreatePromoLinkBody {
+  channel: string;
+  label: string;
+}
+
+export interface PromoFunnelStep {
+  step: string;
+  value: number;
+}
+
+export interface PromoChannelBreakdown {
+  channel: string;
+  label: string;
+  clicks: number;
+  conversions: number;
+  conversionRate: string;
+}
+
+export interface PromoFunnelData {
+  campaign: PromoCampaign;
+  funnelSteps: PromoFunnelStep[];
+  channelBreakdown: PromoChannelBreakdown[];
+  totalClicks: number;
+  totalConversions: number;
+  pendingVerifications: number;
+}
+
+export interface DripPost {
+  platform: string;
+  content: string;
+  scheduledDate: string;
+}
+
+export interface DripScheduleResult {
+  message: string;
+  posts: DripPost[];
+  campaignId: number;
+}
+
+export type PurchaseVerificationStatus = typeof PurchaseVerificationStatus[keyof typeof PurchaseVerificationStatus];
+
+
+export const PurchaseVerificationStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface PurchaseVerification {
+  id: number;
+  campaignId: number;
+  userId: number;
+  fanName: string;
+  fanEmail: string;
+  /** @nullable */
+  fanPhone?: string | null;
+  /** @nullable */
+  paymentRef?: string | null;
+  /** @nullable */
+  receiptNote?: string | null;
+  status: PurchaseVerificationStatus;
+  /** @nullable */
+  bonusCode?: string | null;
+  /** @nullable */
+  reviewNote?: string | null;
+  /** @nullable */
+  reviewedAt?: string | null;
+  createdAt: string;
+}
+
+export interface SubmitVerificationBody {
+  campaignId: number;
+  fanName: string;
+  fanEmail: string;
+  fanPhone?: string;
+  paymentRef?: string;
+  receiptNote?: string;
+}
+
+export type ReviewVerificationBodyStatus = typeof ReviewVerificationBodyStatus[keyof typeof ReviewVerificationBodyStatus];
+
+
+export const ReviewVerificationBodyStatus = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface ReviewVerificationBody {
+  status: ReviewVerificationBodyStatus;
+  reviewNote?: string;
+}
+
+export interface AffiliateCommission {
+  id: number;
+  promoLinkId: number;
+  campaignId: number;
+  userId: number;
+  ambassadorName: string;
+  ambassadorEmail: string;
+  commissionRate: string;
+  totalClicks: number;
+  totalConversions: number;
+  totalEarned: string;
+  paidAmount: string;
+  payoutStatus: string;
+  referralUrl?: string;
+  createdAt: string;
+}
+
+export interface CreateAffiliateBody {
+  campaignId: number;
+  ambassadorName: string;
+  ambassadorEmail: string;
+  commissionRate?: string;
+}
+
 export type ListPostsParams = {
 status?: ListPostsStatus;
 campaignId?: number;
@@ -898,5 +1064,40 @@ export type GetRevenueWaterfallParams = {
  */
 currency?: Currency;
 months?: number;
+};
+
+export type GetPromoQrCodeParams = {
+format?: GetPromoQrCodeFormat;
+};
+
+export type GetPromoQrCodeFormat = typeof GetPromoQrCodeFormat[keyof typeof GetPromoQrCodeFormat];
+
+
+export const GetPromoQrCodeFormat = {
+  png: 'png',
+  svg: 'svg',
+} as const;
+
+export type ListPurchaseVerificationsParams = {
+campaignId?: number;
+status?: ListPurchaseVerificationsStatus;
+};
+
+export type ListPurchaseVerificationsStatus = typeof ListPurchaseVerificationsStatus[keyof typeof ListPurchaseVerificationsStatus];
+
+
+export const ListPurchaseVerificationsStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export type SubmitPurchaseVerification201 = {
+  message?: string;
+  id?: number;
+};
+
+export type ListAffiliateCommissionsParams = {
+campaignId?: number;
 };
 
