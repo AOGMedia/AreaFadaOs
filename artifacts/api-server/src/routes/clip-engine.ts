@@ -325,6 +325,17 @@ router.patch("/clips/:id", ...requireClip, async (req: any, res): Promise<void> 
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const { label, format, captionTone, captionText, hashtags, status, coverFrameTime, collabEnabled, collabAccountId, watermarkApplied, accountId } = req.body;
+    // Validate ownership of any mutable foreign keys before applying patch
+    if (accountId !== undefined) {
+      const [owned] = await db.select({ id: clipAccountsTable.id }).from(clipAccountsTable)
+        .where(and(eq(clipAccountsTable.id, Number(accountId)), eq(clipAccountsTable.userId, user.id)));
+      if (!owned) { res.status(403).json({ error: "Clip account not found or not owned by you" }); return; }
+    }
+    if (collabAccountId !== undefined) {
+      const [owned] = await db.select({ id: clipAccountsTable.id }).from(clipAccountsTable)
+        .where(and(eq(clipAccountsTable.id, Number(collabAccountId)), eq(clipAccountsTable.userId, user.id)));
+      if (!owned) { res.status(403).json({ error: "Collab account not found or not owned by you" }); return; }
+    }
     const patch: Record<string, unknown> = { updatedAt: new Date() };
     if (label !== undefined) patch.label = label;
     if (format !== undefined) patch.format = format;
@@ -518,10 +529,10 @@ router.post("/clips/:id/collab", ...requireClip, async (req: any, res): Promise<
       originalAccount = oa ?? null;
     }
 
-    // Auto-insert collaborating account tag into caption text
-    const collabHandle = (collabAccount.personaProfile as Record<string, string>)?.handle ?? `@${collabAccount.name.replace(/\s+/g, "_").toLowerCase()}`;
+    // Auto-insert collaborating account tag into caption text using canonical handle column
+    const collabHandle = collabAccount.handle || `@${collabAccount.name.replace(/\s+/g, "_").toLowerCase()}`;
     const origHandle = originalAccount
-      ? ((originalAccount.personaProfile as Record<string, string>)?.handle ?? `@${originalAccount.name.replace(/\s+/g, "_").toLowerCase()}`)
+      ? (originalAccount.handle || `@${originalAccount.name.replace(/\s+/g, "_").toLowerCase()}`)
       : "";
     const taggedCaption = clip.captionText
       ? `${clip.captionText}\n\n🤝 ft. ${collabHandle}`
