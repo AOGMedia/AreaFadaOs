@@ -53,6 +53,19 @@ export const platformAccountsTable = pgTable("platform_accounts", {
   displayName: text("display_name"),
   connected: boolean("connected").notNull().default(false),
   followerCount: integer("follower_count").notNull().default(0),
+  // OAuth token fields — stored AES-256-GCM encrypted
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+  platformUserId: text("platform_user_id"),
+  scopes: jsonb("scopes").$type<string[]>(),
+  // Temporary PKCE / state storage during the OAuth redirect round-trip
+  oauthState: text("oauth_state"),
+  // Last error from platform API
+  errorMessage: text("error_message"),
+  // rate_limit | auth_failure | content_policy
+  errorCode: text("error_code"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
