@@ -11,7 +11,15 @@ import {
   whatsappBroadcastsTable,
   usersTable,
 } from "@workspace/db";
-import { eq, desc, and, gte, ilike, sql } from "drizzle-orm";
+import { eq, desc, and, gte, ilike, sql, inArray } from "drizzle-orm";
+
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function csvSafe(val: string): string {
+  const escaped = val.replace(/"/g, '""');
+  return /^[=+\-@|]/.test(val) ? `'${escaped}` : escaped;
+}
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
 
@@ -303,7 +311,7 @@ router.get("/ambassadors/leaderboard/csv", requireAuth, requireTier("agency"), a
 
     const header = "Rank,Name,State,Zone,Tier,Points,Tasks Completed,Referrals,Platform,Handle,Status";
     const csvRows = rows.map((a, i) =>
-      `${i + 1},"${a.name}","${a.state}","${a.zone}","${a.tier}",${a.totalPoints},${a.tasksCompleted},${a.referrals},"${a.platform ?? ""}","${a.handle ?? ""}","${a.status}"`
+      `${i + 1},"${csvSafe(a.name)}","${csvSafe(a.state)}","${csvSafe(a.zone)}","${a.tier}",${a.totalPoints},${a.tasksCompleted},${a.referrals},"${csvSafe(a.platform ?? "")}","${csvSafe(a.handle ?? "")}","${a.status}"`
     );
     const csv = [header, ...csvRows].join("\n");
 
@@ -333,7 +341,10 @@ router.post("/ambassadors/:id/points", requireAuth, requireTier("agency"), async
     await db.insert(ambassadorPointsTable).values({ ambassadorId, userId: user.id, action, points, description });
 
     const newTotal = ambassador.totalPoints + points;
-    const tier = newTotal >= 4000 ? "gold" : newTotal >= 2000 ? "silver" : newTotal >= 800 ? "bronze" : "member";
+    const managedTiers = await db.select({ name: rewardTiersTable.name, minPoints: rewardTiersTable.minPoints })
+      .from(rewardTiersTable).where(eq(rewardTiersTable.userId, user.id))
+      .orderBy(desc(rewardTiersTable.minPoints));
+    const tier = managedTiers.find(t => newTotal >= t.minPoints)?.name ?? "member";
     const [updated] = await db.update(ambassadorsTable)
       .set({ totalPoints: newTotal, tier })
       .where(eq(ambassadorsTable.id, ambassadorId))
@@ -460,7 +471,10 @@ router.post("/ambassador-tasks/:id/complete", requireAuth, requireTier("agency")
       const newTasksCompleted = amb.tasksCompleted + 1;
       if (task.pointReward > 0) {
         const newTotal = amb.totalPoints + task.pointReward;
-        const tier = newTotal >= 4000 ? "gold" : newTotal >= 2000 ? "silver" : newTotal >= 800 ? "bronze" : "member";
+        const mTiers = await tx.select({ name: rewardTiersTable.name, minPoints: rewardTiersTable.minPoints })
+          .from(rewardTiersTable).where(eq(rewardTiersTable.userId, user.id))
+          .orderBy(desc(rewardTiersTable.minPoints));
+        const tier = (mTiers as Array<{ name: string; minPoints: number }>).find(t => newTotal >= t.minPoints)?.name ?? "member";
         await tx.insert(ambassadorPointsTable).values({
           ambassadorId, userId: user.id, action: "task_complete",
           points: task.pointReward, description: `Completed: ${task.title}`,
@@ -541,6 +555,99 @@ router.patch("/gamification-configs/:id", requireAuth, requireTier("agency"), as
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update config" });
+  }
+});
+
+// ─── POST /reward-tiers ────────────────────────────────────────────────────
+router.post("/reward-tiers", requireAuth, requireTier("agency"), async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const { name, minPoints, maxPoints, badgeColor, rewardDescription } = req.body;
+    if (!name || minPoints === undefined) { res.status(400).json({ error: "name and minPoints required" }); return; }
+
+    const [created] = await db.insert(rewardTiersTable)
+      .values({ userId: user.id, name, minPoints: Number(minPoints), maxPoints: maxPoints ? Number(maxPoints) : undefined, badgeColor: badgeColor ?? "#6b7280", rewardDescription })
+      .returning();
+    res.status(201).json(created);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create reward tier" });
+  }
+});
+
+// ─── PATCH /reward-tiers/:id ───────────────────────────────────────────────
+router.patch("/reward-tiers/:id", requireAuth, requireTier("agency"), async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const { name, minPoints, maxPoints, badgeColor, rewardDescription } = req.body;
+    const [updated] = await db.update(rewardTiersTable)
+      .set({ name, minPoints: minPoints !== undefined ? Number(minPoints) : undefined, maxPoints: maxPoints !== undefined ? Number(maxPoints) : undefined, badgeColor, rewardDescription })
+      .where(and(eq(rewardTiersTable.id, Number(req.params.id)), eq(rewardTiersTable.userId, user.id)))
+      .returning();
+
+    if (!updated) { res.status(404).json({ error: "Tier not found" }); return; }
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update reward tier" });
+  }
+});
+
+// ─── DELETE /reward-tiers/:id ──────────────────────────────────────────────
+router.delete("/reward-tiers/:id", requireAuth, requireTier("agency"), async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    await db.delete(rewardTiersTable)
+      .where(and(eq(rewardTiersTable.id, Number(req.params.id)), eq(rewardTiersTable.userId, user.id)));
+    res.status(204).end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete reward tier" });
+  }
+});
+
+// ─── GET /ambassadors/leaderboard/weekly ──────────────────────────────────
+router.get("/ambassadors/leaderboard/weekly", requireAuth, requireTier("agency"), async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const weekStart = new Date();
+    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday = start of week
+
+    const weeklyPoints = await db.select({
+      ambassadorId: ambassadorPointsTable.ambassadorId,
+      weeklyPoints: sql<number>`CAST(SUM(${ambassadorPointsTable.points}) AS INTEGER)`,
+    }).from(ambassadorPointsTable)
+      .where(and(eq(ambassadorPointsTable.userId, user.id), gte(ambassadorPointsTable.createdAt, weekStart)))
+      .groupBy(ambassadorPointsTable.ambassadorId);
+
+    if (weeklyPoints.length === 0) { res.json({ weekStart, leaders: [] }); return; }
+
+    const ambassadorIds = weeklyPoints.map(r => r.ambassadorId);
+    const ambassadorRows = await db.select({
+      id: ambassadorsTable.id, name: ambassadorsTable.name, state: ambassadorsTable.state,
+      zone: ambassadorsTable.zone, tier: ambassadorsTable.tier, avatarInitials: ambassadorsTable.avatarInitials,
+    }).from(ambassadorsTable)
+      .where(and(eq(ambassadorsTable.userId, user.id), inArray(ambassadorsTable.id, ambassadorIds)));
+
+    const leaders = weeklyPoints
+      .map(wp => ({ ...ambassadorRows.find(a => a.id === wp.ambassadorId), weeklyPoints: wp.weeklyPoints }))
+      .filter(r => r.id !== undefined)
+      .sort((a, b) => b.weeklyPoints - a.weeklyPoints)
+      .slice(0, 5);
+
+    res.json({ weekStart, leaders });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to get weekly leaderboard" });
   }
 });
 
@@ -755,19 +862,27 @@ router.get("/ambassadors/widget", async (req: any, res): Promise<void> => {
     const tierIcon: Record<string, string> = { gold: "🥇", silver: "🥈", bronze: "🥉", member: "" };
     const medalIcons = ["🥇", "🥈", "🥉"];
 
-    const rows_html = rows.map((a, i) => `
+    const rows_html = rows.map((a, i) => {
+      const initials = esc(a.avatarInitials ?? a.name.slice(0, 2).toUpperCase());
+      const name = esc(a.name);
+      const state = esc(a.state);
+      const zone = esc(a.zone);
+      const color = esc(zoneColor[a.zone] ?? "#6b7280");
+      const medal = medalIcons[i] ?? `<span style="color:#94a3b8;font-size:13px;font-family:monospace;">${i + 1}</span>`;
+      return `
       <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #f1f5f9;">
-        <span style="font-size:18px;width:24px;text-align:center;">${medalIcons[i] ?? `<span style="color:#94a3b8;font-size:13px;font-family:monospace;">${i + 1}</span>`}</span>
-        <div style="width:36px;height:36px;border-radius:50%;background:${zoneColor[a.zone] ?? "#6b7280"};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;">${a.avatarInitials ?? a.name.slice(0, 2).toUpperCase()}</div>
+        <span style="font-size:18px;width:24px;text-align:center;">${medal}</span>
+        <div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;">${initials}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:13px;color:#0f172a;">${a.name}</div>
-          <div style="font-size:11px;color:#64748b;">${a.state} · ${a.zone}</div>
+          <div style="font-weight:600;font-size:13px;color:#0f172a;">${name}</div>
+          <div style="font-size:11px;color:#64748b;">${state} · ${zone}</div>
         </div>
         <div style="text-align:right;">
           <div style="font-weight:700;font-size:14px;color:#0f172a;">${a.totalPoints.toLocaleString()}</div>
-          <div style="font-size:11px;color:#94a3b8;">pts ${tierIcon[a.tier] ?? ""}</div>
+          <div style="font-size:11px;color:#94a3b8;">pts ${esc(tierIcon[a.tier] ?? "")}</div>
         </div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
 
     const html = `<!DOCTYPE html>
 <html lang="en">

@@ -18,7 +18,7 @@ import {
 } from "recharts";
 import {
   Users, Trophy, CheckSquare, Star, MessageCircle, Zap, Download, Plus,
-  MapPin, Phone, Mail, Send, Copy, ChevronRight, Search, Filter,
+  MapPin, Phone, Mail, Send, Copy, ChevronRight, Search, Filter, X,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
@@ -361,11 +361,22 @@ function StateMapTab({ ambassadors, onRefetch }: { ambassadors: Ambassador[]; on
   );
 }
 
+type WeeklyLeader = { id: number; name: string; state: string; zone: string; tier: string; avatarInitials?: string | null; weeklyPoints: number; };
+
 // ─── Leaderboard Tab ───────────────────────────────────────────────────────────
 function LeaderboardTab({ ambassadors }: { ambassadors: Ambassador[] }) {
   const { toast } = useToast();
   const { user } = useUser();
   const [widgetOpen, setWidgetOpen] = useState(false);
+
+  const { data: weeklyData } = useQuery<{ weekStart: string; leaders: WeeklyLeader[] }>({
+    queryKey: ["ambassadors-weekly"],
+    queryFn: () => apiFetch("/ambassadors/leaderboard/weekly"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const weeklyLeaders = weeklyData?.leaders ?? [];
+  const weekStartLabel = weeklyData?.weekStart ? new Date(weeklyData.weekStart).toLocaleDateString("en-NG", { month: "short", day: "numeric" }) : "";
 
   const sorted = [...ambassadors].sort((a, b) => b.totalPoints - a.totalPoints);
   const top3 = sorted.slice(0, 3);
@@ -399,6 +410,36 @@ function LeaderboardTab({ ambassadors }: { ambassadors: Ambassador[] }) {
 
   return (
     <div className="space-y-4">
+      {/* Weekly Top Performers */}
+      {weeklyLeaders.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <div className="flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-amber-600" />
+              <CardTitle className="text-sm font-semibold text-amber-800">This Week's Top Performers</CardTitle>
+              {weekStartLabel && <span className="text-xs text-amber-600 ml-auto">Week of {weekStartLabel}</span>}
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-3">
+            <div className="space-y-2">
+              {weeklyLeaders.map((leader, i) => (
+                <div key={leader.id} className="flex items-center gap-3">
+                  <span className="text-base w-5">{["🥇", "🥈", "🥉", "4.", "5."][i] ?? `${i + 1}.`}</span>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${ZONE_COLORS[leader.zone] ?? "bg-gray-500"}`}>
+                    {leader.avatarInitials ?? leader.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm leading-tight">{leader.name}</p>
+                    <p className="text-xs text-muted-foreground">{leader.state}</p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs font-bold">+{leader.weeklyPoints.toLocaleString()} pts</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{ambassadors.length} ambassadors ranked by total points</p>
         <div className="flex gap-2">
@@ -575,6 +616,10 @@ function TasksTab({ ambassadors }: { ambassadors: Ambassador[] }) {
                   <SelectContent>
                     <SelectItem value="all">All Ambassadors</SelectItem>
                     {ZONES.map(z => <SelectItem key={z} value={`zone:${z}`}>{z} Zone</SelectItem>)}
+                    <SelectItem value="tier:member">Tier: Member</SelectItem>
+                    <SelectItem value="tier:bronze">Tier: Bronze</SelectItem>
+                    <SelectItem value="tier:silver">Tier: Silver</SelectItem>
+                    <SelectItem value="tier:gold">Tier: Gold</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -981,6 +1026,9 @@ function GamificationTab() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ actionKey: "", label: "", description: "", pointValue: "10" });
   const [editing, setEditing] = useState<GamificationConfig | null>(null);
+  const [tierAddOpen, setTierAddOpen] = useState(false);
+  const [editingTier, setEditingTier] = useState<RewardTier | null>(null);
+  const [tierForm, setTierForm] = useState({ name: "", minPoints: "", maxPoints: "", badgeColor: "#6b7280", rewardDescription: "" });
 
   const { data, isLoading } = useQuery<{ configs: GamificationConfig[]; rewardTiers: RewardTier[] }>({
     queryKey: ["gamification-configs"],
@@ -997,6 +1045,24 @@ function GamificationTab() {
     mutationFn: ({ id, body }: { id: number; body: object }) => apiFetch(`/gamification-configs/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["gamification-configs"] }); setEditing(null); toast({ title: "Updated!" }); },
     onError: () => toast({ title: "Failed to update", variant: "destructive" }),
+  });
+
+  const createTier = useMutation({
+    mutationFn: (body: object) => apiFetch("/reward-tiers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["gamification-configs"] }); setTierAddOpen(false); setEditingTier(null); toast({ title: "Tier created!" }); },
+    onError: () => toast({ title: "Failed to create tier", variant: "destructive" }),
+  });
+
+  const updateTier = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: object }) => apiFetch(`/reward-tiers/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["gamification-configs"] }); setTierAddOpen(false); setEditingTier(null); toast({ title: "Tier updated!" }); },
+    onError: () => toast({ title: "Failed to update tier", variant: "destructive" }),
+  });
+
+  const deleteTier = useMutation({
+    mutationFn: (id: number) => apiFetch(`/reward-tiers/${id}`, { method: "DELETE" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["gamification-configs"] }); toast({ title: "Tier deleted" }); },
+    onError: () => toast({ title: "Failed to delete tier", variant: "destructive" }),
   });
 
   const configs = data?.configs ?? [];
@@ -1083,7 +1149,57 @@ function GamificationTab() {
 
         {/* Reward Tiers */}
         <div className="space-y-3">
-          <h3 className="font-semibold text-sm">Reward Tiers</h3>
+          <Dialog open={tierAddOpen} onOpenChange={open => { setTierAddOpen(open); if (!open) setEditingTier(null); }}>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm">Reward Tiers</h3>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" onClick={() => { setEditingTier(null); setTierForm({ name: "", minPoints: "", maxPoints: "", badgeColor: "#6b7280", rewardDescription: "" }); }}>
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Tier
+                </Button>
+              </DialogTrigger>
+            </div>
+            <DialogContent>
+              <DialogHeader><DialogTitle>{editingTier ? "Edit Reward Tier" : "New Reward Tier"}</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label>Tier Name</Label>
+                  <Input value={tierForm.name} onChange={e => setTierForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Gold" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label>Min Points</Label>
+                    <Input type="number" value={tierForm.minPoints} onChange={e => setTierForm(f => ({ ...f, minPoints: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Max Points (optional)</Label>
+                    <Input type="number" value={tierForm.maxPoints} onChange={e => setTierForm(f => ({ ...f, maxPoints: e.target.value }))} placeholder="∞" />
+                  </div>
+                </div>
+                <div className="flex gap-3 items-center">
+                  <div className="flex-1">
+                    <Label>Badge Color</Label>
+                    <Input type="color" value={tierForm.badgeColor} onChange={e => setTierForm(f => ({ ...f, badgeColor: e.target.value }))} className="h-9 px-2 py-1" />
+                  </div>
+                  <div className="w-8 h-8 rounded-full mt-5 shrink-0" style={{ backgroundColor: tierForm.badgeColor }} />
+                </div>
+                <div>
+                  <Label>Reward Description</Label>
+                  <Input value={tierForm.rewardDescription} onChange={e => setTierForm(f => ({ ...f, rewardDescription: e.target.value }))} placeholder="What do ambassadors unlock at this tier?" />
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={!tierForm.name || !tierForm.minPoints || createTier.isPending || updateTier.isPending}
+                  onClick={() => {
+                    const body = { name: tierForm.name, minPoints: Number(tierForm.minPoints), maxPoints: tierForm.maxPoints ? Number(tierForm.maxPoints) : undefined, badgeColor: tierForm.badgeColor, rewardDescription: tierForm.rewardDescription };
+                    editingTier ? updateTier.mutate({ id: editingTier.id, body }) : createTier.mutate(body);
+                  }}
+                >
+                  {(createTier.isPending || updateTier.isPending) ? "Saving…" : editingTier ? "Save Changes" : "Create Tier"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <div className="space-y-2">
             {rewardTiers.map(tier => (
               <Card key={tier.id} style={{ borderColor: tier.badgeColor + "40" }}>
@@ -1093,10 +1209,17 @@ function GamificationTab() {
                     <div className="flex-1">
                       <p className="font-semibold text-sm">{tier.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {tier.minPoints.toLocaleString()}+ pts
-                        {tier.maxPoints ? ` → ${tier.maxPoints.toLocaleString()}` : ""}
+                        {tier.minPoints.toLocaleString()}+ pts{tier.maxPoints ? ` → ${tier.maxPoints.toLocaleString()}` : ""}
                       </p>
                       {tier.rewardDescription && <p className="text-xs text-muted-foreground mt-0.5 italic">{tier.rewardDescription}</p>}
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingTier(tier); setTierForm({ name: tier.name, minPoints: String(tier.minPoints), maxPoints: tier.maxPoints ? String(tier.maxPoints) : "", badgeColor: tier.badgeColor, rewardDescription: tier.rewardDescription ?? "" }); setTierAddOpen(true); }}>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => deleteTier.mutate(tier.id)} disabled={deleteTier.isPending}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
