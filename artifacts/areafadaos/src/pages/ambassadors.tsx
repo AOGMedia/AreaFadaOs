@@ -101,10 +101,29 @@ function StatCard({ label, value, sub, icon }: { label: string; value: string | 
   );
 }
 
+const NIGERIA_STATES_ALL = [
+  "Abia","Adamawa","Akwa Ibom","Anambra","Bauchi","Bayelsa","Benue","Borno","Cross River","Delta",
+  "Ebonyi","Edo","Ekiti","Enugu","Gombe","Imo","Jigawa","Kaduna","Kano","Katsina","Kebbi","Kogi",
+  "Kwara","Lagos","Nasarawa","Niger","Ogun","Ondo","Osun","Oyo","Plateau","Rivers","Sokoto",
+  "Taraba","Yobe","Zamfara","FCT (Abuja)"
+];
+const STATE_ZONE_MAP: Record<string, string> = {
+  Lagos: "South West", Ogun: "South West", Oyo: "South West", Osun: "South West", Ondo: "South West", Ekiti: "South West",
+  Delta: "South South", Edo: "South South", Rivers: "South South", Bayelsa: "South South", "Cross River": "South South", "Akwa Ibom": "South South",
+  Anambra: "South East", Imo: "South East", Abia: "South East", Enugu: "South East", Ebonyi: "South East",
+  Kano: "North West", Katsina: "North West", Kaduna: "North West", Jigawa: "North West", Kebbi: "North West", Sokoto: "North West", Zamfara: "North West",
+  Borno: "North East", Adamawa: "North East", Gombe: "North East", Taraba: "North East", Yobe: "North East", Bauchi: "North East",
+  Benue: "North Central", Kogi: "North Central", Kwara: "North Central", Nasarawa: "North Central", Niger: "North Central", Plateau: "North Central", "FCT (Abuja)": "North Central",
+};
+
 // ─── State Map Tab ─────────────────────────────────────────────────────────────
-function StateMapTab({ ambassadors }: { ambassadors: Ambassador[] }) {
+function StateMapTab({ ambassadors, onRefetch }: { ambassadors: Ambassador[]; onRefetch: () => void }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const [selectedState, setSelectedState] = useState<string | null>(null);
   const [selectedZone, setSelectedZone] = useState<string>("all");
+  const [drawerMode, setDrawerMode] = useState<"add" | "edit" | null>(null);
+  const [ambForm, setAmbForm] = useState({ name: "", email: "", phone: "", state: "", zone: "", city: "", platform: "", handle: "", followerCount: "" });
 
   const byZone = ZONES.reduce<Record<string, Ambassador[]>>((acc, z) => {
     acc[z] = ambassadors.filter(a => a.zone === z);
@@ -112,11 +131,104 @@ function StateMapTab({ ambassadors }: { ambassadors: Ambassador[] }) {
   }, {});
 
   const selectedAmb = selectedState ? ambassadors.find(a => a.state === selectedState) : null;
-
   const filtered = selectedZone === "all" ? ambassadors : ambassadors.filter(a => a.zone === selectedZone);
+
+  const createAmb = useMutation({
+    mutationFn: (body: object) => apiFetch("/ambassadors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    onSuccess: () => { onRefetch(); setDrawerMode(null); toast({ title: "Ambassador added!" }); },
+    onError: () => toast({ title: "Failed to add ambassador", variant: "destructive" }),
+  });
+
+  const updateAmb = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: object }) => apiFetch(`/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    onSuccess: () => { onRefetch(); setDrawerMode(null); toast({ title: "Ambassador updated!" }); },
+    onError: () => toast({ title: "Failed to update ambassador", variant: "destructive" }),
+  });
+
+  function openAdd() {
+    setAmbForm({ name: "", email: "", phone: "", state: selectedAmb?.state ?? "", zone: selectedAmb?.zone ?? "", city: "", platform: "", handle: "", followerCount: "" });
+    setDrawerMode("add");
+  }
+
+  function openEdit(amb: Ambassador) {
+    setAmbForm({ name: amb.name, email: amb.email, phone: amb.phone ?? "", state: amb.state, zone: amb.zone, city: amb.city ?? "", platform: amb.platform ?? "", handle: amb.handle ?? "", followerCount: String(amb.followerCount) });
+    setDrawerMode("edit");
+  }
 
   return (
     <div className="space-y-4">
+      {/* Add/Edit Ambassador Dialog */}
+      <Dialog open={drawerMode !== null} onOpenChange={open => { if (!open) setDrawerMode(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{drawerMode === "add" ? "Add Ambassador" : "Edit Ambassador"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <Label>Full Name</Label>
+              <Input value={ambForm.name} onChange={e => setAmbForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Chukwuemeka Obi" />
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={ambForm.email} onChange={e => setAmbForm(f => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Phone</Label>
+              <Input value={ambForm.phone} onChange={e => setAmbForm(f => ({ ...f, phone: e.target.value }))} placeholder="+2348..." />
+            </div>
+            <div>
+              <Label>State</Label>
+              <Select value={ambForm.state} onValueChange={v => setAmbForm(f => ({ ...f, state: v, zone: STATE_ZONE_MAP[v] ?? "" }))}>
+                <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                <SelectContent>
+                  {NIGERIA_STATES_ALL.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Zone</Label>
+              <Input value={ambForm.zone} readOnly className="bg-muted/40" placeholder="Auto-filled from state" />
+            </div>
+            <div>
+              <Label>City</Label>
+              <Input value={ambForm.city} onChange={e => setAmbForm(f => ({ ...f, city: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Platform</Label>
+              <Select value={ambForm.platform || "none"} onValueChange={v => setAmbForm(f => ({ ...f, platform: v === "none" ? "" : v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {PLATFORMS.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Handle</Label>
+              <Input value={ambForm.handle} onChange={e => setAmbForm(f => ({ ...f, handle: e.target.value }))} placeholder="@username" />
+            </div>
+            <div>
+              <Label>Follower Count</Label>
+              <Input type="number" value={ambForm.followerCount} onChange={e => setAmbForm(f => ({ ...f, followerCount: e.target.value }))} />
+            </div>
+          </div>
+          <Button
+            className="w-full mt-2"
+            disabled={!ambForm.name || !ambForm.email || !ambForm.state || createAmb.isPending || updateAmb.isPending}
+            onClick={() => {
+              const body = { ...ambForm, followerCount: Number(ambForm.followerCount || 0) };
+              if (drawerMode === "add") {
+                createAmb.mutate(body);
+              } else if (drawerMode === "edit" && selectedAmb) {
+                updateAmb.mutate({ id: selectedAmb.id, body });
+              }
+            }}
+          >
+            {(createAmb.isPending || updateAmb.isPending) ? "Saving…" : drawerMode === "add" ? "Add Ambassador" : "Save Changes"}
+          </Button>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-center gap-3 flex-wrap">
         <Select value={selectedZone} onValueChange={setSelectedZone}>
           <SelectTrigger className="w-48">
@@ -128,6 +240,9 @@ function StateMapTab({ ambassadors }: { ambassadors: Ambassador[] }) {
           </SelectContent>
         </Select>
         <p className="text-sm text-muted-foreground">{filtered.length} ambassadors</p>
+        <Button size="sm" className="ml-auto" onClick={openAdd}>
+          <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Ambassador
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -172,13 +287,16 @@ function StateMapTab({ ambassadors }: { ambassadors: Ambassador[] }) {
             <Card className="sticky top-4">
               <CardHeader className="pb-2">
                 <div className="flex items-start gap-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm ${ZONE_COLORS[selectedAmb.zone]}`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${ZONE_COLORS[selectedAmb.zone]}`}>
                     {selectedAmb.avatarInitials ?? selectedAmb.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <CardTitle className="text-base">{selectedAmb.name}</CardTitle>
                     <p className="text-sm text-muted-foreground">{selectedAmb.state} · {selectedAmb.zone}</p>
                   </div>
+                  <Button size="sm" variant="outline" className="shrink-0" onClick={() => openEdit(selectedAmb)}>
+                    Edit
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -362,6 +480,8 @@ function TasksTab({ ambassadors }: { ambassadors: Ambassador[] }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", deadline: "", targetGroup: "all", pointReward: "25" });
+  const [completeDialog, setCompleteDialog] = useState<AmbassadorTask | null>(null);
+  const [completeAmbId, setCompleteAmbId] = useState<string>("");
 
   const { data: tasks = [], isLoading } = useQuery<AmbassadorTask[]>({
     queryKey: ["ambassador-tasks"],
@@ -374,10 +494,57 @@ function TasksTab({ ambassadors }: { ambassadors: Ambassador[] }) {
     onError: () => toast({ title: "Failed to create task", variant: "destructive" }),
   });
 
+  const completeTask = useMutation({
+    mutationFn: ({ taskId, ambassadorId }: { taskId: number; ambassadorId: number }) =>
+      apiFetch(`/ambassador-tasks/${taskId}/complete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ambassadorId }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ambassador-tasks"] });
+      setCompleteDialog(null);
+      setCompleteAmbId("");
+      toast({ title: "Task marked complete!" });
+    },
+    onError: (e: any) => toast({ title: e?.message ?? "Failed to mark complete", variant: "destructive" }),
+  });
+
   const statusBadge = (s: string) => s === "active" ? "default" : s === "completed" ? "secondary" : "destructive";
 
   return (
     <div className="space-y-4">
+      {/* Mark Complete Dialog */}
+      <Dialog open={completeDialog !== null} onOpenChange={open => { if (!open) { setCompleteDialog(null); setCompleteAmbId(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mark Task Complete</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{completeDialog?.title}</p>
+          <div className="space-y-3">
+            <div>
+              <Label>Select Ambassador</Label>
+              <Select value={completeAmbId} onValueChange={setCompleteAmbId}>
+                <SelectTrigger><SelectValue placeholder="Choose ambassador…" /></SelectTrigger>
+                <SelectContent>
+                  {ambassadors.filter(a => a.status === "active").map(a => (
+                    <SelectItem key={a.id} value={String(a.id)}>
+                      {a.name} — {a.state} ({a.totalPoints} pts)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {completeDialog && completeDialog.pointReward > 0 && (
+              <p className="text-xs text-muted-foreground">⭐ {completeDialog.pointReward} points will be awarded to this ambassador.</p>
+            )}
+            <Button
+              className="w-full"
+              disabled={!completeAmbId || completeTask.isPending}
+              onClick={() => completeDialog && completeTask.mutate({ taskId: completeDialog.id, ambassadorId: Number(completeAmbId) })}
+            >
+              {completeTask.isPending ? "Saving…" : "Confirm Completion"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -465,6 +632,13 @@ function TasksTab({ ambassadors }: { ambassadors: Ambassador[] }) {
                           />
                         </div>
                       </div>
+                      {task.status !== "completed" && (
+                        <div className="mt-3 flex justify-end">
+                          <Button size="sm" variant="outline" className="text-xs h-7 px-3" onClick={() => { setCompleteDialog(task); setCompleteAmbId(""); }}>
+                            <CheckSquare className="w-3 h-3 mr-1.5" /> Mark Complete
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -934,7 +1108,7 @@ function GamificationTab() {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export function AmbassadorsPage() {
-  const { data: ambassadors = [], isLoading } = useQuery<Ambassador[]>({
+  const { data: ambassadors = [], isLoading, refetch } = useQuery<Ambassador[]>({
     queryKey: ["ambassadors"],
     queryFn: () => apiFetch("/ambassadors"),
   });
@@ -990,7 +1164,7 @@ export function AmbassadorsPage() {
               {isLoading ? (
                 <div className="text-center py-16 text-muted-foreground text-sm">Loading ambassador network…</div>
               ) : (
-                <StateMapTab ambassadors={ambassadors} />
+                <StateMapTab ambassadors={ambassadors} onRefetch={() => refetch()} />
               )}
             </TabsContent>
 

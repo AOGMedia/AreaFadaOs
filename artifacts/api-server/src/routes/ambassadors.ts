@@ -372,10 +372,21 @@ router.post("/ambassador-tasks", requireAuth, requireTier("agency"), async (req:
     if (!title) { res.status(400).json({ error: "title required" }); return; }
 
     // Count ambassadors in target group
-    let ambassadors = await db.select({ id: ambassadorsTable.id })
+    let ambassadors = await db.select({ id: ambassadorsTable.id, state: ambassadorsTable.state, zone: ambassadorsTable.zone, tier: ambassadorsTable.tier })
       .from(ambassadorsTable).where(eq(ambassadorsTable.userId, user.id));
+
+    const tg: string = targetGroup ?? "all";
+    if (tg !== "all") {
+      if (tg.startsWith("zone:")) {
+        const zone = tg.replace("zone:", "");
+        ambassadors = ambassadors.filter(a => a.zone === zone);
+      } else if (tg.startsWith("tier:")) {
+        const tier = tg.replace("tier:", "");
+        ambassadors = ambassadors.filter(a => a.tier === tier);
+      }
+    }
     if (targetStates && (targetStates as string[]).length > 0) {
-      ambassadors = ambassadors.filter(a => (targetStates as string[]).includes((a as any).state));
+      ambassadors = ambassadors.filter(a => (targetStates as string[]).includes(a.state));
     }
 
     const [task] = await db.insert(ambassadorTasksTable).values({
@@ -439,13 +450,19 @@ router.post("/ambassador-tasks/:id/complete", requireAuth, requireTier("agency")
       .where(eq(ambassadorTasksTable.id, taskId));
 
     if (task.pointReward > 0) {
-      const [amb] = await db.select().from(ambassadorsTable).where(eq(ambassadorsTable.id, ambassadorId));
-      if (amb) {
-        const newTotal = amb.totalPoints + task.pointReward;
-        const tier = newTotal >= 4000 ? "gold" : newTotal >= 2000 ? "silver" : newTotal >= 800 ? "bronze" : "member";
-        await db.insert(ambassadorPointsTable).values({ ambassadorId, userId: user.id, action: "task_complete", points: task.pointReward, description: `Completed: ${task.title}` });
-        await db.update(ambassadorsTable).set({ totalPoints: newTotal, tier, tasksCompleted: amb.tasksCompleted + 1 }).where(eq(ambassadorsTable.id, ambassadorId));
-      }
+      // userId scope enforced — ambassador must belong to this user
+      const [amb] = await db.select().from(ambassadorsTable)
+        .where(and(eq(ambassadorsTable.id, ambassadorId), eq(ambassadorsTable.userId, user.id)));
+      if (!amb) { res.status(403).json({ error: "Ambassador not found or access denied" }); return; }
+      const newTotal = amb.totalPoints + task.pointReward;
+      const tier = newTotal >= 4000 ? "gold" : newTotal >= 2000 ? "silver" : newTotal >= 800 ? "bronze" : "member";
+      await db.insert(ambassadorPointsTable).values({ ambassadorId, userId: user.id, action: "task_complete", points: task.pointReward, description: `Completed: ${task.title}` });
+      await db.update(ambassadorsTable).set({ totalPoints: newTotal, tier, tasksCompleted: amb.tasksCompleted + 1 }).where(eq(ambassadorsTable.id, ambassadorId));
+    } else {
+      // Even with 0 points, verify ambassador belongs to this user
+      const [amb] = await db.select({ id: ambassadorsTable.id }).from(ambassadorsTable)
+        .where(and(eq(ambassadorsTable.id, ambassadorId), eq(ambassadorsTable.userId, user.id)));
+      if (!amb) { res.status(403).json({ error: "Ambassador not found or access denied" }); return; }
     }
 
     res.json({ success: true, pointsAwarded: task.pointReward });
@@ -683,6 +700,84 @@ router.delete("/whatsapp-broadcasts/:id", requireAuth, requireTier("agency"), as
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to delete broadcast" });
+  }
+});
+
+// ─── GET /ambassadors/widget (PUBLIC — no auth) ───────────────────────────
+router.get("/ambassadors/widget", async (_req: any, res): Promise<void> => {
+  try {
+    // Fetch top 10 across all users — public display, no PII beyond name/state/points
+    const rows = await db.select({
+      id: ambassadorsTable.id,
+      name: ambassadorsTable.name,
+      state: ambassadorsTable.state,
+      zone: ambassadorsTable.zone,
+      tier: ambassadorsTable.tier,
+      totalPoints: ambassadorsTable.totalPoints,
+      avatarInitials: ambassadorsTable.avatarInitials,
+    }).from(ambassadorsTable)
+      .where(eq(ambassadorsTable.status, "active"))
+      .orderBy(desc(ambassadorsTable.totalPoints))
+      .limit(10);
+
+    const zoneColor: Record<string, string> = {
+      "South West": "#10b981",
+      "South East": "#3b82f6",
+      "South South": "#06b6d4",
+      "North West": "#f97316",
+      "North East": "#ef4444",
+      "North Central": "#a855f7",
+    };
+    const tierIcon: Record<string, string> = { gold: "🥇", silver: "🥈", bronze: "🥉", member: "" };
+    const medalIcons = ["🥇", "🥈", "🥉"];
+
+    const rows_html = rows.map((a, i) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #f1f5f9;">
+        <span style="font-size:18px;width:24px;text-align:center;">${medalIcons[i] ?? `<span style="color:#94a3b8;font-size:13px;font-family:monospace;">${i + 1}</span>`}</span>
+        <div style="width:36px;height:36px;border-radius:50%;background:${zoneColor[a.zone] ?? "#6b7280"};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;">${a.avatarInitials ?? a.name.slice(0, 2).toUpperCase()}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13px;color:#0f172a;">${a.name}</div>
+          <div style="font-size:11px;color:#64748b;">${a.state} · ${a.zone}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:700;font-size:14px;color:#0f172a;">${a.totalPoints.toLocaleString()}</div>
+          <div style="font-size:11px;color:#94a3b8;">pts ${tierIcon[a.tier] ?? ""}</div>
+        </div>
+      </div>`).join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Area Fada Ambassador Leaderboard</title>
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;}</style>
+</head>
+<body>
+<div style="padding:16px 16px 8px;border-bottom:2px solid #0f172a;">
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:20px;">🏆</span>
+    <div>
+      <div style="font-weight:800;font-size:15px;color:#0f172a;">Area Fada Ambassador Leaderboard</div>
+      <div style="font-size:11px;color:#64748b;">Top 10 · Updated live</div>
+    </div>
+  </div>
+</div>
+${rows_html}
+<div style="padding:8px 16px;text-align:center;">
+  <a href="https://areafada.os" target="_blank" style="font-size:10px;color:#94a3b8;text-decoration:none;">Powered by Area Fada OS</a>
+</div>
+<script>setTimeout(()=>location.reload(),60000);</script>
+</body>
+</html>`;
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("X-Frame-Options", "ALLOWALL");
+    res.setHeader("Content-Security-Policy", "frame-ancestors *");
+    res.send(html);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("<p>Error loading leaderboard</p>");
   }
 });
 
