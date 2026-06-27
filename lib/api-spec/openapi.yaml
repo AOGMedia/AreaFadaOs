@@ -22,6 +22,8 @@ tags:
     description: AI caption generation
   - name: monetization
     description: Brand deals, invoices, affiliate links, and revenue analytics
+  - name: analytics
+    description: Analytics, audience geography, best post times, engagement scores, and reports
 
 paths:
   /healthz:
@@ -697,6 +699,126 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  # ─── Analytics ───────────────────────────────────────────────────────────────
+
+  /analytics/summary:
+    get:
+      operationId: getAnalyticsSummary
+      tags: [analytics]
+      summary: Unified analytics summary across all platforms
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummary"
+
+  /analytics/audience:
+    get:
+      operationId: getAudienceGeography
+      tags: [analytics]
+      summary: Audience geography — Nigeria states + diaspora heatmap
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+            default: instagram
+      responses:
+        "200":
+          description: Audience geography data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudienceGeography"
+
+  /analytics/best-times:
+    get:
+      operationId: getBestPostTimes
+      tags: [analytics]
+      summary: Best time to post heatmap per platform (WAT optimised)
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+            default: instagram
+      responses:
+        "200":
+          description: Best post times heatmap
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BestPostTimes"
+
+  /analytics/post-performance:
+    get:
+      operationId: getPostPerformance
+      tags: [analytics]
+      summary: Post performance with engagement quality scores
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Post performance list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostPerformanceItem"
+
+  /analytics/platform-comparison:
+    get:
+      operationId: getPlatformComparison
+      tags: [analytics]
+      summary: Side-by-side platform comparison
+      responses:
+        "200":
+          description: Platform comparison data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlatformComparisonItem"
+
+  /analytics/reports/generate:
+    post:
+      operationId: generateAnalyticsReport
+      tags: [analytics]
+      summary: Generate a white-label PDF analytics report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateReportBody"
+      responses:
+        "200":
+          description: Generated report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsReport"
+
+  /analytics/digest:
+    post:
+      operationId: generateWeeklyDigest
+      tags: [analytics]
+      summary: Generate weekly performance digest narrative
+      responses:
+        "200":
+          description: Weekly digest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyDigest"
 
   /monetization/revenue:
     get:
@@ -1488,6 +1610,247 @@ components:
         campaignTag:
           type: string
         isActive:
+          type: boolean
+
+    # ─── Analytics schemas ────────────────────────────────────────────────
+
+    AnalyticsPlatformSummary:
+      type: object
+      required: [platform, followers, reach, impressions, engagementRate, followerGrowth, followerGrowthPct, timeSeries]
+      properties:
+        platform:
+          type: string
+        followers:
+          type: integer
+        reach:
+          type: integer
+        impressions:
+          type: integer
+        engagementRate:
+          type: number
+        followerGrowth:
+          type: integer
+        followerGrowthPct:
+          type: number
+        timeSeries:
+          type: array
+          items:
+            type: object
+
+    AnalyticsSummary:
+      type: object
+      required: [totalFollowers, totalReach, avgEngagementRate, platforms]
+      properties:
+        totalFollowers:
+          type: integer
+        totalReach:
+          type: integer
+        avgEngagementRate:
+          type: number
+        platforms:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsPlatformSummary"
+
+    AudienceRegionItem:
+      type: object
+      required: [region, label, percentage, count, lat, lng]
+      properties:
+        region:
+          type: string
+        label:
+          type: string
+        percentage:
+          type: number
+        count:
+          type: integer
+        lat:
+          type: number
+        lng:
+          type: number
+
+    AudienceGeography:
+      type: object
+      required: [platform, nigeriaStates, diaspora]
+      properties:
+        platform:
+          type: string
+        nigeriaStates:
+          type: array
+          items:
+            $ref: "#/components/schemas/AudienceRegionItem"
+        diaspora:
+          type: array
+          items:
+            $ref: "#/components/schemas/AudienceRegionItem"
+
+    HeatmapCell:
+      type: object
+      required: [day, hour, score, recommended]
+      properties:
+        day:
+          type: integer
+        hour:
+          type: integer
+        score:
+          type: integer
+        recommended:
+          type: boolean
+
+    BestTimeWindow:
+      type: object
+      required: [day, time, score, timezone]
+      properties:
+        day:
+          type: string
+        time:
+          type: string
+        score:
+          type: integer
+        timezone:
+          type: string
+
+    BestPostTimes:
+      type: object
+      required: [platform, heatmap, bestWindows, timezone, note]
+      properties:
+        platform:
+          type: string
+        heatmap:
+          type: array
+          items:
+            $ref: "#/components/schemas/HeatmapCell"
+        bestWindows:
+          type: array
+          items:
+            $ref: "#/components/schemas/BestTimeWindow"
+        timezone:
+          type: string
+        note:
+          type: string
+
+    PostPerformanceItem:
+      type: object
+      required: [id, platform, likes, comments, shares, saves, reach, impressions, engagementRate, engagementScore, qualityLabel, botRisk]
+      properties:
+        id:
+          type: integer
+        platform:
+          type: string
+        caption:
+          type: ["string", "null"]
+        mediaType:
+          type: ["string", "null"]
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        likes:
+          type: integer
+        comments:
+          type: integer
+        shares:
+          type: integer
+        saves:
+          type: integer
+        reach:
+          type: integer
+        impressions:
+          type: integer
+        engagementRate:
+          type: number
+        engagementScore:
+          type: integer
+        qualityLabel:
+          type: string
+          enum: [high, medium, low, suspicious]
+        qualityReason:
+          type: ["string", "null"]
+        botRisk:
+          type: number
+
+    PlatformComparisonItem:
+      type: object
+      required: [platform, followers, avgReach, avgEngagementRate, totalImpressions, rank]
+      properties:
+        platform:
+          type: string
+        followers:
+          type: integer
+        avgReach:
+          type: integer
+        avgEngagementRate:
+          type: number
+        totalImpressions:
+          type: integer
+        rank:
+          type: integer
+
+    GenerateReportBody:
+      type: object
+      required: [clientName]
+      properties:
+        clientName:
+          type: string
+        clientEmail:
+          type: string
+        title:
+          type: string
+        platforms:
+          type: array
+          items:
+            type: string
+        dateFrom:
+          type: string
+          format: date-time
+        dateTo:
+          type: string
+          format: date-time
+        brandColor:
+          type: string
+        logoUrl:
+          type: string
+
+    AnalyticsReport:
+      type: object
+      required: [id, title, clientName, status, generatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        clientName:
+          type: string
+        status:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        downloadUrl:
+          type: string
+        reportData:
+          type: ["object", "null"]
+
+    WeeklyDigest:
+      type: object
+      required: [id, narrative, totalReach, weekStart, weekEnd, emailSent, whatsappLogged]
+      properties:
+        id:
+          type: integer
+        narrative:
+          type: string
+        topPlatform:
+          type: ["string", "null"]
+        totalReach:
+          type: integer
+        weekStart:
+          type: string
+          format: date-time
+        weekEnd:
+          type: string
+          format: date-time
+        emailSent:
+          type: boolean
+        whatsappLogged:
           type: boolean
 
     RevenueWaterfallMonth:

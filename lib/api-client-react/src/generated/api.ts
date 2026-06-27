@@ -22,6 +22,10 @@ import type {
 import type {
   ActivityItem,
   AffiliateLink,
+  AnalyticsReport,
+  AnalyticsSummary,
+  AudienceGeography,
+  BestPostTimes,
   BrandDeal,
   BulkUploadBody,
   BulkUploadResult,
@@ -35,6 +39,10 @@ import type {
   GenerateCaptionsBody,
   GenerateCaptionsResponse,
   GeneratePaymentLinkBody,
+  GenerateReportBody,
+  GetAudienceGeographyParams,
+  GetBestPostTimesParams,
+  GetPostPerformanceParams,
   GetRevenueWaterfallParams,
   GetTrendingHashtagsParams,
   HashtagItem,
@@ -47,14 +55,17 @@ import type {
   PaymentLinkResponse,
   PaymentReminder,
   PlatformAccount,
+  PlatformComparisonItem,
   Post,
+  PostPerformanceItem,
   PostRevision,
   RecyclePostBody,
   RevenueWaterfall,
   TierInfo,
   UpdatePostBody,
   UserProfile,
-  UserProfileUpdate
+  UserProfileUpdate,
+  WeeklyDigest
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2742,6 +2753,552 @@ export const useDeleteAffiliateLink = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteAffiliateLinkMutationOptions(options));
+    }
+
+export const getGetAnalyticsSummaryUrl = () => {
+
+
+
+
+  return `/api/analytics/summary`
+}
+
+/**
+ * @summary Unified analytics summary across all platforms
+ */
+export const getAnalyticsSummary = async ( options?: RequestInit): Promise<AnalyticsSummary> => {
+
+  return customFetch<AnalyticsSummary>(getGetAnalyticsSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAnalyticsSummaryQueryKey = () => {
+    return [
+    `/api/analytics/summary`
+    ] as const;
+    }
+
+
+export const getGetAnalyticsSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getAnalyticsSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAnalyticsSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAnalyticsSummary>>> = ({ signal }) => getAnalyticsSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAnalyticsSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getAnalyticsSummary>>>
+export type GetAnalyticsSummaryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Unified analytics summary across all platforms
+ */
+
+export function useGetAnalyticsSummary<TData = Awaited<ReturnType<typeof getAnalyticsSummary>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAnalyticsSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAnalyticsSummaryQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetAudienceGeographyUrl = (params?: GetAudienceGeographyParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/audience?${stringifiedParams}` : `/api/analytics/audience`
+}
+
+/**
+ * @summary Audience geography — Nigeria states + diaspora heatmap
+ */
+export const getAudienceGeography = async (params?: GetAudienceGeographyParams, options?: RequestInit): Promise<AudienceGeography> => {
+
+  return customFetch<AudienceGeography>(getGetAudienceGeographyUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAudienceGeographyQueryKey = (params?: GetAudienceGeographyParams,) => {
+    return [
+    `/api/analytics/audience`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetAudienceGeographyQueryOptions = <TData = Awaited<ReturnType<typeof getAudienceGeography>>, TError = ErrorType<unknown>>(params?: GetAudienceGeographyParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAudienceGeography>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAudienceGeographyQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAudienceGeography>>> = ({ signal }) => getAudienceGeography(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAudienceGeography>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAudienceGeographyQueryResult = NonNullable<Awaited<ReturnType<typeof getAudienceGeography>>>
+export type GetAudienceGeographyQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Audience geography — Nigeria states + diaspora heatmap
+ */
+
+export function useGetAudienceGeography<TData = Awaited<ReturnType<typeof getAudienceGeography>>, TError = ErrorType<unknown>>(
+ params?: GetAudienceGeographyParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAudienceGeography>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAudienceGeographyQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBestPostTimesUrl = (params?: GetBestPostTimesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/best-times?${stringifiedParams}` : `/api/analytics/best-times`
+}
+
+/**
+ * @summary Best time to post heatmap per platform (WAT optimised)
+ */
+export const getBestPostTimes = async (params?: GetBestPostTimesParams, options?: RequestInit): Promise<BestPostTimes> => {
+
+  return customFetch<BestPostTimes>(getGetBestPostTimesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBestPostTimesQueryKey = (params?: GetBestPostTimesParams,) => {
+    return [
+    `/api/analytics/best-times`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBestPostTimesQueryOptions = <TData = Awaited<ReturnType<typeof getBestPostTimes>>, TError = ErrorType<unknown>>(params?: GetBestPostTimesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBestPostTimes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBestPostTimesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBestPostTimes>>> = ({ signal }) => getBestPostTimes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBestPostTimes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBestPostTimesQueryResult = NonNullable<Awaited<ReturnType<typeof getBestPostTimes>>>
+export type GetBestPostTimesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Best time to post heatmap per platform (WAT optimised)
+ */
+
+export function useGetBestPostTimes<TData = Awaited<ReturnType<typeof getBestPostTimes>>, TError = ErrorType<unknown>>(
+ params?: GetBestPostTimesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBestPostTimes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBestPostTimesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPostPerformanceUrl = (params?: GetPostPerformanceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/analytics/post-performance?${stringifiedParams}` : `/api/analytics/post-performance`
+}
+
+/**
+ * @summary Post performance with engagement quality scores
+ */
+export const getPostPerformance = async (params?: GetPostPerformanceParams, options?: RequestInit): Promise<PostPerformanceItem[]> => {
+
+  return customFetch<PostPerformanceItem[]>(getGetPostPerformanceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPostPerformanceQueryKey = (params?: GetPostPerformanceParams,) => {
+    return [
+    `/api/analytics/post-performance`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPostPerformanceQueryOptions = <TData = Awaited<ReturnType<typeof getPostPerformance>>, TError = ErrorType<unknown>>(params?: GetPostPerformanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPostPerformance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPostPerformanceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPostPerformance>>> = ({ signal }) => getPostPerformance(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPostPerformance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPostPerformanceQueryResult = NonNullable<Awaited<ReturnType<typeof getPostPerformance>>>
+export type GetPostPerformanceQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Post performance with engagement quality scores
+ */
+
+export function useGetPostPerformance<TData = Awaited<ReturnType<typeof getPostPerformance>>, TError = ErrorType<unknown>>(
+ params?: GetPostPerformanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPostPerformance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPostPerformanceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPlatformComparisonUrl = () => {
+
+
+
+
+  return `/api/analytics/platform-comparison`
+}
+
+/**
+ * @summary Side-by-side platform comparison
+ */
+export const getPlatformComparison = async ( options?: RequestInit): Promise<PlatformComparisonItem[]> => {
+
+  return customFetch<PlatformComparisonItem[]>(getGetPlatformComparisonUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformComparisonQueryKey = () => {
+    return [
+    `/api/analytics/platform-comparison`
+    ] as const;
+    }
+
+
+export const getGetPlatformComparisonQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformComparison>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformComparison>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformComparisonQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformComparison>>> = ({ signal }) => getPlatformComparison({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformComparison>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformComparisonQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformComparison>>>
+export type GetPlatformComparisonQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Side-by-side platform comparison
+ */
+
+export function useGetPlatformComparison<TData = Awaited<ReturnType<typeof getPlatformComparison>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformComparison>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformComparisonQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGenerateAnalyticsReportUrl = () => {
+
+
+
+
+  return `/api/analytics/reports/generate`
+}
+
+/**
+ * @summary Generate a white-label PDF analytics report
+ */
+export const generateAnalyticsReport = async (generateReportBody: GenerateReportBody, options?: RequestInit): Promise<AnalyticsReport> => {
+
+  return customFetch<AnalyticsReport>(getGenerateAnalyticsReportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(generateReportBody)
+  }
+);}
+
+
+
+
+export const getGenerateAnalyticsReportMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAnalyticsReport>>, TError,{data: BodyType<GenerateReportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateAnalyticsReport>>, TError,{data: BodyType<GenerateReportBody>}, TContext> => {
+
+const mutationKey = ['generateAnalyticsReport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateAnalyticsReport>>, {data: BodyType<GenerateReportBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  generateAnalyticsReport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateAnalyticsReportMutationResult = NonNullable<Awaited<ReturnType<typeof generateAnalyticsReport>>>
+    export type GenerateAnalyticsReportMutationBody = BodyType<GenerateReportBody>
+    export type GenerateAnalyticsReportMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate a white-label PDF analytics report
+ */
+export const useGenerateAnalyticsReport = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateAnalyticsReport>>, TError,{data: BodyType<GenerateReportBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateAnalyticsReport>>,
+        TError,
+        {data: BodyType<GenerateReportBody>},
+        TContext
+      > => {
+      return useMutation(getGenerateAnalyticsReportMutationOptions(options));
+    }
+
+export const getGenerateWeeklyDigestUrl = () => {
+
+
+
+
+  return `/api/analytics/digest`
+}
+
+/**
+ * @summary Generate weekly performance digest narrative
+ */
+export const generateWeeklyDigest = async ( options?: RequestInit): Promise<WeeklyDigest> => {
+
+  return customFetch<WeeklyDigest>(getGenerateWeeklyDigestUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getGenerateWeeklyDigestMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateWeeklyDigest>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateWeeklyDigest>>, TError,void, TContext> => {
+
+const mutationKey = ['generateWeeklyDigest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateWeeklyDigest>>, void> = () => {
+
+
+          return  generateWeeklyDigest(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateWeeklyDigestMutationResult = NonNullable<Awaited<ReturnType<typeof generateWeeklyDigest>>>
+
+    export type GenerateWeeklyDigestMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate weekly performance digest narrative
+ */
+export const useGenerateWeeklyDigest = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateWeeklyDigest>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateWeeklyDigest>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getGenerateWeeklyDigestMutationOptions(options));
     }
 
 export const getGetRevenueWaterfallUrl = (params?: GetRevenueWaterfallParams,) => {

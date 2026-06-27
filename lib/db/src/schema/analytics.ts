@@ -1,0 +1,103 @@
+import { pgTable, serial, integer, text, numeric, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
+
+export const analyticsSnapshots = pgTable("analytics_snapshots", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  platform: text("platform").notNull(),
+  accountHandle: text("account_handle").notNull(),
+  snapshotDate: timestamp("snapshot_date", { withTimezone: true }).notNull(),
+  followers: integer("followers").notNull().default(0),
+  following: integer("following").notNull().default(0),
+  reach: integer("reach").notNull().default(0),
+  impressions: integer("impressions").notNull().default(0),
+  engagementRate: numeric("engagement_rate", { precision: 5, scale: 2 }).notNull().default("0"),
+  profileViews: integer("profile_views").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const audienceSegments = pgTable("audience_segments", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  platform: text("platform").notNull(),
+  region: text("region").notNull(),
+  regionType: text("region_type").notNull(),
+  label: text("label").notNull(),
+  percentage: numeric("percentage", { precision: 5, scale: 2 }).notNull().default("0"),
+  count: integer("count").notNull().default(0),
+  lat: numeric("lat", { precision: 8, scale: 5 }),
+  lng: numeric("lng", { precision: 8, scale: 5 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const postPerformance = pgTable("post_performance", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  postId: integer("post_id"),
+  platform: text("platform").notNull(),
+  externalId: text("external_id"),
+  caption: text("caption"),
+  mediaType: text("media_type"),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  likes: integer("likes").notNull().default(0),
+  comments: integer("comments").notNull().default(0),
+  shares: integer("shares").notNull().default(0),
+  saves: integer("saves").notNull().default(0),
+  reach: integer("reach").notNull().default(0),
+  impressions: integer("impressions").notNull().default(0),
+  engagementRate: numeric("engagement_rate", { precision: 5, scale: 2 }).notNull().default("0"),
+  engagementScore: integer("engagement_score").notNull().default(0),
+  qualityLabel: text("quality_label").notNull().default("medium"),
+  qualityReason: text("quality_reason"),
+  botRisk: numeric("bot_risk", { precision: 5, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const engagementScores = pgTable("engagement_scores", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  platform: text("platform").notNull(),
+  postPerformanceId: integer("post_performance_id"),
+  score: integer("score").notNull().default(50),
+  label: text("label").notNull().default("medium"),
+  commentQuality: numeric("comment_quality", { precision: 5, scale: 2 }).notNull().default("0"),
+  followerRatio: numeric("follower_ratio", { precision: 5, scale: 2 }).notNull().default("0"),
+  interactionVelocity: numeric("interaction_velocity", { precision: 5, scale: 2 }).notNull().default("0"),
+  botRisk: numeric("bot_risk", { precision: 5, scale: 2 }).notNull().default("0"),
+  signals: jsonb("signals").default([]),
+  scoredAt: timestamp("scored_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const analyticsReports = pgTable("analytics_reports", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  clientName: text("client_name").notNull(),
+  clientEmail: text("client_email"),
+  logoUrl: text("logo_url"),
+  platforms: jsonb("platforms").default([]),
+  dateFrom: timestamp("date_from", { withTimezone: true }),
+  dateTo: timestamp("date_to", { withTimezone: true }),
+  brandColor: text("brand_color").default("#7c3aed"),
+  status: text("status").notNull().default("pending"),
+  downloadUrl: text("download_url"),
+  reportData: jsonb("report_data"),
+  generatedAt: timestamp("generated_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const weeklyDigests = pgTable("weekly_digests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  weekStart: timestamp("week_start", { withTimezone: true }).notNull(),
+  weekEnd: timestamp("week_end", { withTimezone: true }).notNull(),
+  narrative: text("narrative").notNull(),
+  topPlatform: text("top_platform"),
+  totalReach: integer("total_reach").notNull().default(0),
+  totalEngagements: integer("total_engagements").notNull().default(0),
+  avgEngagementRate: numeric("avg_engagement_rate", { precision: 5, scale: 2 }).notNull().default("0"),
+  followersGained: integer("followers_gained").notNull().default(0),
+  bestPost: jsonb("best_post"),
+  emailSent: boolean("email_sent").notNull().default(false),
+  whatsappLogged: boolean("whatsapp_logged").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});

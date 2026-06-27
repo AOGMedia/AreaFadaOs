@@ -926,6 +926,170 @@ export const DeleteAffiliateLinkResponse = zod.void()
 
 
 /**
+ * @summary Unified analytics summary across all platforms
+ */
+export const GetAnalyticsSummaryResponse = zod.object({
+  "totalFollowers": zod.number(),
+  "totalReach": zod.number(),
+  "avgEngagementRate": zod.number(),
+  "platforms": zod.array(zod.object({
+  "platform": zod.string(),
+  "followers": zod.number(),
+  "reach": zod.number(),
+  "impressions": zod.number(),
+  "engagementRate": zod.number(),
+  "followerGrowth": zod.number(),
+  "followerGrowthPct": zod.number(),
+  "timeSeries": zod.array(zod.object({
+
+}).passthrough())
+}))
+})
+
+
+/**
+ * @summary Audience geography — Nigeria states + diaspora heatmap
+ */
+export const getAudienceGeographyQueryPlatformDefault = `instagram`;
+
+export const GetAudienceGeographyQueryParams = zod.object({
+  "platform": zod.coerce.string().default(getAudienceGeographyQueryPlatformDefault)
+})
+
+export const GetAudienceGeographyResponse = zod.object({
+  "platform": zod.string(),
+  "nigeriaStates": zod.array(zod.object({
+  "region": zod.string(),
+  "label": zod.string(),
+  "percentage": zod.number(),
+  "count": zod.number(),
+  "lat": zod.number(),
+  "lng": zod.number()
+})),
+  "diaspora": zod.array(zod.object({
+  "region": zod.string(),
+  "label": zod.string(),
+  "percentage": zod.number(),
+  "count": zod.number(),
+  "lat": zod.number(),
+  "lng": zod.number()
+}))
+})
+
+
+/**
+ * @summary Best time to post heatmap per platform (WAT optimised)
+ */
+export const getBestPostTimesQueryPlatformDefault = `instagram`;
+
+export const GetBestPostTimesQueryParams = zod.object({
+  "platform": zod.coerce.string().default(getBestPostTimesQueryPlatformDefault)
+})
+
+export const GetBestPostTimesResponse = zod.object({
+  "platform": zod.string(),
+  "heatmap": zod.array(zod.object({
+  "day": zod.number(),
+  "hour": zod.number(),
+  "score": zod.number(),
+  "recommended": zod.boolean()
+})),
+  "bestWindows": zod.array(zod.object({
+  "day": zod.string(),
+  "time": zod.string(),
+  "score": zod.number(),
+  "timezone": zod.string()
+})),
+  "timezone": zod.string(),
+  "note": zod.string()
+})
+
+
+/**
+ * @summary Post performance with engagement quality scores
+ */
+export const GetPostPerformanceQueryParams = zod.object({
+  "platform": zod.coerce.string().optional()
+})
+
+export const GetPostPerformanceResponseItem = zod.object({
+  "id": zod.number(),
+  "platform": zod.string(),
+  "caption": zod.string().nullish(),
+  "mediaType": zod.string().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "likes": zod.number(),
+  "comments": zod.number(),
+  "shares": zod.number(),
+  "saves": zod.number(),
+  "reach": zod.number(),
+  "impressions": zod.number(),
+  "engagementRate": zod.number(),
+  "engagementScore": zod.number(),
+  "qualityLabel": zod.enum(['high', 'medium', 'low', 'suspicious']),
+  "qualityReason": zod.string().nullish(),
+  "botRisk": zod.number()
+})
+export const GetPostPerformanceResponse = zod.array(GetPostPerformanceResponseItem)
+
+
+/**
+ * @summary Side-by-side platform comparison
+ */
+export const GetPlatformComparisonResponseItem = zod.object({
+  "platform": zod.string(),
+  "followers": zod.number(),
+  "avgReach": zod.number(),
+  "avgEngagementRate": zod.number(),
+  "totalImpressions": zod.number(),
+  "rank": zod.number()
+})
+export const GetPlatformComparisonResponse = zod.array(GetPlatformComparisonResponseItem)
+
+
+/**
+ * @summary Generate a white-label PDF analytics report
+ */
+export const GenerateAnalyticsReportBody = zod.object({
+  "clientName": zod.string(),
+  "clientEmail": zod.string().optional(),
+  "title": zod.string().optional(),
+  "platforms": zod.array(zod.string()).optional(),
+  "dateFrom": zod.coerce.date().optional(),
+  "dateTo": zod.coerce.date().optional(),
+  "brandColor": zod.string().optional(),
+  "logoUrl": zod.string().optional()
+})
+
+export const GenerateAnalyticsReportResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "clientName": zod.string(),
+  "status": zod.string(),
+  "generatedAt": zod.coerce.date(),
+  "downloadUrl": zod.string().optional(),
+  "reportData": zod.object({
+
+}).passthrough().nullish()
+})
+
+
+/**
+ * @summary Generate weekly performance digest narrative
+ */
+export const GenerateWeeklyDigestResponse = zod.object({
+  "id": zod.number(),
+  "narrative": zod.string(),
+  "topPlatform": zod.string().nullish(),
+  "totalReach": zod.number(),
+  "weekStart": zod.coerce.date(),
+  "weekEnd": zod.coerce.date(),
+  "emailSent": zod.boolean(),
+  "whatsappLogged": zod.boolean()
+})
+
+
+/**
  * @summary Get revenue breakdown by source and currency for the waterfall chart
  */
 export const getRevenueWaterfallQueryMonthsDefault = 6;

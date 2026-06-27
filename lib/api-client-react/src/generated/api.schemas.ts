@@ -493,6 +493,144 @@ export interface CreateAffiliateLinkBody {
   isActive?: boolean;
 }
 
+export type AnalyticsPlatformSummaryTimeSeriesItem = { [key: string]: unknown };
+
+export interface AnalyticsPlatformSummary {
+  platform: string;
+  followers: number;
+  reach: number;
+  impressions: number;
+  engagementRate: number;
+  followerGrowth: number;
+  followerGrowthPct: number;
+  timeSeries: AnalyticsPlatformSummaryTimeSeriesItem[];
+}
+
+export interface AnalyticsSummary {
+  totalFollowers: number;
+  totalReach: number;
+  avgEngagementRate: number;
+  platforms: AnalyticsPlatformSummary[];
+}
+
+export interface AudienceRegionItem {
+  region: string;
+  label: string;
+  percentage: number;
+  count: number;
+  lat: number;
+  lng: number;
+}
+
+export interface AudienceGeography {
+  platform: string;
+  nigeriaStates: AudienceRegionItem[];
+  diaspora: AudienceRegionItem[];
+}
+
+export interface HeatmapCell {
+  day: number;
+  hour: number;
+  score: number;
+  recommended: boolean;
+}
+
+export interface BestTimeWindow {
+  day: string;
+  time: string;
+  score: number;
+  timezone: string;
+}
+
+export interface BestPostTimes {
+  platform: string;
+  heatmap: HeatmapCell[];
+  bestWindows: BestTimeWindow[];
+  timezone: string;
+  note: string;
+}
+
+export type PostPerformanceItemQualityLabel = typeof PostPerformanceItemQualityLabel[keyof typeof PostPerformanceItemQualityLabel];
+
+
+export const PostPerformanceItemQualityLabel = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+  suspicious: 'suspicious',
+} as const;
+
+export interface PostPerformanceItem {
+  id: number;
+  platform: string;
+  /** @nullable */
+  caption?: string | null;
+  /** @nullable */
+  mediaType?: string | null;
+  /** @nullable */
+  publishedAt?: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  reach: number;
+  impressions: number;
+  engagementRate: number;
+  engagementScore: number;
+  qualityLabel: PostPerformanceItemQualityLabel;
+  /** @nullable */
+  qualityReason?: string | null;
+  botRisk: number;
+}
+
+export interface PlatformComparisonItem {
+  platform: string;
+  followers: number;
+  avgReach: number;
+  avgEngagementRate: number;
+  totalImpressions: number;
+  rank: number;
+}
+
+export interface GenerateReportBody {
+  clientName: string;
+  clientEmail?: string;
+  title?: string;
+  platforms?: string[];
+  dateFrom?: string;
+  dateTo?: string;
+  brandColor?: string;
+  logoUrl?: string;
+}
+
+/**
+ * @nullable
+ */
+export type AnalyticsReportReportData = { [key: string]: unknown } | null;
+
+export interface AnalyticsReport {
+  id: number;
+  title: string;
+  clientName: string;
+  status: string;
+  generatedAt: string;
+  downloadUrl?: string;
+  /** @nullable */
+  reportData?: AnalyticsReportReportData;
+}
+
+export interface WeeklyDigest {
+  id: number;
+  narrative: string;
+  /** @nullable */
+  topPlatform?: string | null;
+  totalReach: number;
+  weekStart: string;
+  weekEnd: string;
+  emailSent: boolean;
+  whatsappLogged: boolean;
+}
+
 export interface RevenueWaterfallMonth {
   month: string;
   brandDeals: number;
@@ -539,6 +677,18 @@ status?: DealStatus;
 
 export type ListInvoicesParams = {
 status?: InvoiceStatus;
+};
+
+export type GetAudienceGeographyParams = {
+platform?: string;
+};
+
+export type GetBestPostTimesParams = {
+platform?: string;
+};
+
+export type GetPostPerformanceParams = {
+platform?: string;
 };
 
 export type GetRevenueWaterfallParams = {

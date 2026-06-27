@@ -13,6 +13,7 @@ import UpgradePage from "@/pages/upgrade";
 import NotFound from "@/pages/not-found";
 import SchedulingPage from "@/pages/scheduling";
 import MonetizationPage from "@/pages/monetization";
+import AnalyticsPage from "@/pages/analytics";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -247,6 +248,9 @@ function ClerkProviderWithRoutes() {
             </Route>
             <Route path="/monetization">
               <AuthRequired><MonetizationPage /></AuthRequired>
+            </Route>
+            <Route path="/analytics">
+              <AuthRequired><AnalyticsPage /></AuthRequired>
             </Route>
             <Route path="/book-promo">
               <AuthRequired><BookPromoPage /></AuthRequired>
