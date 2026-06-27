@@ -12,6 +12,7 @@ import clipEngineRouter from "./clip-engine";
 import autoPostRouter from "./auto-post";
 import trafficRouter from "./traffic";
 import fanHubRouter from "./fan-hub";
+import campaignIntelligenceRouter from "./campaign-intelligence";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(clipEngineRouter);
 router.use(autoPostRouter);
 router.use(trafficRouter);
 router.use(fanHubRouter);
+router.use(campaignIntelligenceRouter);
 
 export default router;

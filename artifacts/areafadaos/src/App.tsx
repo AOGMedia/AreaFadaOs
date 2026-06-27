@@ -22,6 +22,7 @@ import { ClipEnginePage } from "@/pages/clip-engine";
 import { AutoPostPage } from "@/pages/auto-post";
 import { TrafficPage } from "@/pages/traffic";
 import { FanHubPage } from "@/pages/fan-hub";
+import { IntelligencePage } from "@/pages/intelligence";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -94,13 +95,6 @@ const clerkAppearance = {
 
 
 
-const IntelligencePage = createModulePage({
-  title: "Campaign Intelligence",
-  description: "AI-powered sentiment analysis, trend radar, competitive intel, and political campaign mode for enterprise clients.",
-  icon: "📊",
-  moduleKey: "campaignIntelligence",
-  requiredTier: "enterprise",
-});
 
 function SignInPage() {
   return (
