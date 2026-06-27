@@ -1,14 +1,15 @@
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
-import { usersTable, activityLogTable } from "@workspace/db";
+import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const router = Router();
 
 const requireAuth = (req: any, res: any, next: any) => {
   const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
+  const rawId = auth?.sessionClaims?.userId || auth?.userId;
+  const userId = typeof rawId === "string" ? rawId : null;
   if (!userId) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -87,7 +88,7 @@ async function getOrCreateUser(clerkId: string, email?: string, name?: string) {
   return created;
 }
 
-router.get("/users/me", requireAuth, async (req: any, res) => {
+router.get("/users/me", requireAuth, async (req: any, res): Promise<void> => {
   try {
     const user = await getOrCreateUser(req.clerkUserId);
     res.json({
@@ -106,13 +107,23 @@ router.get("/users/me", requireAuth, async (req: any, res) => {
   }
 });
 
-router.patch("/users/me", requireAuth, async (req: any, res) => {
+router.patch("/users/me", requireAuth, async (req: any, res): Promise<void> => {
   try {
     const { displayName, bio, country, avatarUrl } = req.body;
+
+    await getOrCreateUser(req.clerkUserId);
+
     const [updated] = await db.update(usersTable)
-      .set({ displayName, bio, country, avatarUrl, updatedAt: new Date() })
+      .set({
+        ...(displayName !== undefined && { displayName }),
+        ...(bio !== undefined && { bio }),
+        ...(country !== undefined && { country }),
+        ...(avatarUrl !== undefined && { avatarUrl }),
+        updatedAt: new Date(),
+      })
       .where(eq(usersTable.clerkId, req.clerkUserId))
       .returning();
+
     res.json({
       id: updated.id,
       clerkId: updated.clerkId,
@@ -129,7 +140,7 @@ router.patch("/users/me", requireAuth, async (req: any, res) => {
   }
 });
 
-router.get("/users/me/tier", requireAuth, async (req: any, res) => {
+router.get("/users/me/tier", requireAuth, async (req: any, res): Promise<void> => {
   try {
     const user = await getOrCreateUser(req.clerkUserId);
     const tierKey = user.tier as keyof typeof TIER_FEATURES;

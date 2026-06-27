@@ -9,7 +9,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
+import UpgradePage from "@/pages/upgrade";
 import NotFound from "@/pages/not-found";
+import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -79,6 +81,78 @@ const clerkAppearance = {
   },
 };
 
+const SchedulingPage = createModulePage({
+  title: "Scheduling",
+  description: "Auto-post across Instagram, TikTok, X, YouTube, and Facebook simultaneously with AI-suggested optimal times.",
+  icon: "📅",
+  moduleKey: "scheduling",
+  requiredTier: "creator",
+});
+
+const MonetizationPage = createModulePage({
+  title: "Monetization Hub",
+  description: "Track revenue, send Paystack invoices, manage brand deals, and monitor your creator earnings in one dashboard.",
+  icon: "💰",
+  moduleKey: "monetization",
+  requiredTier: "creator",
+});
+
+const BookPromoPage = createModulePage({
+  title: "Book Promo Engine",
+  description: "Dedicated campaign manager for '999' and future releases — smart promo links, click tracking, and download conversions.",
+  icon: "📖",
+  moduleKey: "bookPromo",
+  requiredTier: "creator",
+});
+
+const LiveVideoPage = createModulePage({
+  title: "Live Video",
+  description: "Stream live sessions, schedule streams, and drive reminder opt-ins across all your platforms at once.",
+  icon: "🎬",
+  moduleKey: "liveVideo",
+  requiredTier: "brand",
+});
+
+const ClipEnginePage = createModulePage({
+  title: "Clip Engine",
+  description: "Auto-clip highlights from live sessions and long-form content into shareable TikTok/Reels-ready clips.",
+  icon: "✂️",
+  moduleKey: "clipEngine",
+  requiredTier: "brand",
+});
+
+const TrafficPage = createModulePage({
+  title: "Traffic Engine",
+  description: "Drive real traffic to your content and products through smart link tools, UTM tracking, and geo-targeted campaigns.",
+  icon: "🌍",
+  moduleKey: "trafficTools",
+  requiredTier: "brand",
+});
+
+const AmbassadorsPage = createModulePage({
+  title: "Ambassador CRM",
+  description: "Manage your 36-state ambassador network — assign tasks, track performance, and reward top ambassadors.",
+  icon: "🤝",
+  moduleKey: "ambassadorCrm",
+  requiredTier: "agency",
+});
+
+const FanHubPage = createModulePage({
+  title: "Fan Hub",
+  description: "Verify '999' book buyers, build a paid inner circle, and reward Area Fada's superfans with exclusive access.",
+  icon: "⭐",
+  moduleKey: "fanHub",
+  requiredTier: "agency",
+});
+
+const IntelligencePage = createModulePage({
+  title: "Campaign Intelligence",
+  description: "AI-powered sentiment analysis, trend radar, competitive intel, and political campaign mode for enterprise clients.",
+  icon: "📊",
+  moduleKey: "campaignIntelligence",
+  requiredTier: "enterprise",
+});
+
 function SignInPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
@@ -130,12 +204,10 @@ function HomeRedirect() {
   );
 }
 
-function DashboardRoute() {
+function AuthRequired({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Show when="signed-in">
-        <Dashboard />
-      </Show>
+      <Show when="signed-in">{children}</Show>
       <Show when="signed-out">
         <Redirect to="/" />
       </Show>
@@ -175,9 +247,43 @@ function ClerkProviderWithRoutes() {
           <ClerkQueryClientCacheInvalidator />
           <Switch>
             <Route path="/" component={HomeRedirect} />
-            <Route path="/dashboard" component={DashboardRoute} />
             <Route path="/sign-in/*?" component={SignInPage} />
             <Route path="/sign-up/*?" component={SignUpPage} />
+
+            <Route path="/dashboard">
+              <AuthRequired><Dashboard /></AuthRequired>
+            </Route>
+            <Route path="/upgrade">
+              <AuthRequired><UpgradePage /></AuthRequired>
+            </Route>
+            <Route path="/scheduling">
+              <AuthRequired><SchedulingPage /></AuthRequired>
+            </Route>
+            <Route path="/monetization">
+              <AuthRequired><MonetizationPage /></AuthRequired>
+            </Route>
+            <Route path="/book-promo">
+              <AuthRequired><BookPromoPage /></AuthRequired>
+            </Route>
+            <Route path="/live-video">
+              <AuthRequired><LiveVideoPage /></AuthRequired>
+            </Route>
+            <Route path="/clip-engine">
+              <AuthRequired><ClipEnginePage /></AuthRequired>
+            </Route>
+            <Route path="/traffic">
+              <AuthRequired><TrafficPage /></AuthRequired>
+            </Route>
+            <Route path="/ambassadors">
+              <AuthRequired><AmbassadorsPage /></AuthRequired>
+            </Route>
+            <Route path="/fan-hub">
+              <AuthRequired><FanHubPage /></AuthRequired>
+            </Route>
+            <Route path="/intelligence">
+              <AuthRequired><IntelligencePage /></AuthRequired>
+            </Route>
+
             <Route component={NotFound} />
           </Switch>
           <Toaster />
