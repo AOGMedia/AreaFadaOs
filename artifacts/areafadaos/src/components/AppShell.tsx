@@ -12,6 +12,7 @@ import {
   Users,
   Star,
   BarChart3,
+  LineChart,
   LogOut,
   Menu,
   X,
@@ -34,6 +35,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", path: "/dashboard", icon: <LayoutDashboard className="w-4 h-4" />, moduleKey: null },
   { label: "Scheduling", path: "/scheduling", icon: <Calendar className="w-4 h-4" />, moduleKey: "scheduling" },
+  { label: "Analytics", path: "/analytics", icon: <LineChart className="w-4 h-4" />, moduleKey: "analytics", requiredTier: "creator" },
   { label: "Monetization", path: "/monetization", icon: <DollarSign className="w-4 h-4" />, moduleKey: "monetization", requiredTier: "creator" },
   { label: "Book Promo", path: "/book-promo", icon: <BookOpen className="w-4 h-4" />, moduleKey: "bookPromo", requiredTier: "creator" },
   { label: "Live Video", path: "/live-video", icon: <Radio className="w-4 h-4" />, moduleKey: "liveVideo", requiredTier: "brand" },

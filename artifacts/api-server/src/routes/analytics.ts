@@ -4,6 +4,7 @@ import {
   analyticsSnapshots,
   audienceSegments,
   postPerformance,
+  engagementScores,
   analyticsReports,
   weeklyDigests,
   usersTable,
@@ -155,10 +156,38 @@ async function seedAnalyticsForUser(userId: number) {
   }
 
   await db.insert(postPerformance).values(posts);
+
+  // Engagement scores — one entry per post, derived from postPerformance
+  const scores: typeof engagementScores.$inferInsert[] = posts.map((p) => {
+    const botRiskNum = Number(p.botRisk) || 0;
+    const engRateNum = Number(p.engagementRate) || 0;
+    const reach = p.reach || 1;
+    const likes = p.likes || 0;
+    const comments = p.comments || 0;
+    const score = p.engagementScore || 50;
+    const label = score >= 75 ? "high" : score >= 50 ? "medium" : score >= 30 ? "low" : "suspicious";
+    return {
+      userId,
+      platform: p.platform,
+      score,
+      label,
+      commentQuality: String(Math.min(100, (comments / (likes || 1)) * 200).toFixed(2)),
+      followerRatio: String((engRateNum / 10).toFixed(2)),
+      interactionVelocity: String((Math.random() * 5 + 1).toFixed(2)),
+      botRisk: p.botRisk as string,
+      signals: [
+        { type: "engagement_rate", value: engRateNum, ok: engRateNum >= 3 },
+        { type: "bot_risk", value: botRiskNum, ok: botRiskNum < 20 },
+        { type: "comment_depth", value: comments, ok: comments > 50 },
+      ],
+      scoredAt: p.publishedAt,
+    };
+  });
+  await db.insert(engagementScores).values(scores);
 }
 
 // ─── GET /analytics/summary ───────────────────────────────────────────────
-router.get("/analytics/summary", requireAuth, requireTier("brand"), async (req: any, res): Promise<void> => {
+router.get("/analytics/summary", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -224,7 +253,7 @@ function buildSummary(snaps: typeof analyticsSnapshots.$inferSelect[]) {
 }
 
 // ─── GET /analytics/audience ─────────────────────────────────────────────
-router.get("/analytics/audience", requireAuth, requireTier("brand"), async (req: any, res): Promise<void> => {
+router.get("/analytics/audience", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -275,7 +304,7 @@ router.get("/analytics/audience", requireAuth, requireTier("brand"), async (req:
 // Falls back to platform-neutral priors when fewer than 5 data points exist.
 const WAT_OFFSET_HOURS = 1; // UTC+1
 
-router.get("/analytics/best-times", requireAuth, requireTier("brand"), async (req: any, res): Promise<void> => {
+router.get("/analytics/best-times", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -391,7 +420,7 @@ router.get("/analytics/best-times", requireAuth, requireTier("brand"), async (re
 });
 
 // ─── GET /analytics/post-performance ────────────────────────────────────
-router.get("/analytics/post-performance", requireAuth, requireTier("brand"), async (req: any, res): Promise<void> => {
+router.get("/analytics/post-performance", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -437,7 +466,7 @@ router.get("/analytics/post-performance", requireAuth, requireTier("brand"), asy
 });
 
 // ─── GET /analytics/platform-comparison ─────────────────────────────────
-router.get("/analytics/platform-comparison", requireAuth, requireTier("brand"), async (req: any, res): Promise<void> => {
+router.get("/analytics/platform-comparison", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -677,7 +706,7 @@ router.get("/analytics/reports/:id/pdf", requireAuth, requireTier("brand"), asyn
 });
 
 // ─── POST /analytics/digest ───────────────────────────────────────────────
-router.post("/analytics/digest", requireAuth, requireTier("brand"), async (req: any, res): Promise<void> => {
+router.post("/analytics/digest", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
