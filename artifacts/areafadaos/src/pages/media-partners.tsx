@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TierGuard } from "@/components/TierGuard";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Globe, Users, Building2, Mail, Plus, Upload, Download, RefreshCw,
   CheckCircle2, Clock, XCircle, TrendingUp, BarChart3, Send, Eye,
-  ExternalLink, Copy, Ban, Search, Filter, ChevronRight,
+  ExternalLink, Copy, Ban, Search, Filter, ChevronRight, Edit3, RotateCcw,
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const apiBase = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -616,12 +617,13 @@ function PartnerProfilesTab() {
 
 // ─── Tab: Partner Analytics ───────────────────────────────────────────────────
 function PartnerAnalyticsTab() {
+  const qc = useQueryClient();
   const { data: analytics, isLoading } = useQuery<any>({
     queryKey: ["partner-analytics"],
     queryFn: () => apiFetch("/partner-analytics"),
   });
 
-  const { data: emailLogs = [], isLoading: emailLoading } = useQuery<any[]>({
+  const { data: emailLogs = [] } = useQuery<any[]>({
     queryKey: ["partner-outreach-emails"],
     queryFn: () => apiFetch("/partner-outreach-emails"),
   });
@@ -634,6 +636,13 @@ function PartnerAnalyticsTab() {
     openRate: d.sent > 0 ? Math.round((d.opened / d.sent) * 100) : 0,
     convRate: d.sent > 0 ? Math.round((d.converted / d.sent) * 100) : 0,
   })).sort((a, b) => b.sent - a.sent);
+
+  // Compact 30-day trend — only show days with labels every 5 days
+  const trend = (analytics.trend ?? []).map((d: any, i: number) => ({
+    ...d,
+    label: i % 5 === 0 ? d.date.slice(5) : "",
+  }));
+  const hasTrendData = trend.some((d: any) => d.sent > 0);
 
   return (
     <div className="space-y-6">
@@ -648,6 +657,29 @@ function PartnerAnalyticsTab() {
         <StatCard label="Revenue Attributed" value={analytics.totalRevenue > 0 ? `₦${Number(analytics.totalRevenue).toLocaleString()}` : "—"} icon={<BarChart3 className="w-5 h-5" />} />
         <StatCard label="Last 30 Days" value={analytics.recentInvites} sub="invites sent" icon={<Clock className="w-5 h-5" />} />
       </div>
+
+      {/* 30-day trend chart */}
+      <Card className="bg-gray-900 border-gray-800">
+        <CardHeader><CardTitle className="text-white text-base">30-Day Invite Trend</CardTitle></CardHeader>
+        <CardContent>
+          {hasTrendData ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={trend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                <XAxis dataKey="label" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 8, color: "#f9fafb" }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: "#9ca3af" }} />
+                <Bar dataKey="sent" name="Sent" fill="#6366f1" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="opened" name="Opened" fill="#f59e0b" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="signedUp" name="Signed Up" fill="#10b981" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="converted" name="Converted" fill="#a78bfa" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="text-center text-gray-500 py-8 text-sm">No invite activity in the last 30 days yet.</div>
+          )}
+        </CardContent>
+      </Card>
 
       {byType.length > 0 && (
         <Card className="bg-gray-900 border-gray-800">
@@ -688,13 +720,14 @@ function PartnerAnalyticsTab() {
           <CardHeader><CardTitle className="text-white text-base">Recent Email Delivery Log</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-2 max-h-72 overflow-y-auto">
-              {emailLogs.slice(0, 50).map(log => (
+              {emailLogs.slice(0, 50).map((log: any) => (
                 <div key={log.id} className="flex items-center justify-between text-sm py-1.5 border-b border-gray-800/50 last:border-0">
                   <div>
                     <span className="text-white">{log.orgName}</span>
                     <span className="text-gray-500 ml-2">{log.toEmail}</span>
                   </div>
                   <div className="flex items-center gap-3">
+                    {log.openedAt && <Badge className="text-xs bg-amber-500/20 text-amber-400">opened</Badge>}
                     <Badge className={`text-xs ${log.status === "sent" || log.status === "delivered" ? "bg-emerald-500/20 text-emerald-400" : log.status === "simulated" ? "bg-blue-500/20 text-blue-400" : "bg-red-500/20 text-red-400"}`}>
                       {log.status}
                     </Badge>
@@ -710,6 +743,114 @@ function PartnerAnalyticsTab() {
   );
 }
 
+// ─── Template Editor Tab ──────────────────────────────────────────────────────
+
+const PARTNER_TYPE_KEYS = ["creator_partner", "brand_partner", "agency_reseller", "media_house", "political_campaign"];
+
+function EmailTemplateEditorTab() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [selectedKey, setSelectedKey] = useState(PARTNER_TYPE_KEYS[0]);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
+
+  const { data: templates = [] } = useQuery<any[]>({
+    queryKey: ["partner-email-templates"],
+    queryFn: () => apiFetch("/partner-email-templates"),
+  });
+
+  const currentTpl = templates.find((t: any) => t.templateKey === selectedKey);
+
+  useEffect(() => {
+    if (currentTpl) {
+      setEditSubject(currentTpl.subject);
+      setEditBody(currentTpl.bodyHtml);
+    }
+  }, [currentTpl?.templateKey, currentTpl?.subject]);
+
+  const saveMut = useMutation({
+    mutationFn: () => apiFetch("/partner-email-templates", { method: "POST", body: JSON.stringify({ templateKey: selectedKey, subject: editSubject, bodyHtml: editBody }) }),
+    onSuccess: () => { toast({ title: "Template saved" }); qc.invalidateQueries({ queryKey: ["partner-email-templates"] }); },
+    onError: (e: any) => toast({ title: "Save failed", description: e.message, variant: "destructive" }),
+  });
+
+  const resetMut = useMutation({
+    mutationFn: () => apiFetch(`/partner-email-templates/${selectedKey}`, { method: "DELETE" }),
+    onSuccess: () => { toast({ title: "Reset to default" }); qc.invalidateQueries({ queryKey: ["partner-email-templates"] }); },
+    onError: (e: any) => toast({ title: "Reset failed", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-white font-semibold text-lg">Email Template Editor</h2>
+          <p className="text-gray-400 text-sm mt-0.5">Customise outreach emails per partner type. Use <code className="bg-gray-800 px-1 rounded text-xs">{"{{orgName}}"}</code>, <code className="bg-gray-800 px-1 rounded text-xs">{"{{contactName}}"}</code>, <code className="bg-gray-800 px-1 rounded text-xs">{"{{inviteUrl}}"}</code>, <code className="bg-gray-800 px-1 rounded text-xs">{"{{partnerTypeLabel}}"}</code> as placeholders.</p>
+        </div>
+      </div>
+
+      {/* Partner type selector */}
+      <div className="flex flex-wrap gap-2">
+        {PARTNER_TYPE_KEYS.map(key => {
+          const tpl = templates.find((t: any) => t.templateKey === key);
+          return (
+            <button
+              key={key}
+              onClick={() => setSelectedKey(key)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${selectedKey === key ? "bg-emerald-600 border-emerald-500 text-white" : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700"}`}
+            >
+              {PARTNER_TYPE_LABELS[key]}
+              {tpl?.isCustom && <span className="ml-1.5 text-xs text-amber-400">✎</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      <Card className="bg-gray-900 border-gray-800">
+        <CardContent className="pt-5 space-y-4">
+          <div>
+            <label className="text-gray-400 text-sm mb-1 block">Subject Line</label>
+            <Input
+              value={editSubject}
+              onChange={e => setEditSubject(e.target.value)}
+              className="bg-gray-800 border-gray-700 text-white"
+              placeholder="Email subject…"
+            />
+          </div>
+          <div>
+            <label className="text-gray-400 text-sm mb-1 block">Body HTML</label>
+            <Textarea
+              value={editBody}
+              onChange={e => setEditBody(e.target.value)}
+              className="bg-gray-800 border-gray-700 text-white font-mono text-xs min-h-[260px]"
+              placeholder="<p>Hi {{contactName}},</p>…"
+            />
+          </div>
+          {editBody && (
+            <div>
+              <label className="text-gray-400 text-sm mb-1 block">Preview</label>
+              <div
+                className="bg-white rounded p-4 text-sm text-gray-900 max-h-48 overflow-y-auto"
+                dangerouslySetInnerHTML={{ __html: editBody }}
+              />
+            </div>
+          )}
+          <div className="flex gap-3 pt-1">
+            <Button onClick={() => saveMut.mutate()} disabled={saveMut.isPending || !editSubject || !editBody} className="bg-emerald-600 hover:bg-emerald-700">
+              <Edit3 className="w-4 h-4 mr-1.5" /> {saveMut.isPending ? "Saving…" : "Save Template"}
+            </Button>
+            {currentTpl?.isCustom && (
+              <Button variant="outline" onClick={() => resetMut.mutate()} disabled={resetMut.isPending} className="border-gray-600 text-gray-300 hover:bg-gray-800">
+                <RotateCcw className="w-4 h-4 mr-1.5" /> Reset to Default
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const TABS = [
   { key: "bulk-invite", label: "Bulk Invite Generator", icon: <Upload className="w-4 h-4" /> },
@@ -717,6 +858,7 @@ const TABS = [
   { key: "directory", label: "Media Directory", icon: <Globe className="w-4 h-4" /> },
   { key: "profiles", label: "Partner Profiles", icon: <Building2 className="w-4 h-4" /> },
   { key: "analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" /> },
+  { key: "templates", label: "Email Templates", icon: <Edit3 className="w-4 h-4" /> },
 ];
 
 export function MediaPartnersPage() {
@@ -758,6 +900,7 @@ export function MediaPartnersPage() {
           {activeTab === "directory" && <MediaDirectoryTab />}
           {activeTab === "profiles" && <PartnerProfilesTab />}
           {activeTab === "analytics" && <PartnerAnalyticsTab />}
+          {activeTab === "templates" && <EmailTemplateEditorTab />}
         </div>
       </TierGuard>
     </AppShell>

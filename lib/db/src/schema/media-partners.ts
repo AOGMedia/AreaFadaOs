@@ -88,6 +88,18 @@ export const partnerDirectoryEntriesTable = pgTable("partner_directory_entries",
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// ─── Per-Tenant Email Templates ───────────────────────────────────────────────
+// Allows each agency tenant to customize the default email templates per partner type.
+export const partnerEmailTemplatesTable = pgTable("partner_email_templates", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  templateKey: text("template_key").notNull(), // creator_partner | brand_partner | etc.
+  subject: text("subject").notNull(),
+  bodyHtml: text("body_html").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 // ─── Per-Tenant Directory Outreach State ──────────────────────────────────────
 // Tracks each agency tenant's outreach status/notes per directory entry.
 // Isolates pipeline state so one tenant's actions never overwrite another's.

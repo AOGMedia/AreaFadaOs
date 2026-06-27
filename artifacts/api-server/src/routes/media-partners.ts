@@ -6,6 +6,7 @@ import {
   outreachEmailLogsTable,
   partnerDirectoryEntriesTable,
   partnerDirectoryOutreachTable,
+  partnerEmailTemplatesTable,
   usersTable,
 } from "@workspace/db";
 import { eq, and, desc, ilike, or, sql, count } from "drizzle-orm";
@@ -101,9 +102,31 @@ async function sendOutreachEmail(userId: number, inviteId: number | null, params
   partnerType: string; templateKey: string; inviteUrl: string;
 }) {
   const partnerTypeLabel = PARTNER_TYPE_LABELS[params.partnerType] ?? params.partnerType;
-  const templateFn = EMAIL_TEMPLATES[params.templateKey] ?? EMAIL_TEMPLATES["creator_partner"];
-  const { subject, html } = templateFn({ orgName: params.orgName, contactName: params.toName, inviteUrl: params.inviteUrl, partnerTypeLabel });
 
+  // Check for user-customised template first; fall back to hardcoded defaults
+  const customTpl = await db.select().from(partnerEmailTemplatesTable)
+    .where(and(eq(partnerEmailTemplatesTable.userId, userId), eq(partnerEmailTemplatesTable.templateKey, params.templateKey))).limit(1);
+
+  let subject: string;
+  let baseHtml: string;
+  if (customTpl.length) {
+    // Interpolate placeholders in custom template
+    subject = customTpl[0].subject
+      .replace(/\{\{orgName\}\}/g, params.orgName)
+      .replace(/\{\{contactName\}\}/g, params.toName)
+      .replace(/\{\{inviteUrl\}\}/g, params.inviteUrl)
+      .replace(/\{\{partnerTypeLabel\}\}/g, partnerTypeLabel);
+    baseHtml = customTpl[0].bodyHtml
+      .replace(/\{\{orgName\}\}/g, params.orgName)
+      .replace(/\{\{contactName\}\}/g, params.toName)
+      .replace(/\{\{inviteUrl\}\}/g, params.inviteUrl)
+      .replace(/\{\{partnerTypeLabel\}\}/g, partnerTypeLabel);
+  } else {
+    const templateFn = EMAIL_TEMPLATES[params.templateKey] ?? EMAIL_TEMPLATES["creator_partner"];
+    ({ subject, html: baseHtml } = templateFn({ orgName: params.orgName, contactName: params.toName, inviteUrl: params.inviteUrl, partnerTypeLabel }));
+  }
+
+  // Insert log first so we have a logId for the tracking pixel
   const logRow = await db.insert(outreachEmailLogsTable).values({
     userId,
     inviteId,
@@ -113,11 +136,16 @@ async function sendOutreachEmail(userId: number, inviteId: number | null, params
     partnerType: params.partnerType,
     templateKey: params.templateKey,
     subject,
-    bodyHtml: html,
+    bodyHtml: baseHtml,
     status: "pending",
   }).returning();
 
   const logId = logRow[0].id;
+
+  // Inject 1×1 tracking pixel so email opens are captured
+  const baseUrl = process.env.APP_URL ?? `https://${process.env.REPLIT_DEV_DOMAIN ?? "areafada.com"}`;
+  const trackingPixel = `<img src="${baseUrl}/api/partner-outreach-emails/opened/${logId}" width="1" height="1" style="display:none" alt="" />`;
+  const html = baseHtml + trackingPixel;
 
   if (resend) {
     try {
@@ -720,13 +748,79 @@ router.get("/partner-analytics", ...requireAgency, async (req: any, res) => {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const recentInvites = allInvites.filter(i => new Date(i.createdAt) > thirtyDaysAgo).length;
 
+  // 30-day daily trend
+  const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const trend: Array<{ date: string; sent: number; opened: number; signedUp: number; converted: number }> = [];
+  for (let d = 29; d >= 0; d--) {
+    const start = new Date(thirtyDaysAgoMs + d * 24 * 60 * 60 * 1000);
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    const dateStr = start.toISOString().slice(0, 10);
+    const dayInvites = allInvites.filter(i => {
+      const c = new Date(i.createdAt).getTime();
+      return c >= start.getTime() && c < end.getTime();
+    });
+    trend.push({
+      date: dateStr,
+      sent: dayInvites.length,
+      opened: dayInvites.filter(i => ["opened", "signed_up", "converted"].includes(i.status)).length,
+      signedUp: dayInvites.filter(i => ["signed_up", "converted"].includes(i.status)).length,
+      converted: dayInvites.filter(i => i.status === "converted").length,
+    });
+  }
+
   res.json({
     totalInvites, opened, signedUp, converted,
     openRate, signUpRate, conversionRate,
     emailsSent, emailsOpened,
     totalRevenue, recentInvites,
-    byType,
+    byType, trend,
   });
+});
+
+// ─── Email Templates CRUD ─────────────────────────────────────────────────────
+
+router.get("/partner-email-templates", ...requireAgency, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const templates = await db.select().from(partnerEmailTemplatesTable)
+    .where(eq(partnerEmailTemplatesTable.userId, user.id))
+    .orderBy(partnerEmailTemplatesTable.templateKey);
+  // Merge with defaults so every type is always present
+  const keys = Object.keys(EMAIL_TEMPLATES);
+  const merged = keys.map(key => {
+    const custom = templates.find(t => t.templateKey === key);
+    if (custom) return { ...custom, isCustom: true };
+    const defVars = { orgName: "{{orgName}}", contactName: "{{contactName}}", inviteUrl: "{{inviteUrl}}", partnerTypeLabel: "{{partnerTypeLabel}}" };
+    const def = EMAIL_TEMPLATES[key](defVars);
+    return { id: null, userId: user.id, templateKey: key, subject: def.subject, bodyHtml: def.html, isCustom: false };
+  });
+  res.json(merged);
+});
+
+router.post("/partner-email-templates", ...requireAgency, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const { templateKey, subject, bodyHtml } = req.body;
+  if (!templateKey || !subject || !bodyHtml) { res.status(400).json({ error: "templateKey, subject, bodyHtml required" }); return; }
+  // Upsert: one row per user+templateKey
+  const existing = await db.select().from(partnerEmailTemplatesTable)
+    .where(and(eq(partnerEmailTemplatesTable.userId, user.id), eq(partnerEmailTemplatesTable.templateKey, templateKey))).limit(1);
+  let saved;
+  if (existing.length) {
+    [saved] = await db.update(partnerEmailTemplatesTable).set({ subject, bodyHtml, updatedAt: new Date() })
+      .where(eq(partnerEmailTemplatesTable.id, existing[0].id)).returning();
+  } else {
+    [saved] = await db.insert(partnerEmailTemplatesTable).values({ userId: user.id, templateKey, subject, bodyHtml }).returning();
+  }
+  res.status(201).json(saved);
+});
+
+router.delete("/partner-email-templates/:templateKey", ...requireAgency, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  await db.delete(partnerEmailTemplatesTable)
+    .where(and(eq(partnerEmailTemplatesTable.userId, user.id), eq(partnerEmailTemplatesTable.templateKey, req.params.templateKey)));
+  res.json({ reset: true });
 });
 
 export default router;
