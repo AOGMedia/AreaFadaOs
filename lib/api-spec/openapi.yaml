@@ -14,6 +14,12 @@ tags:
     description: User profile and subscription management
   - name: dashboard
     description: Dashboard summary and activity
+  - name: scheduling
+    description: Content scheduling and calendar
+  - name: campaigns
+    description: Campaign management
+  - name: captions
+    description: AI caption generation
 
 paths:
   /healthz:
@@ -100,6 +106,292 @@ paths:
                 items:
                   $ref: "#/components/schemas/ActivityItem"
 
+  /posts:
+    get:
+      operationId: listPosts
+      tags: [scheduling]
+      summary: List posts for current user
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, scheduled, published, failed]
+        - name: campaignId
+          in: query
+          schema:
+            type: integer
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: List of posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+    post:
+      operationId: createPost
+      tags: [scheduling]
+      summary: Create a new post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostBody"
+      responses:
+        "201":
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  /posts/{id}:
+    get:
+      operationId: getPost
+      tags: [scheduling]
+      summary: Get a post by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePost
+      tags: [scheduling]
+      summary: Update a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePostBody"
+      responses:
+        "200":
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+    delete:
+      operationId: deletePost
+      tags: [scheduling]
+      summary: Delete a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /posts/bulk-upload:
+    post:
+      operationId: bulkUploadPosts
+      tags: [scheduling]
+      summary: Bulk import posts from CSV data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkUploadBody"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkUploadResult"
+
+  /posts/{id}/recycle:
+    post:
+      operationId: recyclePost
+      tags: [scheduling]
+      summary: Recycle a post with AI-refreshed caption
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecyclePostBody"
+      responses:
+        "201":
+          description: Recycled post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  /posts/hashtags:
+    get:
+      operationId: getTrendingHashtags
+      tags: [scheduling]
+      summary: Get trending hashtags for African regions per platform
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: region
+          in: query
+          schema:
+            type: string
+            default: NG
+      responses:
+        "200":
+          description: Trending hashtags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HashtagItem"
+
+  /posts/captions:
+    post:
+      operationId: generateCaptions
+      tags: [captions]
+      summary: Generate AI captions with Nigerian tone profiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateCaptionsBody"
+      responses:
+        "200":
+          description: Generated captions per platform per tone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateCaptionsResponse"
+
+  /campaigns:
+    get:
+      operationId: listCampaigns
+      tags: [campaigns]
+      summary: List campaigns for current user
+      responses:
+        "200":
+          description: List of campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Campaign"
+    post:
+      operationId: createCampaign
+      tags: [campaigns]
+      summary: Create a campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCampaignBody"
+      responses:
+        "201":
+          description: Created campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+
+  /campaigns/{id}:
+    patch:
+      operationId: updateCampaign
+      tags: [campaigns]
+      summary: Update a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCampaignBody"
+      responses:
+        "200":
+          description: Updated campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+    delete:
+      operationId: deleteCampaign
+      tags: [campaigns]
+      summary: Delete a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /platform-accounts:
+    get:
+      operationId: listPlatformAccounts
+      tags: [scheduling]
+      summary: List connected platform accounts
+      responses:
+        "200":
+          description: Platform accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlatformAccount"
+
 components:
   schemas:
     HealthStatus:
@@ -113,6 +405,18 @@ components:
     SubscriptionTier:
       type: string
       enum: [free, creator, brand, agency, enterprise]
+
+    Platform:
+      type: string
+      enum: [instagram, tiktok, x, youtube, facebook, threads]
+
+    PostStatus:
+      type: string
+      enum: [draft, scheduled, published, failed]
+
+    CaptionTone:
+      type: string
+      enum: [pidgin, yoruba, igbo, hausa, formal]
 
     UserProfile:
       type: object
@@ -238,3 +542,281 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    Post:
+      type: object
+      required: [id, userId, caption, mediaUrls, platforms, status, hashtags, engagementScore, isRecycled, version, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        campaignId:
+          type: ["integer", "null"]
+        caption:
+          type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        platforms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Platform"
+        status:
+          $ref: "#/components/schemas/PostStatus"
+        scheduledAt:
+          type: ["string", "null"]
+          format: date-time
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+        tone:
+          type: ["string", "null"]
+        hashtags:
+          type: array
+          items:
+            type: string
+        platformVariants:
+          type: ["object", "null"]
+        engagementScore:
+          type: integer
+        isRecycled:
+          type: boolean
+        originalPostId:
+          type: ["integer", "null"]
+        version:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePostBody:
+      type: object
+      required: [caption, platforms]
+      properties:
+        caption:
+          type: string
+        platforms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Platform"
+        campaignId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        tone:
+          $ref: "#/components/schemas/CaptionTone"
+        hashtags:
+          type: array
+          items:
+            type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        platformVariants:
+          type: object
+
+    UpdatePostBody:
+      type: object
+      properties:
+        caption:
+          type: string
+        platforms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Platform"
+        campaignId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/PostStatus"
+        tone:
+          $ref: "#/components/schemas/CaptionTone"
+        hashtags:
+          type: array
+          items:
+            type: string
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        platformVariants:
+          type: object
+
+    BulkUploadBody:
+      type: object
+      required: [posts]
+      properties:
+        posts:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required: [caption, platforms]
+            properties:
+              caption:
+                type: string
+              platforms:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Platform"
+              scheduledAt:
+                type: string
+              hashtags:
+                type: array
+                items:
+                  type: string
+              campaignId:
+                type: integer
+
+    BulkUploadResult:
+      type: object
+      required: [imported, failed, posts]
+      properties:
+        imported:
+          type: integer
+        failed:
+          type: integer
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Post"
+
+    RecyclePostBody:
+      type: object
+      required: [platforms, scheduledAt]
+      properties:
+        platforms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Platform"
+        scheduledAt:
+          type: string
+          format: date-time
+        tone:
+          $ref: "#/components/schemas/CaptionTone"
+        refreshCaption:
+          type: boolean
+          default: true
+
+    HashtagItem:
+      type: object
+      required: [hashtag, platform, region, trendScore]
+      properties:
+        hashtag:
+          type: string
+        platform:
+          type: string
+        region:
+          type: string
+        trendScore:
+          type: integer
+        category:
+          type: ["string", "null"]
+
+    GenerateCaptionsBody:
+      type: object
+      required: [topic, tones, platforms]
+      properties:
+        topic:
+          type: string
+        tones:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaptionTone"
+        platforms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Platform"
+        context:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+
+    GenerateCaptionsResponse:
+      type: object
+      required: [captions]
+      properties:
+        captions:
+          type: array
+          items:
+            type: object
+            required: [tone, variants]
+            properties:
+              tone:
+                $ref: "#/components/schemas/CaptionTone"
+              variants:
+                type: object
+                additionalProperties:
+                  type: string
+
+    Campaign:
+      type: object
+      required: [id, userId, name, color, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        color:
+          type: string
+        startDate:
+          type: ["string", "null"]
+          format: date-time
+        endDate:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateCampaignBody:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        color:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+
+    PlatformAccount:
+      type: object
+      required: [id, platform, handle, connected, followerCount]
+      properties:
+        id:
+          type: integer
+        platform:
+          $ref: "#/components/schemas/Platform"
+        handle:
+          type: string
+        displayName:
+          type: ["string", "null"]
+        connected:
+          type: boolean
+        followerCount:
+          type: integer

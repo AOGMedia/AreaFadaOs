@@ -109,3 +109,382 @@ export const GetDashboardActivityResponseItem = zod.object({
 export const GetDashboardActivityResponse = zod.array(GetDashboardActivityResponseItem)
 
 
+/**
+ * @summary List posts for current user
+ */
+export const ListPostsQueryParams = zod.object({
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']).optional(),
+  "campaignId": zod.coerce.number().optional(),
+  "platform": zod.coerce.string().optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional()
+})
+
+export const ListPostsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "caption": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "tone": zod.string().nullish(),
+  "hashtags": zod.array(zod.string()),
+  "platformVariants": zod.object({
+
+}).passthrough().nullish(),
+  "engagementScore": zod.number(),
+  "isRecycled": zod.boolean(),
+  "originalPostId": zod.number().nullish(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListPostsResponse = zod.array(ListPostsResponseItem)
+
+
+/**
+ * @summary Create a new post
+ */
+export const CreatePostBody = zod.object({
+  "caption": zod.string(),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "campaignId": zod.number().optional(),
+  "scheduledAt": zod.coerce.date().optional(),
+  "tone": zod.enum(['pidgin', 'yoruba', 'igbo', 'hausa', 'formal']).optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "platformVariants": zod.object({
+
+}).passthrough().optional()
+})
+
+export const CreatePostResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "caption": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "tone": zod.string().nullish(),
+  "hashtags": zod.array(zod.string()),
+  "platformVariants": zod.object({
+
+}).passthrough().nullish(),
+  "engagementScore": zod.number(),
+  "isRecycled": zod.boolean(),
+  "originalPostId": zod.number().nullish(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a post by ID
+ */
+export const GetPostParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPostResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "caption": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "tone": zod.string().nullish(),
+  "hashtags": zod.array(zod.string()),
+  "platformVariants": zod.object({
+
+}).passthrough().nullish(),
+  "engagementScore": zod.number(),
+  "isRecycled": zod.boolean(),
+  "originalPostId": zod.number().nullish(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a post
+ */
+export const UpdatePostParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdatePostBody = zod.object({
+  "caption": zod.string().optional(),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])).optional(),
+  "campaignId": zod.number().optional(),
+  "scheduledAt": zod.coerce.date().optional(),
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']).optional(),
+  "tone": zod.enum(['pidgin', 'yoruba', 'igbo', 'hausa', 'formal']).optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "mediaUrls": zod.array(zod.string()).optional(),
+  "platformVariants": zod.object({
+
+}).passthrough().optional()
+})
+
+export const UpdatePostResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "caption": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "tone": zod.string().nullish(),
+  "hashtags": zod.array(zod.string()),
+  "platformVariants": zod.object({
+
+}).passthrough().nullish(),
+  "engagementScore": zod.number(),
+  "isRecycled": zod.boolean(),
+  "originalPostId": zod.number().nullish(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a post
+ */
+export const DeletePostParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeletePostResponse = zod.void()
+
+
+/**
+ * @summary Bulk import posts from CSV data
+ */
+export const bulkUploadPostsBodyPostsMax = 50;
+
+
+
+export const BulkUploadPostsBody = zod.object({
+  "posts": zod.array(zod.object({
+  "caption": zod.string(),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "scheduledAt": zod.string().optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "campaignId": zod.number().optional()
+})).max(bulkUploadPostsBodyPostsMax)
+})
+
+export const BulkUploadPostsResponse = zod.object({
+  "imported": zod.number(),
+  "failed": zod.number(),
+  "posts": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "caption": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "tone": zod.string().nullish(),
+  "hashtags": zod.array(zod.string()),
+  "platformVariants": zod.object({
+
+}).passthrough().nullish(),
+  "engagementScore": zod.number(),
+  "isRecycled": zod.boolean(),
+  "originalPostId": zod.number().nullish(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Recycle a post with AI-refreshed caption
+ */
+export const RecyclePostParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const recyclePostBodyRefreshCaptionDefault = true;
+
+export const RecyclePostBody = zod.object({
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "scheduledAt": zod.coerce.date(),
+  "tone": zod.enum(['pidgin', 'yoruba', 'igbo', 'hausa', 'formal']).optional(),
+  "refreshCaption": zod.boolean().default(recyclePostBodyRefreshCaptionDefault)
+})
+
+export const RecyclePostResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "caption": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "tone": zod.string().nullish(),
+  "hashtags": zod.array(zod.string()),
+  "platformVariants": zod.object({
+
+}).passthrough().nullish(),
+  "engagementScore": zod.number(),
+  "isRecycled": zod.boolean(),
+  "originalPostId": zod.number().nullish(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get trending hashtags for African regions per platform
+ */
+export const getTrendingHashtagsQueryRegionDefault = `NG`;
+
+export const GetTrendingHashtagsQueryParams = zod.object({
+  "platform": zod.coerce.string().optional(),
+  "region": zod.coerce.string().default(getTrendingHashtagsQueryRegionDefault)
+})
+
+export const GetTrendingHashtagsResponseItem = zod.object({
+  "hashtag": zod.string(),
+  "platform": zod.string(),
+  "region": zod.string(),
+  "trendScore": zod.number(),
+  "category": zod.string().nullish()
+})
+export const GetTrendingHashtagsResponse = zod.array(GetTrendingHashtagsResponseItem)
+
+
+/**
+ * @summary Generate AI captions with Nigerian tone profiles
+ */
+export const GenerateCaptionsBody = zod.object({
+  "topic": zod.string(),
+  "tones": zod.array(zod.enum(['pidgin', 'yoruba', 'igbo', 'hausa', 'formal'])),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "context": zod.string().optional(),
+  "hashtags": zod.array(zod.string()).optional()
+})
+
+export const GenerateCaptionsResponse = zod.object({
+  "captions": zod.array(zod.object({
+  "tone": zod.enum(['pidgin', 'yoruba', 'igbo', 'hausa', 'formal']),
+  "variants": zod.record(zod.string(), zod.string())
+}))
+})
+
+
+/**
+ * @summary List campaigns for current user
+ */
+export const ListCampaignsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "color": zod.string(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListCampaignsResponse = zod.array(ListCampaignsResponseItem)
+
+
+/**
+ * @summary Create a campaign
+ */
+export const CreateCampaignBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "color": zod.string().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional()
+})
+
+export const CreateCampaignResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "color": zod.string(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a campaign
+ */
+export const UpdateCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateCampaignBody = zod.object({
+  "name": zod.string(),
+  "description": zod.string().optional(),
+  "color": zod.string().optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional()
+})
+
+export const UpdateCampaignResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "description": zod.string().nullish(),
+  "color": zod.string(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a campaign
+ */
+export const DeleteCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCampaignResponse = zod.void()
+
+
+/**
+ * @summary List connected platform accounts
+ */
+export const ListPlatformAccountsResponseItem = zod.object({
+  "id": zod.number(),
+  "platform": zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads']),
+  "handle": zod.string(),
+  "displayName": zod.string().nullish(),
+  "connected": zod.boolean(),
+  "followerCount": zod.number()
+})
+export const ListPlatformAccountsResponse = zod.array(ListPlatformAccountsResponseItem)
+
+

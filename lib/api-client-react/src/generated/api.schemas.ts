@@ -20,6 +20,39 @@ export const SubscriptionTier = {
   enterprise: 'enterprise',
 } as const;
 
+export type Platform = typeof Platform[keyof typeof Platform];
+
+
+export const Platform = {
+  instagram: 'instagram',
+  tiktok: 'tiktok',
+  x: 'x',
+  youtube: 'youtube',
+  facebook: 'facebook',
+  threads: 'threads',
+} as const;
+
+export type PostStatus = typeof PostStatus[keyof typeof PostStatus];
+
+
+export const PostStatus = {
+  draft: 'draft',
+  scheduled: 'scheduled',
+  published: 'published',
+  failed: 'failed',
+} as const;
+
+export type CaptionTone = typeof CaptionTone[keyof typeof CaptionTone];
+
+
+export const CaptionTone = {
+  pidgin: 'pidgin',
+  yoruba: 'yoruba',
+  igbo: 'igbo',
+  hausa: 'hausa',
+  formal: 'formal',
+} as const;
+
 export interface UserProfile {
   id: number;
   clerkId: string;
@@ -89,4 +122,173 @@ export interface ActivityItem {
   metadata?: ActivityItemMetadata;
   createdAt: string;
 }
+
+/**
+ * @nullable
+ */
+export type PostPlatformVariants = { [key: string]: unknown } | null;
+
+export interface Post {
+  id: number;
+  userId: number;
+  /** @nullable */
+  campaignId?: number | null;
+  caption: string;
+  mediaUrls: string[];
+  platforms: Platform[];
+  status: PostStatus;
+  /** @nullable */
+  scheduledAt?: string | null;
+  /** @nullable */
+  publishedAt?: string | null;
+  /** @nullable */
+  tone?: string | null;
+  hashtags: string[];
+  /** @nullable */
+  platformVariants?: PostPlatformVariants;
+  engagementScore: number;
+  isRecycled: boolean;
+  /** @nullable */
+  originalPostId?: number | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreatePostBodyPlatformVariants = { [key: string]: unknown };
+
+export interface CreatePostBody {
+  caption: string;
+  platforms: Platform[];
+  campaignId?: number;
+  scheduledAt?: string;
+  tone?: CaptionTone;
+  hashtags?: string[];
+  mediaUrls?: string[];
+  platformVariants?: CreatePostBodyPlatformVariants;
+}
+
+export type UpdatePostBodyPlatformVariants = { [key: string]: unknown };
+
+export interface UpdatePostBody {
+  caption?: string;
+  platforms?: Platform[];
+  campaignId?: number;
+  scheduledAt?: string;
+  status?: PostStatus;
+  tone?: CaptionTone;
+  hashtags?: string[];
+  mediaUrls?: string[];
+  platformVariants?: UpdatePostBodyPlatformVariants;
+}
+
+export type BulkUploadBodyPostsItem = {
+  caption: string;
+  platforms: Platform[];
+  scheduledAt?: string;
+  hashtags?: string[];
+  campaignId?: number;
+};
+
+export interface BulkUploadBody {
+  /** @maxItems 50 */
+  posts: BulkUploadBodyPostsItem[];
+}
+
+export interface BulkUploadResult {
+  imported: number;
+  failed: number;
+  posts: Post[];
+}
+
+export interface RecyclePostBody {
+  platforms: Platform[];
+  scheduledAt: string;
+  tone?: CaptionTone;
+  refreshCaption?: boolean;
+}
+
+export interface HashtagItem {
+  hashtag: string;
+  platform: string;
+  region: string;
+  trendScore: number;
+  /** @nullable */
+  category?: string | null;
+}
+
+export interface GenerateCaptionsBody {
+  topic: string;
+  tones: CaptionTone[];
+  platforms: Platform[];
+  context?: string;
+  hashtags?: string[];
+}
+
+export type GenerateCaptionsResponseCaptionsItemVariants = {[key: string]: string};
+
+export type GenerateCaptionsResponseCaptionsItem = {
+  tone: CaptionTone;
+  variants: GenerateCaptionsResponseCaptionsItemVariants;
+};
+
+export interface GenerateCaptionsResponse {
+  captions: GenerateCaptionsResponseCaptionsItem[];
+}
+
+export interface Campaign {
+  id: number;
+  userId: number;
+  name: string;
+  /** @nullable */
+  description?: string | null;
+  color: string;
+  /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
+  endDate?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCampaignBody {
+  name: string;
+  description?: string;
+  color?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface PlatformAccount {
+  id: number;
+  platform: Platform;
+  handle: string;
+  /** @nullable */
+  displayName?: string | null;
+  connected: boolean;
+  followerCount: number;
+}
+
+export type ListPostsParams = {
+status?: ListPostsStatus;
+campaignId?: number;
+platform?: string;
+from?: string;
+to?: string;
+};
+
+export type ListPostsStatus = typeof ListPostsStatus[keyof typeof ListPostsStatus];
+
+
+export const ListPostsStatus = {
+  draft: 'draft',
+  scheduled: 'scheduled',
+  published: 'published',
+  failed: 'failed',
+} as const;
+
+export type GetTrendingHashtagsParams = {
+platform?: string;
+region?: string;
+};
 

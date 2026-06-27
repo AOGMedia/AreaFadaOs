@@ -11,6 +11,7 @@ import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import UpgradePage from "@/pages/upgrade";
 import NotFound from "@/pages/not-found";
+import SchedulingPage from "@/pages/scheduling";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -80,14 +81,6 @@ const clerkAppearance = {
     main: "p-6",
   },
 };
-
-const SchedulingPage = createModulePage({
-  title: "Scheduling",
-  description: "Auto-post across Instagram, TikTok, X, YouTube, and Facebook simultaneously with AI-suggested optimal times.",
-  icon: "📅",
-  moduleKey: "scheduling",
-  requiredTier: "creator",
-});
 
 const MonetizationPage = createModulePage({
   title: "Monetization Hub",

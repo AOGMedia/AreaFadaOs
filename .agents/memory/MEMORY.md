@@ -1,3 +1,3 @@
 - [AreaFada OS Stack](areafada-stack.md) — full-stack foundation: React+Vite frontend, Express 5 backend, PostgreSQL+Drizzle, Clerk auth, pnpm workspaces.
 - [Clerk Auth Setup](clerk-auth-setup.md) — Clerk provisioned (not_configured→managed); canonical wiring patterns and pitfalls for this project.
-- [DB Schema](db-schema.md) — users + activity_log tables; tier enum: free/creator/brand/agency/enterprise; creator tier is default on sign-up.
+- [DB Schema](db-schema.md) — users, activity_log, posts, campaigns, platform_accounts, hashtag_cache; typed column casting gotcha; orval index.ts patch.
