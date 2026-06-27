@@ -213,7 +213,7 @@ async function runWeeklyCycle() {
 
 const WEEKLY_INTERVAL_MS = 60 * 60 * 1000; // check every hour; generateWeeklyDigests guards on Sunday
 
-export function startReminderScheduler() {
+export function startReminderScheduler(): { stop: () => void } {
   // Hourly: invoice reminders + overdue transitions
   runCycle();
   const hourlyInterval = setInterval(runCycle, INTERVAL_MS);
@@ -223,5 +223,12 @@ export function startReminderScheduler() {
   const weeklyInterval = setInterval(runWeeklyCycle, WEEKLY_INTERVAL_MS);
 
   logger.info({ intervalMs: INTERVAL_MS }, "Payment reminder + weekly digest scheduler started");
-  return hourlyInterval;
+
+  return {
+    stop: () => {
+      clearInterval(hourlyInterval);
+      clearInterval(weeklyInterval);
+      logger.info("Reminder + digest scheduler stopped");
+    },
+  };
 }

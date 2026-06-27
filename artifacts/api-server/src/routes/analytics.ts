@@ -288,17 +288,18 @@ router.get("/analytics/best-times", requireAuth, requireTier("brand"), async (re
       likes: postPerformance.likes,
       comments: postPerformance.comments,
       shares: postPerformance.shares,
-      views: postPerformance.views,
+      saves: postPerformance.saves,
+      impressions: postPerformance.impressions,
     }).from(postPerformance)
       .where(and(eq(postPerformance.userId, user.id), eq(postPerformance.platform, platform)))
       .orderBy(desc(postPerformance.publishedAt))
       .limit(200);
 
     // ── 2. Aggregate engagement by (day, hour) in WAT ─────────────────────
-    // Slot[day][hour] = { totalEng, totalViews, count }
-    type Slot = { totalEng: number; totalViews: number; count: number };
+    // Slot[day][hour] = { totalEng, totalImpressions, count }
+    type Slot = { totalEng: number; totalImpressions: number; count: number };
     const slots: Slot[][] = Array.from({ length: 7 }, () =>
-      Array.from({ length: 24 }, () => ({ totalEng: 0, totalViews: 0, count: 0 }))
+      Array.from({ length: 24 }, () => ({ totalEng: 0, totalImpressions: 0, count: 0 }))
     );
 
     for (const p of rawPosts) {
@@ -306,10 +307,10 @@ router.get("/analytics/best-times", requireAuth, requireTier("brand"), async (re
       const watDate = new Date(p.publishedAt.getTime() + WAT_OFFSET_HOURS * 3600_000);
       const day = watDate.getUTCDay();   // 0=Sun…6=Sat
       const hour = watDate.getUTCHours();
-      const eng = (p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0);
-      const views = p.views ?? 1;
+      const eng = (p.likes ?? 0) + (p.comments ?? 0) + (p.shares ?? 0) + (p.saves ?? 0);
+      const impressions = p.impressions ?? 1;
       slots[day][hour].totalEng += eng;
-      slots[day][hour].totalViews += views;
+      slots[day][hour].totalImpressions += impressions;
       slots[day][hour].count += 1;
     }
 
@@ -348,7 +349,7 @@ router.get("/analytics/best-times", requireAuth, requireTier("brand"), async (re
         const priorWeight = 1 - historicalWeight;
 
         // Historical score: avg engagement rate mapped to 0-100
-        const engRate = slot.count > 0 ? (slot.totalEng / slot.totalViews) * 100 : 0;
+        const engRate = slot.count > 0 ? (slot.totalEng / slot.totalImpressions) * 100 : 0;
         const historicalScore = Math.min(100, engRate * 10); // scale: 10% eng → 100
 
         // Prior score
