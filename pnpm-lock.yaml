@@ -61,7 +61,7 @@ catalogs:
       specifier: ^4.1.14
       version: 4.3.1
     tsx:
-      specifier: ^4.21.0
+      specifier: 4.22.4
       version: 4.22.4
     vite:
       specifier: ^7.3.2
@@ -156,6 +156,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      tsx:
+        specifier: 'catalog:'
+        version: 4.22.4
     devDependencies:
       prettier:
         specifier: ^3.8.4

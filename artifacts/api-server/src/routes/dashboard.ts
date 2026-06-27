@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { requireAuth } from "./users";
+import { requireTier } from "../middlewares/tierGuard";
 import { db } from "@workspace/db";
 import { usersTable, activityLogTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 
 const router = Router();
 
-router.get("/dashboard/summary", requireAuth, async (req: any, res) => {
+router.get("/dashboard/summary", requireAuth, async (req: any, res): Promise<void> => {
   try {
     const summary = {
       postsScheduled: 24,
@@ -24,11 +25,12 @@ router.get("/dashboard/summary", requireAuth, async (req: any, res) => {
   }
 });
 
-router.get("/dashboard/activity", requireAuth, async (req: any, res) => {
+router.get("/dashboard/activity", requireAuth, async (req: any, res): Promise<void> => {
   try {
     const user = await db.select().from(usersTable).where(eq(usersTable.clerkId, req.clerkUserId)).limit(1);
     if (!user.length) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
     const logs = await db.select()
@@ -49,19 +51,20 @@ router.get("/dashboard/activity", requireAuth, async (req: any, res) => {
         { type: "promo_link", description: "999/ig link hit 1,000 clicks — 234 download conversions" },
       ];
       await db.insert(activityLogTable).values(
-        seed.map((s) => ({ userId: user[0].id, type: s.type, description: s.description }))
+        seed.map((s) => ({ userId: user[0].id, type: s.type, description: s.description })),
       );
       const fresh = await db.select().from(activityLogTable)
         .where(eq(activityLogTable.userId, user[0].id))
         .orderBy(desc(activityLogTable.createdAt))
         .limit(20);
-      return res.json(fresh.map((a) => ({
+      res.json(fresh.map((a) => ({
         id: a.id,
         type: a.type,
         description: a.description,
         metadata: a.metadata ? JSON.parse(a.metadata) : null,
         createdAt: a.createdAt,
       })));
+      return;
     }
 
     res.json(logs.map((a) => ({
@@ -74,6 +77,22 @@ router.get("/dashboard/activity", requireAuth, async (req: any, res) => {
   } catch (err) {
     res.status(500).json({ error: "Failed to get activity" });
   }
+});
+
+router.get("/modules/analytics", requireTier("brand"), async (_req: any, res): Promise<void> => {
+  res.json({ status: "available", message: "Analytics module is active on your plan" });
+});
+
+router.get("/modules/ambassador-crm", requireTier("agency"), async (_req: any, res): Promise<void> => {
+  res.json({ status: "available", message: "Ambassador CRM is active on your plan" });
+});
+
+router.get("/modules/fan-hub", requireTier("agency"), async (_req: any, res): Promise<void> => {
+  res.json({ status: "available", message: "Fan Hub is active on your plan" });
+});
+
+router.get("/modules/campaign-intelligence", requireTier("enterprise"), async (_req: any, res): Promise<void> => {
+  res.json({ status: "available", message: "Campaign Intelligence is active on your plan" });
 });
 
 export default router;
