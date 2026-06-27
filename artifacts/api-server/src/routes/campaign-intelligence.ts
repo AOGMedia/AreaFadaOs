@@ -1,6 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Router } from "express";
-import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import {
   usersTable,
@@ -282,8 +281,8 @@ async function seedDemoData(userId: number) {
 
 // ─── Intelligence Configs ─────────────────────────────────────────────────────
 
-router.get("/intelligence/configs", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/configs", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   await seedDemoData(user.id);
   const configs = await db.select().from(campaignIntelligenceConfigsTable)
@@ -292,8 +291,8 @@ router.get("/intelligence/configs", ...requireEnterprise, async (req, res) => {
   res.json(configs);
 });
 
-router.post("/intelligence/configs", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/configs", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { name, mode, politicalParty, politicalCandidateName, targetStates, targetLgas,
     crisisEngagementDropPct, crisisFollowerLossPct, crisisNegativeSentimentPct,
@@ -310,8 +309,8 @@ router.post("/intelligence/configs", ...requireEnterprise, async (req, res) => {
   res.status(201).json(config);
 });
 
-router.patch("/intelligence/configs/:id", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.patch("/intelligence/configs/:id", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { name, mode, politicalParty, politicalCandidateName, targetStates, targetLgas,
     crisisEngagementDropPct, crisisFollowerLossPct, crisisNegativeSentimentPct,
@@ -328,8 +327,8 @@ router.patch("/intelligence/configs/:id", ...requireEnterprise, async (req, res)
 
 // ─── Political Map / LGA Data ─────────────────────────────────────────────────
 
-router.get("/intelligence/lga-data", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/lga-data", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { state, granularity } = req.query;
 
@@ -351,8 +350,8 @@ router.get("/intelligence/lga-data", ...requireEnterprise, async (req, res) => {
 
 // ─── Sentiment Monitors ───────────────────────────────────────────────────────
 
-router.get("/intelligence/sentiment-monitors", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/sentiment-monitors", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const monitors = await db.select().from(sentimentKeywordMonitorsTable)
     .where(eq(sentimentKeywordMonitorsTable.userId, user.id))
@@ -360,8 +359,8 @@ router.get("/intelligence/sentiment-monitors", ...requireEnterprise, async (req,
   res.json(monitors);
 });
 
-router.post("/intelligence/sentiment-monitors", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/sentiment-monitors", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId, keyword, type, platform, alertOnSpike, alertOnNegative } = req.body;
   if (!configId || !keyword) { res.status(400).json({ error: "configId and keyword required" }); return; }
@@ -376,8 +375,8 @@ router.post("/intelligence/sentiment-monitors", ...requireEnterprise, async (req
   res.status(201).json(monitor);
 });
 
-router.delete("/intelligence/sentiment-monitors/:id", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.delete("/intelligence/sentiment-monitors/:id", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   await db.delete(sentimentKeywordMonitorsTable)
     .where(and(eq(sentimentKeywordMonitorsTable.id, Number(req.params.id)), eq(sentimentKeywordMonitorsTable.userId, user.id)));
@@ -386,8 +385,8 @@ router.delete("/intelligence/sentiment-monitors/:id", ...requireEnterprise, asyn
 
 // ─── Sentiment Events & Trend ─────────────────────────────────────────────────
 
-router.get("/intelligence/sentiment-events", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/sentiment-events", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { monitorId, days = "30" } = req.query;
   const since = new Date(Date.now() - Number(days) * 24 * 60 * 60 * 1000);
@@ -403,8 +402,8 @@ router.get("/intelligence/sentiment-events", ...requireEnterprise, async (req, r
   res.json(events);
 });
 
-router.post("/intelligence/sentiment-events/analyse", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/sentiment-events/analyse", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { monitorId, sampleText, keyword, platform } = req.body;
   if (!sampleText || !keyword) { res.status(400).json({ error: "sampleText and keyword required" }); return; }
@@ -457,8 +456,8 @@ Return JSON: { "score": <0.0-1.0 where 0=very negative, 0.5=neutral, 1=very posi
 
 // ─── Competitor Latest Snapshots (for comparison table) ──────────────────────
 
-router.get("/intelligence/competitors/latest-snapshots", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/competitors/latest-snapshots", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId } = req.query;
   if (!configId) { res.status(400).json({ error: "configId required" }); return; }
@@ -483,8 +482,8 @@ router.get("/intelligence/competitors/latest-snapshots", ...requireEnterprise, a
 
 // ─── Competitor Accounts ──────────────────────────────────────────────────────
 
-router.get("/intelligence/competitors", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/competitors", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId } = req.query;
   const conditions = [eq(competitorAccountsTable.userId, user.id)];
@@ -495,8 +494,8 @@ router.get("/intelligence/competitors", ...requireEnterprise, async (req, res) =
   res.json(competitors);
 });
 
-router.post("/intelligence/competitors", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/competitors", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId, handle, platform, displayName, category, notes } = req.body;
   if (!configId || !handle) { res.status(400).json({ error: "configId and handle required" }); return; }
@@ -513,8 +512,8 @@ router.post("/intelligence/competitors", ...requireEnterprise, async (req, res) 
   res.status(201).json(competitor);
 });
 
-router.delete("/intelligence/competitors/:id", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.delete("/intelligence/competitors/:id", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   await db.delete(competitorAccountsTable)
     .where(and(eq(competitorAccountsTable.id, Number(req.params.id)), eq(competitorAccountsTable.userId, user.id)));
@@ -523,8 +522,8 @@ router.delete("/intelligence/competitors/:id", ...requireEnterprise, async (req,
 
 // ─── Competitor Snapshots ─────────────────────────────────────────────────────
 
-router.get("/intelligence/competitors/:id/snapshots", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/competitors/:id/snapshots", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const snapshots = await db.select().from(competitorSnapshotsTable)
     .where(and(eq(competitorSnapshotsTable.competitorId, Number(req.params.id)), eq(competitorSnapshotsTable.userId, user.id)))
@@ -533,8 +532,8 @@ router.get("/intelligence/competitors/:id/snapshots", ...requireEnterprise, asyn
   res.json(snapshots);
 });
 
-router.post("/intelligence/competitors/:id/snapshots", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/competitors/:id/snapshots", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const competitor = await db.select().from(competitorAccountsTable)
     .where(and(eq(competitorAccountsTable.id, Number(req.params.id)), eq(competitorAccountsTable.userId, user.id)));
@@ -580,8 +579,8 @@ function getWardsForState(state: string) {
   })).sort((a, b) => b.engagementRate - a.engagementRate);
 }
 
-router.get("/intelligence/lga-data/:state/wards", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/lga-data/:state/wards", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const state = decodeURIComponent(req.params.state);
   res.json(getWardsForState(state));
@@ -589,8 +588,8 @@ router.get("/intelligence/lga-data/:state/wards", ...requireEnterprise, async (r
 
 // ─── Crisis Auto-Detection ────────────────────────────────────────────────────
 
-router.post("/intelligence/crisis-alerts/detect", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/crisis-alerts/detect", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId } = req.body;
   if (!configId) { res.status(400).json({ error: "configId required" }); return; }
@@ -728,8 +727,8 @@ router.post("/intelligence/crisis-alerts/detect", ...requireEnterprise, async (r
 
 // ─── Crisis Alerts ────────────────────────────────────────────────────────────
 
-router.get("/intelligence/crisis-alerts", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/crisis-alerts", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { acknowledged } = req.query;
   const conditions = [eq(crisisAlertsTable.userId, user.id)];
@@ -741,8 +740,8 @@ router.get("/intelligence/crisis-alerts", ...requireEnterprise, async (req, res)
   res.json(alerts);
 });
 
-router.post("/intelligence/crisis-alerts", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/crisis-alerts", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId, type, severity, title, description, triggeredValue, thresholdValue, platform } = req.body;
   if (!configId || !type || !title || !description) { res.status(400).json({ error: "configId, type, title, description required" }); return; }
@@ -753,8 +752,8 @@ router.post("/intelligence/crisis-alerts", ...requireEnterprise, async (req, res
   res.status(201).json(alert);
 });
 
-router.post("/intelligence/crisis-alerts/:id/acknowledge", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/crisis-alerts/:id/acknowledge", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const [updated] = await db.update(crisisAlertsTable)
     .set({ acknowledged: true, acknowledgedAt: new Date() })
@@ -766,8 +765,8 @@ router.post("/intelligence/crisis-alerts/:id/acknowledge", ...requireEnterprise,
 
 // ─── ROI Attribution Events ───────────────────────────────────────────────────
 
-router.get("/intelligence/roi-attributions", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/roi-attributions", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId } = req.query;
   const conditions = [eq(roiAttributionEventsTable.userId, user.id)];
@@ -779,8 +778,8 @@ router.get("/intelligence/roi-attributions", ...requireEnterprise, async (req, r
   res.json(events);
 });
 
-router.post("/intelligence/roi-attributions", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/roi-attributions", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId, contentAction, contentRef, outcomeType, outcomeCount, estimatedRevenueNgn,
     utmSource, utmMedium, utmCampaign, manualTag, platform, attributionModel } = req.body;
@@ -801,8 +800,8 @@ router.post("/intelligence/roi-attributions", ...requireEnterprise, async (req, 
 
 // ─── Event Mode Configs (AFRIMA/Awards) ───────────────────────────────────────
 
-router.get("/intelligence/event-modes", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.get("/intelligence/event-modes", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId } = req.query;
   const conditions = [eq(eventModeConfigsTable.userId, user.id)];
@@ -813,8 +812,8 @@ router.get("/intelligence/event-modes", ...requireEnterprise, async (req, res) =
   res.json(events);
 });
 
-router.post("/intelligence/event-modes", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/event-modes", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { configId, eventName, eventDate, hashtags, votingLinks, hypeSeriesDays } = req.body;
   if (!configId || !eventName) { res.status(400).json({ error: "configId and eventName required" }); return; }
@@ -831,8 +830,8 @@ router.post("/intelligence/event-modes", ...requireEnterprise, async (req, res) 
   res.status(201).json(eventMode);
 });
 
-router.patch("/intelligence/event-modes/:id", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.patch("/intelligence/event-modes/:id", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { eventName, eventDate, hashtags, votingLinks, hypeSeriesEnabled, hypeSeriesDays,
     totalVoteCount, phase, contentSchedule } = req.body;
@@ -846,8 +845,8 @@ router.patch("/intelligence/event-modes/:id", ...requireEnterprise, async (req, 
   res.json(updated);
 });
 
-router.post("/intelligence/event-modes/:id/generate-recap", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/event-modes/:id/generate-recap", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const [eventMode] = await db.select().from(eventModeConfigsTable)
     .where(and(eq(eventModeConfigsTable.id, Number(req.params.id)), eq(eventModeConfigsTable.userId, user.id)));
@@ -880,8 +879,8 @@ Write 3 short social-ready caption variants (Instagram, Twitter, WhatsApp) separ
   res.json(updated);
 });
 
-router.post("/intelligence/event-modes/:id/generate-hype-schedule", ...requireEnterprise, async (req, res) => {
-  const user = await getDbUser(getAuth(req).userId!);
+router.post("/intelligence/event-modes/:id/generate-hype-schedule", ...requireEnterprise, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const [eventMode] = await db.select().from(eventModeConfigsTable)
     .where(and(eq(eventModeConfigsTable.id, Number(req.params.id)), eq(eventModeConfigsTable.userId, user.id)));
