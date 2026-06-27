@@ -234,7 +234,8 @@ export const UpdatePostBody = zod.object({
   "mediaUrls": zod.array(zod.string()).optional(),
   "platformVariants": zod.object({
 
-}).passthrough().optional()
+}).passthrough().optional(),
+  "changeNote": zod.string().optional()
 })
 
 export const UpdatePostResponse = zod.object({

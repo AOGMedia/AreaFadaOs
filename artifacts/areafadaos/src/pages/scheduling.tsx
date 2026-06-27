@@ -58,8 +58,25 @@ import {
   Loader2,
   Tag,
   Link,
+  History,
+  LayoutGrid,
+  CalendarDays,
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, addMonths, subMonths, parseISO } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameDay,
+  isToday,
+  addMonths,
+  subMonths,
+  addWeeks,
+  subWeeks,
+  parseISO,
+} from "date-fns";
 
 // ── types ──────────────────────────────────────────────────────────────────
 
@@ -90,6 +107,8 @@ const STATUS_CONFIG: Record<PostStatus, { label: string; color: string; icon: Re
   published: { label: "Published", color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="w-3 h-3" /> },
   failed: { label: "Failed", color: "bg-red-100 text-red-700", icon: <XCircle className="w-3 h-3" /> },
 };
+
+const CAMPAIGN_COLORS = ["#2dd172", "#6366f1", "#f59e0b", "#ef4444", "#06b6d4", "#8b5cf6", "#ec4899", "#10b981"];
 
 // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -145,7 +164,6 @@ function CaptionGenerator({ onUseCaption }: { onUseCaption: (text: string) => vo
 
   return (
     <div className="space-y-5">
-      {/* Input */}
       <div className="grid md:grid-cols-2 gap-4">
         <div>
           <Label className="text-xs font-medium mb-1.5 block">Topic / Theme *</Label>
@@ -166,7 +184,6 @@ function CaptionGenerator({ onUseCaption }: { onUseCaption: (text: string) => vo
         </div>
       </div>
 
-      {/* Tone selector */}
       <div>
         <Label className="text-xs font-medium mb-2 block">Tone profiles</Label>
         <div className="flex flex-wrap gap-2">
@@ -187,7 +204,6 @@ function CaptionGenerator({ onUseCaption }: { onUseCaption: (text: string) => vo
         </div>
       </div>
 
-      {/* Platform selector */}
       <div>
         <Label className="text-xs font-medium mb-2 block">Platforms</Label>
         <div className="flex flex-wrap gap-2">
@@ -214,7 +230,6 @@ function CaptionGenerator({ onUseCaption }: { onUseCaption: (text: string) => vo
         {isPending ? "Generating captions…" : "Generate Captions"}
       </Button>
 
-      {/* Results */}
       {results.length > 0 && (
         <div className="space-y-4 mt-2" data-testid="caption-results">
           {results.map((r) => {
@@ -338,6 +353,177 @@ function HashtagPanel({ onAddHashtag }: { onAddHashtag: (tag: string) => void })
   );
 }
 
+// ── Create Campaign Dialog ───────────────────────────────────────────────
+
+function CreateCampaignDialog({ open, onClose, onCreated }: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (campaign: any) => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [color, setColor] = useState(CAMPAIGN_COLORS[0]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { mutateAsync: createCampaign, isPending } = useCreateCampaign();
+
+  const handleCreate = async () => {
+    if (!name.trim()) { toast({ title: "Campaign name required" }); return; }
+    try {
+      const campaign = await createCampaign({
+        data: {
+          name,
+          description: description || undefined,
+          color,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      toast({ title: `Campaign "${name}" created` });
+      onCreated(campaign);
+      onClose();
+    } catch {
+      toast({ title: "Failed to create campaign", variant: "destructive" });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>New Campaign</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label className="text-xs font-medium mb-1.5 block">Campaign name *</Label>
+            <Input
+              placeholder="e.g. 999 Book Launch, Music Monday Series"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              data-testid="campaign-name-input"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium mb-1.5 block">Description (optional)</Label>
+            <Textarea
+              placeholder="What is this campaign about?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium mb-2 block">Campaign colour</Label>
+            <div className="flex gap-2 flex-wrap">
+              {CAMPAIGN_COLORS.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColor(c)}
+                  className={`w-8 h-8 rounded-full border-2 transition-all ${color === c ? "border-foreground scale-110" : "border-transparent"}`}
+                  style={{ backgroundColor: c }}
+                  data-testid={`campaign-color-${c}`}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs font-medium mb-1.5 block">Start date</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-sm" />
+            </div>
+            <div>
+              <Label className="text-xs font-medium mb-1.5 block">End date</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-sm" />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={isPending} data-testid="btn-create-campaign">
+            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+            Create Campaign
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Post Version History Dialog ──────────────────────────────────────────
+
+function HistoryDialog({ post, open, onClose }: { post: any; open: boolean; onClose: () => void }) {
+  const [revisions, setRevisions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadHistory = useCallback(async () => {
+    if (!post?.id) return;
+    setLoading(true);
+    try {
+      const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+      const res = await fetch(`${baseUrl}/api/posts/${post.id}/history`, { credentials: "include" });
+      if (res.ok) setRevisions(await res.json());
+    } catch {
+      // silently ignore
+    } finally {
+      setLoading(false);
+    }
+  }, [post?.id]);
+
+  if (!post) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); else loadHistory(); }}>
+      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <History className="w-4 h-4" /> Version History
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground mb-3">Current version: v{post.version}</p>
+
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+          </div>
+        ) : revisions.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">No revision history yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {revisions.map((r) => (
+              <div key={r.id} className="border border-border rounded-xl p-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-primary">v{r.version}</span>
+                  <span className="text-xs text-muted-foreground">{format(new Date(r.createdAt), "MMM d, yyyy HH:mm")}</span>
+                </div>
+                {r.changeNote && (
+                  <p className="text-xs text-muted-foreground mb-1.5 italic">{r.changeNote}</p>
+                )}
+                <p className="text-sm line-clamp-2 text-foreground/80">{r.caption}</p>
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <StatusBadge status={r.status} />
+                  {r.scheduledAt && (
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                      <Clock className="w-2.5 h-2.5" />
+                      {format(new Date(r.scheduledAt), "MMM d, HH:mm")}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Post Compose Dialog ──────────────────────────────────────────────────
 
 interface ComposeDialogProps {
@@ -346,9 +532,10 @@ interface ComposeDialogProps {
   editPost?: any;
   campaigns: any[];
   defaultDate?: Date;
+  onCampaignCreated: (c: any) => void;
 }
 
-function ComposeDialog({ open, onClose, editPost, campaigns, defaultDate }: ComposeDialogProps) {
+function ComposeDialog({ open, onClose, editPost, campaigns, defaultDate, onCampaignCreated }: ComposeDialogProps) {
   const [tab, setTab] = useState<"compose" | "captions" | "hashtags">("compose");
   const [caption, setCaption] = useState(editPost?.caption || "");
   const [platforms, setPlatforms] = useState<Platform[]>(editPost?.platforms || ["instagram"]);
@@ -359,6 +546,7 @@ function ComposeDialog({ open, onClose, editPost, campaigns, defaultDate }: Comp
   const [campaignId, setCampaignId] = useState<string>(editPost?.campaignId?.toString() || "");
   const [hashtags, setHashtags] = useState<string[]>(editPost?.hashtags || []);
   const [hashtagInput, setHashtagInput] = useState("");
+  const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -384,16 +572,17 @@ function ComposeDialog({ open, onClose, editPost, campaigns, defaultDate }: Comp
       caption,
       platforms,
       hashtags,
-      scheduledAt: scheduledAt || undefined,
+      status,
+      scheduledAt: status === "scheduled" ? scheduledAt : undefined,
       campaignId: campaignId ? parseInt(campaignId) : undefined,
     };
 
     try {
       if (editPost) {
-        await updatePost({ id: editPost.id, data: { ...data, status } });
+        await updatePost({ id: editPost.id, data: { ...data, changeNote: "Edited in composer" } });
         toast({ title: "Post updated" });
       } else {
-        await createPost({ data: { ...data, status } });
+        await createPost({ data });
         toast({ title: status === "draft" ? "Saved as draft" : "Post scheduled!" });
       }
       qc.invalidateQueries({ queryKey: ["/api/posts"] });
@@ -404,157 +593,243 @@ function ComposeDialog({ open, onClose, editPost, campaigns, defaultDate }: Comp
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editPost ? "Edit Post" : "Create Post"}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editPost ? "Edit Post" : "Create Post"}</DialogTitle>
+          </DialogHeader>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-          <TabsList className="grid grid-cols-3 mb-4">
-            <TabsTrigger value="compose">✏️ Compose</TabsTrigger>
-            <TabsTrigger value="captions" data-testid="tab-captions">✨ AI Captions</TabsTrigger>
-            <TabsTrigger value="hashtags" data-testid="tab-hashtags">🔥 Hashtags</TabsTrigger>
-          </TabsList>
+          <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+            <TabsList className="grid grid-cols-3 mb-4">
+              <TabsTrigger value="compose">✏️ Compose</TabsTrigger>
+              <TabsTrigger value="captions" data-testid="tab-captions">✨ AI Captions</TabsTrigger>
+              <TabsTrigger value="hashtags" data-testid="tab-hashtags">🔥 Hashtags</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="compose" className="space-y-4">
-            {/* Caption */}
-            <div>
-              <Label className="text-xs font-medium mb-1.5 block">Caption *</Label>
-              <Textarea
-                placeholder="What's the story, Fada? Write your caption here…"
-                value={caption}
-                onChange={(e) => setCaption(e.target.value)}
-                rows={5}
-                data-testid="post-caption-input"
-              />
-              <p className="text-xs text-muted-foreground mt-1">{caption.length} characters</p>
-            </div>
-
-            {/* Platforms */}
-            <div>
-              <Label className="text-xs font-medium mb-2 block">Platforms *</Label>
-              <div className="flex flex-wrap gap-2">
-                {PLATFORMS.map((p) => (
-                  <button
-                    key={p.key}
-                    onClick={() => togglePlatform(p.key)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-all ${
-                      platforms.includes(p.key)
-                        ? "border-primary bg-primary/10 text-primary font-semibold"
-                        : "border-border text-muted-foreground hover:border-primary/50"
-                    }`}
-                  >
-                    <span className={`w-4 h-4 rounded flex items-center justify-center text-white text-[9px] ${p.color}`}>{p.icon}</span>
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Hashtags */}
-            <div>
-              <Label className="text-xs font-medium mb-1.5 block">Hashtags</Label>
-              <div className="flex gap-2 mb-2">
-                <Input
-                  className="h-8 text-sm"
-                  placeholder="#Nigeria"
-                  value={hashtagInput}
-                  onChange={(e) => setHashtagInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { addHashtag(hashtagInput); setHashtagInput(""); } }}
-                />
-                <Button size="sm" variant="outline" onClick={() => { addHashtag(hashtagInput); setHashtagInput(""); }}>Add</Button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {hashtags.map((h) => (
-                  <span key={h} className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
-                    {h}
-                    <button onClick={() => setHashtags((prev) => prev.filter((x) => x !== h))} className="text-primary/60 hover:text-primary">×</button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* Schedule date */}
+            <TabsContent value="compose" className="space-y-4">
               <div>
-                <Label className="text-xs font-medium mb-1.5 block">Schedule date/time</Label>
-                <Input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  className="text-sm"
-                  data-testid="post-scheduled-at-input"
+                <Label className="text-xs font-medium mb-1.5 block">Caption *</Label>
+                <Textarea
+                  placeholder="What's the story, Fada? Write your caption here…"
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  rows={5}
+                  data-testid="post-caption-input"
                 />
+                <p className="text-xs text-muted-foreground mt-1">{caption.length} characters</p>
               </div>
-              {/* Campaign */}
+
               <div>
-                <Label className="text-xs font-medium mb-1.5 block">Campaign tag</Label>
-                <Select value={campaignId} onValueChange={setCampaignId}>
-                  <SelectTrigger className="text-sm h-9">
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {campaigns.map((c) => (
-                      <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs font-medium mb-2 block">Platforms *</Label>
+                <div className="flex flex-wrap gap-2">
+                  {PLATFORMS.map((p) => (
+                    <button
+                      key={p.key}
+                      onClick={() => togglePlatform(p.key)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-all ${
+                        platforms.includes(p.key)
+                          ? "border-primary bg-primary/10 text-primary font-semibold"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded flex items-center justify-center text-white text-[9px] ${p.color}`}>{p.icon}</span>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </TabsContent>
 
-          <TabsContent value="captions">
-            <CaptionGenerator onUseCaption={(text) => { setCaption(text); setTab("compose"); }} />
-          </TabsContent>
+              <div>
+                <Label className="text-xs font-medium mb-1.5 block">Hashtags</Label>
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    className="h-8 text-sm"
+                    placeholder="#Nigeria"
+                    value={hashtagInput}
+                    onChange={(e) => setHashtagInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { addHashtag(hashtagInput); setHashtagInput(""); } }}
+                  />
+                  <Button size="sm" variant="outline" onClick={() => { addHashtag(hashtagInput); setHashtagInput(""); }}>Add</Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {hashtags.map((h) => (
+                    <span key={h} className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+                      {h}
+                      <button onClick={() => setHashtags((prev) => prev.filter((x) => x !== h))} className="text-primary/60 hover:text-primary">×</button>
+                    </span>
+                  ))}
+                </div>
+              </div>
 
-          <TabsContent value="hashtags">
-            <HashtagPanel onAddHashtag={(tag) => { addHashtag(tag); setTab("compose"); }} />
-          </TabsContent>
-        </Tabs>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs font-medium mb-1.5 block">Schedule date/time</Label>
+                  <Input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    className="text-sm"
+                    data-testid="post-scheduled-at-input"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium mb-1.5 block">Campaign tag</Label>
+                  <div className="flex gap-1.5">
+                    <Select value={campaignId} onValueChange={setCampaignId}>
+                      <SelectTrigger className="text-sm h-9 flex-1">
+                        <SelectValue placeholder="None" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None</SelectItem>
+                        {campaigns.map((c) => (
+                          <SelectItem key={c.id} value={c.id.toString()}>
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: c.color }} />
+                              {c.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-9 px-2 shrink-0"
+                      onClick={() => setCreateCampaignOpen(true)}
+                      title="Create new campaign"
+                      data-testid="btn-new-campaign-inline"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
 
-        <DialogFooter className="gap-2 pt-2">
-          <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
-          <Button variant="outline" onClick={() => handleSubmit("draft")} disabled={isPending} data-testid="btn-save-draft">
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-            Save Draft
-          </Button>
-          <Button onClick={() => handleSubmit("scheduled")} disabled={isPending} data-testid="btn-schedule-post">
-            {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Clock className="w-4 h-4 mr-1" />}
-            Schedule
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <TabsContent value="captions">
+              <CaptionGenerator onUseCaption={(text) => { setCaption(text); setTab("compose"); }} />
+            </TabsContent>
+
+            <TabsContent value="hashtags">
+              <HashtagPanel onAddHashtag={(tag) => { addHashtag(tag); setTab("compose"); }} />
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+            <Button variant="outline" onClick={() => handleSubmit("draft")} disabled={isPending} data-testid="btn-save-draft">
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+              Save Draft
+            </Button>
+            <Button onClick={() => handleSubmit("scheduled")} disabled={isPending} data-testid="btn-schedule-post">
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Clock className="w-4 h-4 mr-1" />}
+              Schedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <CreateCampaignDialog
+        open={createCampaignOpen}
+        onClose={() => setCreateCampaignOpen(false)}
+        onCreated={(c) => { onCampaignCreated(c); setCampaignId(c.id.toString()); }}
+      />
+    </>
   );
 }
 
-// ── Calendar View ────────────────────────────────────────────────────────
+// ── Calendar View (monthly + weekly with drag-and-drop) ──────────────────
 
-function CalendarView({ posts, campaigns, onDayClick }: {
+function CalendarView({ posts, campaigns, onDayClick, onReschedule }: {
   posts: any[];
   campaigns: any[];
   onDayClick: (date: Date) => void;
+  onReschedule: (postId: number, newDate: Date) => void;
 }) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calView, setCalView] = useState<"month" | "week">("month");
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [dragPostId, setDragPostId] = useState<number | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   const campaignMap = Object.fromEntries((campaigns || []).map((c) => [c.id, c]));
 
-  const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
-  const startDow = startOfMonth(currentMonth).getDay();
+  const monthDays = eachDayOfInterval({ start: startOfMonth(currentDate), end: endOfMonth(currentDate) });
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 });
+  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+
+  const displayDays = calView === "month" ? monthDays : weekDays;
+  const startDow = calView === "month" ? startOfMonth(currentDate).getDay() : 0;
+
+  const prevPeriod = () => calView === "month"
+    ? setCurrentDate((d) => subMonths(d, 1))
+    : setCurrentDate((d) => subWeeks(d, 1));
+
+  const nextPeriod = () => calView === "month"
+    ? setCurrentDate((d) => addMonths(d, 1))
+    : setCurrentDate((d) => addWeeks(d, 1));
+
+  const periodLabel = calView === "month"
+    ? format(currentDate, "MMMM yyyy")
+    : `${format(weekStart, "MMM d")} – ${format(weekEnd, "MMM d, yyyy")}`;
 
   const getPostsForDay = (day: Date) =>
     posts.filter((p) => p.scheduledAt && isSameDay(new Date(p.scheduledAt), day));
+
+  const handleDragStart = (e: React.DragEvent, postId: number) => {
+    e.dataTransfer.effectAllowed = "move";
+    setDragPostId(postId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, dayKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverDay(dayKey);
+  };
+
+  const handleDrop = (e: React.DragEvent, day: Date) => {
+    e.preventDefault();
+    if (dragPostId != null) {
+      onReschedule(dragPostId, day);
+    }
+    setDragPostId(null);
+    setDragOverDay(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragPostId(null);
+    setDragOverDay(null);
+  };
+
+  const cellClass = calView === "week" ? "min-h-[200px]" : "min-h-[80px]";
 
   return (
     <div className="border border-border rounded-xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-        <button onClick={() => setCurrentMonth((m) => subMonths(m, 1))} className="p-1 rounded hover:bg-muted">
+        <button onClick={prevPeriod} className="p-1 rounded hover:bg-muted">
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <h3 className="font-bold text-sm">{format(currentMonth, "MMMM yyyy")}</h3>
-        <button onClick={() => setCurrentMonth((m) => addMonths(m, 1))} className="p-1 rounded hover:bg-muted">
+        <div className="flex items-center gap-3">
+          <h3 className="font-bold text-sm">{periodLabel}</h3>
+          <div className="flex items-center border border-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setCalView("month")}
+              className={`px-2.5 py-1 text-xs flex items-center gap-1 transition-colors ${calView === "month" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"}`}
+              data-testid="btn-calendar-month"
+            >
+              <LayoutGrid className="w-3 h-3" /> Month
+            </button>
+            <button
+              onClick={() => setCalView("week")}
+              className={`px-2.5 py-1 text-xs flex items-center gap-1 transition-colors ${calView === "week" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"}`}
+              data-testid="btn-calendar-week"
+            >
+              <CalendarDays className="w-3 h-3" /> Week
+            </button>
+          </div>
+        </div>
+        <button onClick={nextPeriod} className="p-1 rounded hover:bg-muted">
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
@@ -567,56 +842,84 @@ function CalendarView({ posts, campaigns, onDayClick }: {
       </div>
 
       {/* Days grid */}
-      <div className="grid grid-cols-7 min-h-[360px]">
-        {[...Array(startDow)].map((_, i) => (
-          <div key={`empty-${i}`} className="border-b border-r border-border bg-muted/10 min-h-[72px]" />
+      <div className={`grid grid-cols-7 ${calView === "week" ? "" : "min-h-[360px]"}`}>
+        {/* Empty cells for month view alignment */}
+        {calView === "month" && [...Array(startDow)].map((_, i) => (
+          <div key={`empty-${i}`} className="border-b border-r border-border bg-muted/10 min-h-[80px]" />
         ))}
-        {days.map((day) => {
+
+        {displayDays.map((day) => {
+          const dayKey = format(day, "yyyy-MM-dd");
           const dayPosts = getPostsForDay(day);
           const today = isToday(day);
+          const isDragOver = dragOverDay === dayKey;
+
           return (
             <div
-              key={day.toISOString()}
-              className={`border-b border-r border-border min-h-[72px] p-1.5 cursor-pointer hover:bg-muted/30 transition-colors ${today ? "bg-primary/5" : ""}`}
+              key={dayKey}
+              className={`border-b border-r border-border ${cellClass} p-1.5 transition-colors ${
+                today ? "bg-primary/5" : ""
+              } ${isDragOver ? "bg-primary/10 border-primary/40" : "hover:bg-muted/30"}`}
               onClick={() => onDayClick(day)}
-              data-testid={`calendar-day-${format(day, "yyyy-MM-dd")}`}
+              onDragOver={(e) => handleDragOver(e, dayKey)}
+              onDrop={(e) => { e.stopPropagation(); handleDrop(e, day); }}
+              onDragLeave={() => setDragOverDay(null)}
+              data-testid={`calendar-day-${dayKey}`}
             >
               <div className={`text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full ${today ? "bg-primary text-white" : "text-muted-foreground"}`}>
                 {format(day, "d")}
               </div>
               <div className="space-y-0.5">
-                {dayPosts.slice(0, 3).map((p) => {
+                {dayPosts.slice(0, calView === "week" ? 8 : 3).map((p) => {
                   const campaign = campaignMap[p.campaignId];
+                  const isDragging = dragPostId === p.id;
                   return (
                     <div
                       key={p.id}
-                      className="text-[10px] px-1.5 py-0.5 rounded truncate font-medium"
-                      style={{ backgroundColor: campaign?.color + "22" || "#2dd17222", color: campaign?.color || "#2dd172" }}
+                      draggable
+                      onDragStart={(e) => { e.stopPropagation(); handleDragStart(e, p.id); }}
+                      onDragEnd={handleDragEnd}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`text-[10px] px-1.5 py-0.5 rounded truncate font-medium cursor-grab active:cursor-grabbing select-none transition-opacity ${isDragging ? "opacity-40" : ""}`}
+                      style={{
+                        backgroundColor: (campaign?.color ?? "#2dd172") + "22",
+                        color: campaign?.color ?? "#2dd172",
+                      }}
+                      title={p.caption}
                     >
-                      {p.caption.slice(0, 20)}…
+                      {calView === "week" ? p.caption.slice(0, 40) : p.caption.slice(0, 20)}…
                     </div>
                   );
                 })}
-                {dayPosts.length > 3 && (
-                  <div className="text-[10px] text-muted-foreground px-1">+{dayPosts.length - 3} more</div>
+                {dayPosts.length > (calView === "week" ? 8 : 3) && (
+                  <div className="text-[10px] text-muted-foreground px-1">
+                    +{dayPosts.length - (calView === "week" ? 8 : 3)} more
+                  </div>
                 )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {dragPostId != null && (
+        <div className="px-4 py-2 bg-primary/5 border-t border-primary/20 text-xs text-primary text-center">
+          Drop onto a day to reschedule
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Draft Library ────────────────────────────────────────────────────────
 
-function DraftLibrary({ posts, campaigns, onEdit, onDelete, onRecycle }: {
+function DraftLibrary({ posts, campaigns, onEdit, onDelete, onRecycle, onViewHistory }: {
   posts: any[];
   campaigns: any[];
   onEdit: (post: any) => void;
   onDelete: (id: number) => void;
   onRecycle: (post: any) => void;
+  onViewHistory: (post: any) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
@@ -631,7 +934,6 @@ function DraftLibrary({ posts, campaigns, onEdit, onDelete, onRecycle }: {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
       <div className="flex gap-2 flex-wrap">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-36 h-8 text-xs">
@@ -694,6 +996,9 @@ function DraftLibrary({ posts, campaigns, onEdit, onDelete, onRecycle }: {
                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onEdit(p)}>Edit</Button>
                     <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => onRecycle(p)}>
                       <RefreshCw className="w-3 h-3" /> Recycle
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => onViewHistory(p)} data-testid={`btn-history-${p.id}`}>
+                      <History className="w-3 h-3" /> History
                     </Button>
                     <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => onDelete(p.id)}>
                       <Trash2 className="w-3 h-3" />
@@ -921,13 +1226,63 @@ function ConnectBanner({ accounts }: { accounts: any[] }) {
   );
 }
 
+// ── Campaign Manager ─────────────────────────────────────────────────────
+
+function CampaignManager({ campaigns, onCreated }: { campaigns: any[]; onCreated: () => void }) {
+  const [createOpen, setCreateOpen] = useState(false);
+  const qc = useQueryClient();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Organise posts into colour-coded campaigns</p>
+        <Button size="sm" className="gap-1.5 h-8" onClick={() => setCreateOpen(true)} data-testid="btn-new-campaign">
+          <Plus className="w-3.5 h-3.5" /> New Campaign
+        </Button>
+      </div>
+
+      {campaigns.length === 0 ? (
+        <div className="text-center py-10 text-muted-foreground text-sm border border-dashed border-border rounded-xl">
+          No campaigns yet. Create one to group your posts!
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {campaigns.map((c) => (
+            <div key={c.id} className="flex items-center gap-3 border border-border rounded-xl p-3">
+              <span className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">{c.name}</p>
+                {c.description && <p className="text-xs text-muted-foreground truncate">{c.description}</p>}
+                {(c.startDate || c.endDate) && (
+                  <p className="text-xs text-muted-foreground">
+                    {c.startDate ? format(new Date(c.startDate), "MMM d") : ""}
+                    {c.startDate && c.endDate ? " – " : ""}
+                    {c.endDate ? format(new Date(c.endDate), "MMM d, yyyy") : ""}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <CreateCampaignDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={() => { qc.invalidateQueries({ queryKey: ["/api/campaigns"] }); onCreated(); }}
+      />
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────
 
 export default function SchedulingPage() {
-  const [view, setView] = useState<"calendar" | "queue" | "bulk">("calendar");
+  const [view, setView] = useState<"calendar" | "queue" | "campaigns" | "bulk">("calendar");
   const [composeOpen, setComposeOpen] = useState(false);
   const [editPost, setEditPost] = useState<any>(null);
   const [recyclePost, setRecyclePost] = useState<any>(null);
+  const [historyPost, setHistoryPost] = useState<any>(null);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>(undefined);
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -936,6 +1291,7 @@ export default function SchedulingPage() {
   const { data: campaigns = [] } = useListCampaigns();
   const { data: accounts = [] } = useListPlatformAccounts();
   const { mutateAsync: deletePost } = useDeletePost();
+  const { mutateAsync: updatePost } = useUpdatePost();
 
   const handleDelete = async (id: number) => {
     try {
@@ -951,6 +1307,30 @@ export default function SchedulingPage() {
     setDefaultDate(date);
     setEditPost(null);
     setComposeOpen(true);
+  };
+
+  const handleReschedule = async (postId: number, newDate: Date) => {
+    try {
+      const post = posts.find((p) => p.id === postId);
+      if (!post) return;
+
+      const existing = new Date(post.scheduledAt || Date.now());
+      const rescheduled = new Date(newDate);
+      rescheduled.setHours(existing.getHours(), existing.getMinutes(), 0, 0);
+
+      await updatePost({
+        id: postId,
+        data: {
+          scheduledAt: rescheduled.toISOString(),
+          status: "scheduled",
+          changeNote: `Rescheduled to ${format(rescheduled, "MMM d, yyyy")}`,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ["/api/posts"] });
+      toast({ title: `Post rescheduled to ${format(rescheduled, "MMM d")}` });
+    } catch {
+      toast({ title: "Reschedule failed", variant: "destructive" });
+    }
   };
 
   const stats = {
@@ -996,6 +1376,7 @@ export default function SchedulingPage() {
             <TabsList className="mb-5">
               <TabsTrigger value="calendar" data-testid="tab-calendar">📅 Calendar</TabsTrigger>
               <TabsTrigger value="queue" data-testid="tab-queue">📋 Post Queue</TabsTrigger>
+              <TabsTrigger value="campaigns" data-testid="tab-campaigns">🏷️ Campaigns</TabsTrigger>
               <TabsTrigger value="bulk" data-testid="tab-bulk">📥 Bulk Upload</TabsTrigger>
             </TabsList>
 
@@ -1003,7 +1384,12 @@ export default function SchedulingPage() {
               {postsLoading ? (
                 <Skeleton className="h-96 w-full rounded-xl" />
               ) : (
-                <CalendarView posts={posts} campaigns={campaigns} onDayClick={handleDayClick} />
+                <CalendarView
+                  posts={posts}
+                  campaigns={campaigns}
+                  onDayClick={handleDayClick}
+                  onReschedule={handleReschedule}
+                />
               )}
             </TabsContent>
 
@@ -1019,8 +1405,23 @@ export default function SchedulingPage() {
                   onEdit={(p) => { setEditPost(p); setComposeOpen(true); }}
                   onDelete={handleDelete}
                   onRecycle={setRecyclePost}
+                  onViewHistory={setHistoryPost}
                 />
               )}
+            </TabsContent>
+
+            <TabsContent value="campaigns">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Campaign Manager</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CampaignManager
+                    campaigns={campaigns}
+                    onCreated={() => qc.invalidateQueries({ queryKey: ["/api/campaigns"] })}
+                  />
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="bulk">
@@ -1044,6 +1445,7 @@ export default function SchedulingPage() {
             editPost={editPost}
             campaigns={campaigns}
             defaultDate={defaultDate}
+            onCampaignCreated={() => qc.invalidateQueries({ queryKey: ["/api/campaigns"] })}
           />
         )}
 
@@ -1053,6 +1455,15 @@ export default function SchedulingPage() {
             post={recyclePost}
             open={!!recyclePost}
             onClose={() => setRecyclePost(null)}
+          />
+        )}
+
+        {/* History dialog */}
+        {historyPost && (
+          <HistoryDialog
+            post={historyPost}
+            open={!!historyPost}
+            onClose={() => setHistoryPost(null)}
           />
         )}
       </TierGuard>

@@ -63,17 +63,34 @@ export const hashtagCacheTable = pgTable("hashtag_cache", {
   region: text("region").notNull().default("NG"),
   trendScore: integer("trend_score").notNull().default(0),
   category: text("category"),
+  refreshedAt: timestamp("refreshed_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const postRevisionsTable = pgTable("post_revisions", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().references(() => postsTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  caption: text("caption").notNull(),
+  platforms: jsonb("platforms").$type<Platform[]>().notNull().default([]),
+  hashtags: jsonb("hashtags").$type<string[]>().notNull().default([]),
+  status: text("status").$type<PostStatus>().notNull(),
+  scheduledAt: timestamp("scheduled_at"),
+  changeNote: text("change_note"),
+  version: integer("version").notNull().default(1),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertCampaignSchema = createInsertSchema(campaignsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPostSchema = createInsertSchema(postsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPlatformAccountSchema = createInsertSchema(platformAccountsTable).omit({ id: true, createdAt: true });
 export const insertHashtagSchema = createInsertSchema(hashtagCacheTable).omit({ id: true });
+export const insertPostRevisionSchema = createInsertSchema(postRevisionsTable).omit({ id: true, createdAt: true });
 
 export type Campaign = typeof campaignsTable.$inferSelect;
 export type Post = typeof postsTable.$inferSelect;
 export type PlatformAccount = typeof platformAccountsTable.$inferSelect;
 export type HashtagCache = typeof hashtagCacheTable.$inferSelect;
+export type PostRevision = typeof postRevisionsTable.$inferSelect;
 export type InsertPost = z.infer<typeof insertPostSchema>;
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;

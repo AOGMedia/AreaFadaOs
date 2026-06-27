@@ -650,6 +650,8 @@ components:
             type: string
         platformVariants:
           type: object
+        changeNote:
+          type: string
 
     BulkUploadBody:
       type: object

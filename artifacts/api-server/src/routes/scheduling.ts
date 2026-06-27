@@ -1,15 +1,17 @@
 import { Router } from "express";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
-import { db } from "@workspace/db";
 import {
+  db,
   postsTable,
   campaignsTable,
   platformAccountsTable,
   hashtagCacheTable,
+  postRevisionsTable,
   usersTable,
 } from "@workspace/db";
-import { eq, and, desc, gte, lte, inArray } from "drizzle-orm";
+import type { Platform, PostStatus } from "@workspace/db";
+import { eq, and, desc, gte, lte, lt } from "drizzle-orm";
 import Anthropic from "@anthropic-ai/sdk";
 
 const router = Router();
@@ -32,6 +34,32 @@ const PLATFORM_CONSTRAINTS: Record<string, { maxChars: number; style: string }> 
   threads: { maxChars: 500, style: "casual conversational, thought-provoking, no hashtags" },
 };
 
+const HASHTAG_SEED: typeof hashtagCacheTable.$inferInsert[] = [
+  { platform: "instagram", hashtag: "#NigeriaTwitter", region: "NG", trendScore: 98, category: "general" },
+  { platform: "instagram", hashtag: "#NaijaTwitter", region: "NG", trendScore: 95, category: "general" },
+  { platform: "instagram", hashtag: "#999Book", region: "NG", trendScore: 92, category: "book" },
+  { platform: "instagram", hashtag: "#CharlyBoy", region: "NG", trendScore: 88, category: "brand" },
+  { platform: "instagram", hashtag: "#AreaFada", region: "NG", trendScore: 85, category: "brand" },
+  { platform: "instagram", hashtag: "#LagosLife", region: "NG", trendScore: 82, category: "lifestyle" },
+  { platform: "instagram", hashtag: "#AfricaRising", region: "NG", trendScore: 80, category: "general" },
+  { platform: "instagram", hashtag: "#NaijaCreators", region: "NG", trendScore: 78, category: "creator" },
+  { platform: "tiktok", hashtag: "#NaijaTikTok", region: "NG", trendScore: 99, category: "general" },
+  { platform: "tiktok", hashtag: "#AfricaTikTok", region: "NG", trendScore: 94, category: "general" },
+  { platform: "tiktok", hashtag: "#PidginTikTok", region: "NG", trendScore: 90, category: "culture" },
+  { platform: "tiktok", hashtag: "#NigeriaVibes", region: "NG", trendScore: 87, category: "lifestyle" },
+  { platform: "x", hashtag: "#Nigeria", region: "NG", trendScore: 97, category: "general" },
+  { platform: "x", hashtag: "#Naija", region: "NG", trendScore: 93, category: "general" },
+  { platform: "x", hashtag: "#LekkiTollGate", region: "NG", trendScore: 89, category: "activism" },
+  { platform: "x", hashtag: "#EndSARS", region: "NG", trendScore: 75, category: "activism" },
+  { platform: "instagram", hashtag: "#GhanaIsGood", region: "GH", trendScore: 88, category: "general" },
+  { platform: "instagram", hashtag: "#AccraLife", region: "GH", trendScore: 84, category: "lifestyle" },
+  { platform: "instagram", hashtag: "#NairobiNow", region: "KE", trendScore: 86, category: "general" },
+  { platform: "instagram", hashtag: "#KenyaCreators", region: "KE", trendScore: 81, category: "creator" },
+  { platform: "youtube", hashtag: "#NigeriaYouTube", region: "NG", trendScore: 85, category: "creator" },
+  { platform: "facebook", hashtag: "#NigeriaFacebook", region: "NG", trendScore: 76, category: "general" },
+  { platform: "threads", hashtag: "#AfricanThreads", region: "NG", trendScore: 72, category: "general" },
+];
+
 async function getOrCreateUser(clerkId: string) {
   const existing = await db.select().from(usersTable).where(eq(usersTable.clerkId, clerkId)).limit(1);
   if (existing.length > 0) return existing[0];
@@ -45,44 +73,53 @@ async function getOrCreateUser(clerkId: string) {
 }
 
 function seedPlatformAccounts(userId: number) {
-  const accounts = [
-    { userId, platform: "instagram" as const, handle: "@charlyboyland", displayName: "Charly Boy", connected: false, followerCount: 245000 },
-    { userId, platform: "tiktok" as const, handle: "@charlyboyland", displayName: "Charly Boy", connected: false, followerCount: 89000 },
-    { userId, platform: "x" as const, handle: "@AreaFada1", displayName: "Charly Boy (Area Fada)", connected: false, followerCount: 312000 },
-    { userId, platform: "youtube" as const, handle: "Charly Boy Africa", displayName: "Charly Boy Africa", connected: false, followerCount: 67000 },
-    { userId, platform: "facebook" as const, handle: "CharlyBoyAfrica", displayName: "Charly Boy", connected: false, followerCount: 528000 },
-    { userId, platform: "threads" as const, handle: "@charlyboyland", displayName: "Charly Boy", connected: false, followerCount: 12000 },
+  const accounts: typeof platformAccountsTable.$inferInsert[] = [
+    { userId, platform: "instagram", handle: "@charlyboyland", displayName: "Charly Boy", connected: false, followerCount: 245000 },
+    { userId, platform: "tiktok", handle: "@charlyboyland", displayName: "Charly Boy", connected: false, followerCount: 89000 },
+    { userId, platform: "x", handle: "@AreaFada1", displayName: "Charly Boy (Area Fada)", connected: false, followerCount: 312000 },
+    { userId, platform: "youtube", handle: "Charly Boy Africa", displayName: "Charly Boy Africa", connected: false, followerCount: 67000 },
+    { userId, platform: "facebook", handle: "CharlyBoyAfrica", displayName: "Charly Boy", connected: false, followerCount: 528000 },
+    { userId, platform: "threads", handle: "@charlyboyland", displayName: "Charly Boy", connected: false, followerCount: 12000 },
   ];
   return db.insert(platformAccountsTable).values(accounts).onConflictDoNothing();
 }
 
-function seedHashtags() {
-  const tags: typeof hashtagCacheTable.$inferInsert[] = [
-    { platform: "instagram", hashtag: "#NigeriaTwitter", region: "NG", trendScore: 98, category: "general" },
-    { platform: "instagram", hashtag: "#NaijaTwitter", region: "NG", trendScore: 95, category: "general" },
-    { platform: "instagram", hashtag: "#999Book", region: "NG", trendScore: 92, category: "book" },
-    { platform: "instagram", hashtag: "#CharlyBoy", region: "NG", trendScore: 88, category: "brand" },
-    { platform: "instagram", hashtag: "#AreaFada", region: "NG", trendScore: 85, category: "brand" },
-    { platform: "instagram", hashtag: "#LagosLife", region: "NG", trendScore: 82, category: "lifestyle" },
-    { platform: "instagram", hashtag: "#AfricaRising", region: "NG", trendScore: 80, category: "general" },
-    { platform: "instagram", hashtag: "#NaijaCreators", region: "NG", trendScore: 78, category: "creator" },
-    { platform: "tiktok", hashtag: "#NaijaTikTok", region: "NG", trendScore: 99, category: "general" },
-    { platform: "tiktok", hashtag: "#AfricaTikTok", region: "NG", trendScore: 94, category: "general" },
-    { platform: "tiktok", hashtag: "#PidginTikTok", region: "NG", trendScore: 90, category: "culture" },
-    { platform: "tiktok", hashtag: "#NigeriaVibes", region: "NG", trendScore: 87, category: "lifestyle" },
-    { platform: "x", hashtag: "#Nigeria", region: "NG", trendScore: 97, category: "general" },
-    { platform: "x", hashtag: "#Naija", region: "NG", trendScore: 93, category: "general" },
-    { platform: "x", hashtag: "#LekkiTollGate", region: "NG", trendScore: 89, category: "activism" },
-    { platform: "x", hashtag: "#EndSARS", region: "NG", trendScore: 75, category: "activism" },
-    { platform: "instagram", hashtag: "#GhanaIsGood", region: "GH", trendScore: 88, category: "general" },
-    { platform: "instagram", hashtag: "#AccraLife", region: "GH", trendScore: 84, category: "lifestyle" },
-    { platform: "instagram", hashtag: "#NairobiNow", region: "KE", trendScore: 86, category: "general" },
-    { platform: "instagram", hashtag: "#KenyaCreators", region: "KE", trendScore: 81, category: "creator" },
-    { platform: "youtube", hashtag: "#NigeriaYouTube", region: "NG", trendScore: 85, category: "creator" },
-    { platform: "facebook", hashtag: "#NigeriaFacebook", region: "NG", trendScore: 76, category: "general" },
-    { platform: "threads", hashtag: "#AfricanThreads", region: "NG", trendScore: 72, category: "general" },
-  ];
-  return db.insert(hashtagCacheTable).values(tags).onConflictDoNothing();
+async function refreshHashtagsIfStale(): Promise<void> {
+  const STALE_HOURS = 24;
+  const staleThreshold = new Date(Date.now() - STALE_HOURS * 60 * 60 * 1000);
+
+  const staleRows = await db.select({ id: hashtagCacheTable.id })
+    .from(hashtagCacheTable)
+    .where(lt(hashtagCacheTable.refreshedAt, staleThreshold))
+    .limit(1);
+
+  const isEmpty = (await db.select({ id: hashtagCacheTable.id }).from(hashtagCacheTable).limit(1)).length === 0;
+
+  if (isEmpty || staleRows.length > 0) {
+    const now = new Date();
+    const refreshed = HASHTAG_SEED.map((t) => ({ ...t, refreshedAt: now, updatedAt: now }));
+    await db.delete(hashtagCacheTable);
+    await db.insert(hashtagCacheTable).values(refreshed);
+  }
+}
+
+async function recordRevision(
+  postId: number,
+  userId: number,
+  post: { caption: string; platforms: unknown; hashtags: unknown; status: string; scheduledAt: Date | null | undefined; version: number },
+  changeNote?: string
+) {
+  await db.insert(postRevisionsTable).values({
+    postId,
+    userId,
+    caption: post.caption,
+    platforms: (post.platforms as Platform[]),
+    hashtags: (post.hashtags as string[]),
+    status: post.status as PostStatus,
+    scheduledAt: post.scheduledAt ?? null,
+    changeNote: changeNote || null,
+    version: post.version,
+  });
 }
 
 // ─── POSTS ────────────────────────────────────────────────────────────────────
@@ -92,9 +129,7 @@ router.get("/posts", requireAuth, requireTier("creator"), async (req: any, res):
     const user = await getOrCreateUser(req.clerkUserId);
     const { status, campaignId, platform, from, to } = req.query;
 
-    let query = db.select().from(postsTable).where(eq(postsTable.userId, user.id)).$dynamic();
-
-    const conditions = [eq(postsTable.userId, user.id)];
+    const conditions: any[] = [eq(postsTable.userId, user.id)];
     if (status) conditions.push(eq(postsTable.status, status as "draft" | "scheduled" | "published" | "failed"));
     if (campaignId) conditions.push(eq(postsTable.campaignId, parseInt(campaignId as string)));
     if (from) conditions.push(gte(postsTable.scheduledAt, new Date(from as string)));
@@ -118,9 +153,14 @@ router.get("/posts", requireAuth, requireTier("creator"), async (req: any, res):
 router.post("/posts", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
   try {
     const user = await getOrCreateUser(req.clerkUserId);
-    const { caption, platforms, campaignId, scheduledAt, tone, hashtags, mediaUrls, platformVariants } = req.body;
+    const { caption, platforms, campaignId, scheduledAt, tone, hashtags, mediaUrls, platformVariants, status: bodyStatus } = req.body;
 
-    const status = scheduledAt ? "scheduled" : "draft";
+    // Respect explicit status from client; fall back to inference only if not provided
+    const status: "draft" | "scheduled" =
+      bodyStatus === "draft" || bodyStatus === "scheduled"
+        ? bodyStatus
+        : scheduledAt ? "scheduled" : "draft";
+
     const [post] = await db.insert(postsTable).values({
       userId: user.id,
       caption,
@@ -134,6 +174,7 @@ router.post("/posts", requireAuth, requireTier("creator"), async (req: any, res)
       platformVariants: platformVariants || {},
     }).returning();
 
+    await recordRevision(post.id, user.id, post, "Initial save");
     res.status(201).json(post);
   } catch (err) {
     res.status(500).json({ error: "Failed to create post" });
@@ -143,9 +184,10 @@ router.post("/posts", requireAuth, requireTier("creator"), async (req: any, res)
 router.get("/posts/hashtags", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
   try {
     const { platform, region = "NG" } = req.query;
-    await seedHashtags();
 
-    const conditions = [eq(hashtagCacheTable.region, region as string)];
+    await refreshHashtagsIfStale();
+
+    const conditions: any[] = [eq(hashtagCacheTable.region, region as string)];
     if (platform) conditions.push(eq(hashtagCacheTable.platform, platform as "instagram" | "tiktok" | "x" | "youtube" | "facebook" | "threads"));
 
     const tags = await db.select().from(hashtagCacheTable)
@@ -215,17 +257,24 @@ router.post("/posts/bulk-upload", requireAuth, requireTier("creator"), async (re
       return;
     }
 
-    const toInsert = rawPosts.slice(0, 50).map((p: any) => ({
-      userId: user.id,
-      caption: p.caption || "",
-      platforms: p.platforms || [],
-      campaignId: p.campaignId || null,
-      scheduledAt: p.scheduledAt ? new Date(p.scheduledAt) : null,
-      status: (p.scheduledAt ? "scheduled" : "draft") as "draft" | "scheduled",
-      hashtags: p.hashtags || [],
-      mediaUrls: [],
-      platformVariants: {},
-    }));
+    const toInsert = rawPosts.slice(0, 50).map((p: any) => {
+      const bodyStatus = p.status as string | undefined;
+      const status: "draft" | "scheduled" =
+        bodyStatus === "draft" || bodyStatus === "scheduled"
+          ? bodyStatus
+          : p.scheduledAt ? "scheduled" : "draft";
+      return {
+        userId: user.id,
+        caption: p.caption || "",
+        platforms: p.platforms || [],
+        campaignId: p.campaignId || null,
+        scheduledAt: p.scheduledAt ? new Date(p.scheduledAt) : null,
+        status,
+        hashtags: p.hashtags || [],
+        mediaUrls: [],
+        platformVariants: {},
+      };
+    });
 
     let imported = 0;
     let failed = 0;
@@ -234,6 +283,7 @@ router.post("/posts/bulk-upload", requireAuth, requireTier("creator"), async (re
     for (const item of toInsert) {
       try {
         const [post] = await db.insert(postsTable).values(item).returning();
+        await recordRevision(post.id, user.id, post, "Bulk import");
         inserted.push(post);
         imported++;
       } catch {
@@ -260,10 +310,37 @@ router.get("/posts/:id", requireAuth, requireTier("creator"), async (req: any, r
   }
 });
 
+router.get("/posts/:id/history", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
+  try {
+    const user = await getOrCreateUser(req.clerkUserId);
+    const post = await db.select().from(postsTable)
+      .where(and(eq(postsTable.id, parseInt(req.params.id)), eq(postsTable.userId, user.id)))
+      .limit(1);
+    if (!post.length) { res.status(404).json({ error: "Not found" }); return; }
+
+    const revisions = await db.select().from(postRevisionsTable)
+      .where(eq(postRevisionsTable.postId, parseInt(req.params.id)))
+      .orderBy(desc(postRevisionsTable.createdAt))
+      .limit(20);
+
+    res.json(revisions);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to get post history" });
+  }
+});
+
 router.patch("/posts/:id", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
   try {
     const user = await getOrCreateUser(req.clerkUserId);
-    const { caption, platforms, campaignId, scheduledAt, status, tone, hashtags, mediaUrls, platformVariants } = req.body;
+
+    const current = await db.select().from(postsTable)
+      .where(and(eq(postsTable.id, parseInt(req.params.id)), eq(postsTable.userId, user.id)))
+      .limit(1);
+    if (!current.length) { res.status(404).json({ error: "Not found" }); return; }
+
+    const { caption, platforms, campaignId, scheduledAt, status, tone, hashtags, mediaUrls, platformVariants, changeNote } = req.body;
+
+    const nextVersion = (current[0].version || 1) + 1;
 
     const [updated] = await db.update(postsTable)
       .set({
@@ -276,12 +353,15 @@ router.patch("/posts/:id", requireAuth, requireTier("creator"), async (req: any,
         ...(hashtags !== undefined && { hashtags }),
         ...(mediaUrls !== undefined && { mediaUrls }),
         ...(platformVariants !== undefined && { platformVariants }),
+        version: nextVersion,
         updatedAt: new Date(),
       })
       .where(and(eq(postsTable.id, parseInt(req.params.id)), eq(postsTable.userId, user.id)))
       .returning();
 
     if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+
+    await recordRevision(updated.id, user.id, updated, changeNote || "Edit");
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: "Failed to update post" });
@@ -327,6 +407,7 @@ router.post("/posts/:id/recycle", requireAuth, requireTier("creator"), async (re
       if (msg.content[0].type === "text") newCaption = msg.content[0].text.trim();
     }
 
+    const nextVersion = (original[0].version || 1) + 1;
     const [recycled] = await db.insert(postsTable).values({
       userId: user.id,
       caption: newCaption,
@@ -340,9 +421,10 @@ router.post("/posts/:id/recycle", requireAuth, requireTier("creator"), async (re
       platformVariants: {},
       isRecycled: true,
       originalPostId: original[0].id,
-      version: (original[0].version || 1) + 1,
+      version: nextVersion,
     }).returning();
 
+    await recordRevision(recycled.id, user.id, recycled, `Recycled from post #${original[0].id}`);
     res.status(201).json(recycled);
   } catch (err: any) {
     console.error("Recycle error:", err?.message);

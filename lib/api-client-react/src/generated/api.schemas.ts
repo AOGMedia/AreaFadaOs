@@ -180,6 +180,7 @@ export interface UpdatePostBody {
   hashtags?: string[];
   mediaUrls?: string[];
   platformVariants?: UpdatePostBodyPlatformVariants;
+  changeNote?: string;
 }
 
 export type BulkUploadBodyPostsItem = {
