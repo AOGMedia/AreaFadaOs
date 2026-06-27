@@ -28,6 +28,8 @@ tags:
     description: Ambassador CRM, gamification, leaderboard, micro-influencer directory, WhatsApp broadcast log
   - name: bookPromo
     description: Book Download Promotion Engine — campaigns, tracked links, QR codes, funnel analytics, drip scheduler, fan verifications, affiliate commissions
+  - name: liveVideo
+    description: Live Video & Real-Time Engagement — sessions, broadcast setup, chat moderation, fan reminders, revenue tracking, post-live clip generator
 
 paths:
   /healthz:
@@ -1579,6 +1581,454 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AffiliateCommission"
+
+  # ─── Live Video ────────────────────────────────────────────────────────────────
+
+  /live-sessions:
+    get:
+      operationId: listLiveSessions
+      tags: [liveVideo]
+      summary: List live sessions for current user
+      responses:
+        "200":
+          description: List of live sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveSession"
+    post:
+      operationId: createLiveSession
+      tags: [liveVideo]
+      summary: Schedule a new live session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLiveSessionBody"
+      responses:
+        "201":
+          description: Created live session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSession"
+
+  /live-sessions/{id}:
+    patch:
+      operationId: updateLiveSession
+      tags: [liveVideo]
+      summary: Update a live session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLiveSessionBody"
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSession"
+    delete:
+      operationId: deleteLiveSession
+      tags: [liveVideo]
+      summary: Delete a live session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /live-sessions/{id}/platform-configs:
+    get:
+      operationId: getLivePlatformConfigs
+      tags: [liveVideo]
+      summary: Get broadcast stream key configs per platform
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Platform configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LivePlatformConfig"
+
+  /live-sessions/{id}/platform-configs/{platform}:
+    patch:
+      operationId: updateLivePlatformConfig
+      tags: [liveVideo]
+      summary: Update stream key / status for a platform
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: platform
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                streamKey:
+                  type: string
+                broadcastUrl:
+                  type: string
+                status:
+                  type: string
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LivePlatformConfig"
+
+  /live-sessions/{id}/chat:
+    get:
+      operationId: getLiveChat
+      tags: [liveVideo]
+      summary: Get unified chat feed for a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Chat messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveChatMessage"
+    post:
+      operationId: addLiveChatMessage
+      tags: [liveVideo]
+      summary: Add a chat message to a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, authorName, message]
+              properties:
+                platform:
+                  type: string
+                authorName:
+                  type: string
+                authorHandle:
+                  type: string
+                message:
+                  type: string
+                isQuestion:
+                  type: boolean
+      responses:
+        "201":
+          description: Created message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveChatMessage"
+
+  /live-chat/{id}:
+    patch:
+      operationId: moderateLiveChatMessage
+      tags: [liveVideo]
+      summary: Pin, ban or mark a message as question
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                isPinned:
+                  type: boolean
+                isBanned:
+                  type: boolean
+                isModerated:
+                  type: boolean
+                isQuestion:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveChatMessage"
+
+  /live-sessions/{id}/revenue:
+    get:
+      operationId: getLiveRevenue
+      tags: [liveVideo]
+      summary: Get revenue events and totals for a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Revenue data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRevenueData"
+    post:
+      operationId: addLiveRevenueEvent
+      tags: [liveVideo]
+      summary: Log a revenue event (super chat, donation, product sale)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, eventType, senderName, amount]
+              properties:
+                platform:
+                  type: string
+                eventType:
+                  type: string
+                senderName:
+                  type: string
+                amount:
+                  type: string
+                currency:
+                  type: string
+                message:
+                  type: string
+      responses:
+        "201":
+          description: Created event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveRevenueEvent"
+
+  /live-sessions/{id}/clips:
+    get:
+      operationId: getLiveClips
+      tags: [liveVideo]
+      summary: Get post-live clip markers for a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Clips
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostLiveClip"
+    post:
+      operationId: createLiveClip
+      tags: [liveVideo]
+      summary: Mark a highlight clip with AI-generated caption
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, startSeconds, endSeconds]
+              properties:
+                label:
+                  type: string
+                startSeconds:
+                  type: integer
+                endSeconds:
+                  type: integer
+                platform:
+                  type: string
+      responses:
+        "201":
+          description: Created clip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostLiveClip"
+
+  /live-clips/{id}:
+    delete:
+      operationId: deleteLiveClip
+      tags: [liveVideo]
+      summary: Delete a clip marker
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /live-sessions/{id}/reminders:
+    get:
+      operationId: getLiveReminders
+      tags: [liveVideo]
+      summary: Get fan reminder sign-ups for a session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reminder signups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveReminderSignup"
+    post:
+      operationId: registerLiveReminder
+      tags: [liveVideo]
+      summary: Fan opt-in for live session reminder (public endpoint)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fanName]
+              properties:
+                fanName:
+                  type: string
+                fanEmail:
+                  type: string
+                fanPhone:
+                  type: string
+                channel:
+                  type: string
+                  enum: [email, whatsapp, sms]
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  id:
+                    type: integer
+
+  /live-sessions/{id}/send-reminders:
+    post:
+      operationId: sendLiveReminders
+      tags: [liveVideo]
+      summary: Send reminder notifications to all pending fans
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reminders sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  count:
+                    type: integer
+
+  /live-sessions/{id}/hype-schedule:
+    post:
+      operationId: generateHypeSchedule
+      tags: [liveVideo]
+      summary: Generate a pre-live countdown post sequence (7d to 15min before)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hype drip schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HypeScheduleResponse"
 
 components:
   schemas:
@@ -3237,3 +3687,280 @@ components:
           type: string
         commissionRate:
           type: string
+
+    # ─── Live Video ──────────────────────────────────────────────────────────────
+
+    LiveSession:
+      type: object
+      required: [id, userId, title, scheduledAt, status, platforms, peakViewers, totalViewers, countdownPostsEnabled, totalRevenue, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        thumbnailUrl:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [scheduled, live, ended, cancelled]
+        platforms:
+          type: array
+          items:
+            type: string
+        rtmpUrl:
+          type: string
+        streamKey:
+          type: string
+        peakViewers:
+          type: integer
+        totalViewers:
+          type: integer
+        countdownPostsEnabled:
+          type: boolean
+        replayUrl:
+          type: string
+        totalRevenue:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateLiveSessionBody:
+      type: object
+      required: [title, scheduledAt]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        thumbnailUrl:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        platforms:
+          type: array
+          items:
+            type: string
+        countdownPostsEnabled:
+          type: boolean
+
+    UpdateLiveSessionBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        scheduledAt:
+          type: string
+          format: date-time
+        platforms:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [scheduled, live, ended, cancelled]
+        replayUrl:
+          type: string
+        countdownPostsEnabled:
+          type: boolean
+        peakViewers:
+          type: integer
+        totalViewers:
+          type: integer
+        totalRevenue:
+          type: string
+
+    LivePlatformConfig:
+      type: object
+      required: [id, sessionId, userId, platform, status, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        platform:
+          type: string
+        streamKey:
+          type: string
+        rtmpEndpoint:
+          type: string
+        broadcastUrl:
+          type: string
+        status:
+          type: string
+
+    LiveChatMessage:
+      type: object
+      required: [id, sessionId, userId, platform, authorName, message, isPinned, isBanned, isQuestion, isModerated, sentAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        platform:
+          type: string
+        authorName:
+          type: string
+        authorHandle:
+          type: string
+        message:
+          type: string
+        isPinned:
+          type: boolean
+        isBanned:
+          type: boolean
+        isQuestion:
+          type: boolean
+        isModerated:
+          type: boolean
+        sentAt:
+          type: string
+          format: date-time
+
+    LiveRevenueEvent:
+      type: object
+      required: [id, sessionId, userId, platform, eventType, senderName, amount, currency, occurredAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        platform:
+          type: string
+        eventType:
+          type: string
+          enum: [super_chat, donation, badge, product_sale]
+        senderName:
+          type: string
+        amount:
+          type: string
+        currency:
+          type: string
+        message:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+
+    LiveRevenueData:
+      type: object
+      required: [events, totalRevenue, byType, byPlatform]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveRevenueEvent"
+        totalRevenue:
+          type: number
+        byType:
+          type: object
+          additionalProperties:
+            type: number
+        byPlatform:
+          type: object
+          additionalProperties:
+            type: number
+
+    PostLiveClip:
+      type: object
+      required: [id, sessionId, userId, label, startSeconds, endSeconds, status, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        label:
+          type: string
+        startSeconds:
+          type: integer
+        endSeconds:
+          type: integer
+        aiCaption:
+          type: string
+        platform:
+          type: string
+        status:
+          type: string
+          enum: [pending, ready, queued, published]
+        createdAt:
+          type: string
+          format: date-time
+
+    LiveReminderSignup:
+      type: object
+      required: [id, sessionId, userId, fanName, channel, reminded, createdAt]
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        userId:
+          type: integer
+        fanName:
+          type: string
+        fanEmail:
+          type: string
+        fanPhone:
+          type: string
+        channel:
+          type: string
+          enum: [email, whatsapp, sms]
+        reminded:
+          type: boolean
+        remindedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    HypeDripPost:
+      type: object
+      required: [platform, content, scheduledDate, hoursBeforeLive]
+      properties:
+        platform:
+          type: string
+        content:
+          type: string
+        scheduledDate:
+          type: string
+          format: date-time
+        hoursBeforeLive:
+          type: number
+
+    HypeScheduleResponse:
+      type: object
+      required: [message, posts, sessionId]
+      properties:
+        message:
+          type: string
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/HypeDripPost"
+        sessionId:
+          type: integer

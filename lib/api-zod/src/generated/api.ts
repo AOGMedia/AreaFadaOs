@@ -2068,3 +2068,436 @@ export const TriggerAffiliatePayoutResponse = zod.object({
 })
 
 
+/**
+ * @summary List live sessions for current user
+ */
+export const ListLiveSessionsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "thumbnailUrl": zod.string().optional(),
+  "scheduledAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().optional(),
+  "status": zod.enum(['scheduled', 'live', 'ended', 'cancelled']),
+  "platforms": zod.array(zod.string()),
+  "rtmpUrl": zod.string().optional(),
+  "streamKey": zod.string().optional(),
+  "peakViewers": zod.number(),
+  "totalViewers": zod.number(),
+  "countdownPostsEnabled": zod.boolean(),
+  "replayUrl": zod.string().optional(),
+  "totalRevenue": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListLiveSessionsResponse = zod.array(ListLiveSessionsResponseItem)
+
+
+/**
+ * @summary Schedule a new live session
+ */
+export const CreateLiveSessionBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "thumbnailUrl": zod.string().optional(),
+  "scheduledAt": zod.coerce.date(),
+  "platforms": zod.array(zod.string()).optional(),
+  "countdownPostsEnabled": zod.boolean().optional()
+})
+
+export const CreateLiveSessionResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "thumbnailUrl": zod.string().optional(),
+  "scheduledAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().optional(),
+  "status": zod.enum(['scheduled', 'live', 'ended', 'cancelled']),
+  "platforms": zod.array(zod.string()),
+  "rtmpUrl": zod.string().optional(),
+  "streamKey": zod.string().optional(),
+  "peakViewers": zod.number(),
+  "totalViewers": zod.number(),
+  "countdownPostsEnabled": zod.boolean(),
+  "replayUrl": zod.string().optional(),
+  "totalRevenue": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a live session
+ */
+export const UpdateLiveSessionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateLiveSessionBody = zod.object({
+  "title": zod.string().optional(),
+  "description": zod.string().optional(),
+  "scheduledAt": zod.coerce.date().optional(),
+  "platforms": zod.array(zod.string()).optional(),
+  "status": zod.enum(['scheduled', 'live', 'ended', 'cancelled']).optional(),
+  "replayUrl": zod.string().optional(),
+  "countdownPostsEnabled": zod.boolean().optional(),
+  "peakViewers": zod.number().optional(),
+  "totalViewers": zod.number().optional(),
+  "totalRevenue": zod.string().optional()
+})
+
+export const UpdateLiveSessionResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "thumbnailUrl": zod.string().optional(),
+  "scheduledAt": zod.coerce.date(),
+  "endedAt": zod.coerce.date().optional(),
+  "status": zod.enum(['scheduled', 'live', 'ended', 'cancelled']),
+  "platforms": zod.array(zod.string()),
+  "rtmpUrl": zod.string().optional(),
+  "streamKey": zod.string().optional(),
+  "peakViewers": zod.number(),
+  "totalViewers": zod.number(),
+  "countdownPostsEnabled": zod.boolean(),
+  "replayUrl": zod.string().optional(),
+  "totalRevenue": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a live session
+ */
+export const DeleteLiveSessionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteLiveSessionResponse = zod.void()
+
+
+/**
+ * @summary Get broadcast stream key configs per platform
+ */
+export const GetLivePlatformConfigsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetLivePlatformConfigsResponseItem = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "platform": zod.string(),
+  "streamKey": zod.string().optional(),
+  "rtmpEndpoint": zod.string().optional(),
+  "broadcastUrl": zod.string().optional(),
+  "status": zod.string()
+})
+export const GetLivePlatformConfigsResponse = zod.array(GetLivePlatformConfigsResponseItem)
+
+
+/**
+ * @summary Update stream key / status for a platform
+ */
+export const UpdateLivePlatformConfigParams = zod.object({
+  "id": zod.coerce.number(),
+  "platform": zod.coerce.string()
+})
+
+export const UpdateLivePlatformConfigBody = zod.object({
+  "streamKey": zod.string().optional(),
+  "broadcastUrl": zod.string().optional(),
+  "status": zod.string().optional()
+})
+
+export const UpdateLivePlatformConfigResponse = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "platform": zod.string(),
+  "streamKey": zod.string().optional(),
+  "rtmpEndpoint": zod.string().optional(),
+  "broadcastUrl": zod.string().optional(),
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Get unified chat feed for a session
+ */
+export const GetLiveChatParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetLiveChatResponseItem = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "platform": zod.string(),
+  "authorName": zod.string(),
+  "authorHandle": zod.string().optional(),
+  "message": zod.string(),
+  "isPinned": zod.boolean(),
+  "isBanned": zod.boolean(),
+  "isQuestion": zod.boolean(),
+  "isModerated": zod.boolean(),
+  "sentAt": zod.coerce.date()
+})
+export const GetLiveChatResponse = zod.array(GetLiveChatResponseItem)
+
+
+/**
+ * @summary Add a chat message to a session
+ */
+export const AddLiveChatMessageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AddLiveChatMessageBody = zod.object({
+  "platform": zod.string(),
+  "authorName": zod.string(),
+  "authorHandle": zod.string().optional(),
+  "message": zod.string(),
+  "isQuestion": zod.boolean().optional()
+})
+
+export const AddLiveChatMessageResponse = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "platform": zod.string(),
+  "authorName": zod.string(),
+  "authorHandle": zod.string().optional(),
+  "message": zod.string(),
+  "isPinned": zod.boolean(),
+  "isBanned": zod.boolean(),
+  "isQuestion": zod.boolean(),
+  "isModerated": zod.boolean(),
+  "sentAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Pin, ban or mark a message as question
+ */
+export const ModerateLiveChatMessageParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ModerateLiveChatMessageBody = zod.object({
+  "isPinned": zod.boolean().optional(),
+  "isBanned": zod.boolean().optional(),
+  "isModerated": zod.boolean().optional(),
+  "isQuestion": zod.boolean().optional()
+})
+
+export const ModerateLiveChatMessageResponse = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "platform": zod.string(),
+  "authorName": zod.string(),
+  "authorHandle": zod.string().optional(),
+  "message": zod.string(),
+  "isPinned": zod.boolean(),
+  "isBanned": zod.boolean(),
+  "isQuestion": zod.boolean(),
+  "isModerated": zod.boolean(),
+  "sentAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get revenue events and totals for a session
+ */
+export const GetLiveRevenueParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetLiveRevenueResponse = zod.object({
+  "events": zod.array(zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "platform": zod.string(),
+  "eventType": zod.enum(['super_chat', 'donation', 'badge', 'product_sale']),
+  "senderName": zod.string(),
+  "amount": zod.string(),
+  "currency": zod.string(),
+  "message": zod.string().optional(),
+  "occurredAt": zod.coerce.date()
+})),
+  "totalRevenue": zod.number(),
+  "byType": zod.record(zod.string(), zod.number()),
+  "byPlatform": zod.record(zod.string(), zod.number())
+})
+
+
+/**
+ * @summary Log a revenue event (super chat, donation, product sale)
+ */
+export const AddLiveRevenueEventParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AddLiveRevenueEventBody = zod.object({
+  "platform": zod.string(),
+  "eventType": zod.string(),
+  "senderName": zod.string(),
+  "amount": zod.string(),
+  "currency": zod.string().optional(),
+  "message": zod.string().optional()
+})
+
+export const AddLiveRevenueEventResponse = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "platform": zod.string(),
+  "eventType": zod.enum(['super_chat', 'donation', 'badge', 'product_sale']),
+  "senderName": zod.string(),
+  "amount": zod.string(),
+  "currency": zod.string(),
+  "message": zod.string().optional(),
+  "occurredAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get post-live clip markers for a session
+ */
+export const GetLiveClipsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetLiveClipsResponseItem = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "aiCaption": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "status": zod.enum(['pending', 'ready', 'queued', 'published']),
+  "createdAt": zod.coerce.date()
+})
+export const GetLiveClipsResponse = zod.array(GetLiveClipsResponseItem)
+
+
+/**
+ * @summary Mark a highlight clip with AI-generated caption
+ */
+export const CreateLiveClipParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const CreateLiveClipBody = zod.object({
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "platform": zod.string().optional()
+})
+
+export const CreateLiveClipResponse = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "aiCaption": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "status": zod.enum(['pending', 'ready', 'queued', 'published']),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a clip marker
+ */
+export const DeleteLiveClipParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteLiveClipResponse = zod.void()
+
+
+/**
+ * @summary Get fan reminder sign-ups for a session
+ */
+export const GetLiveRemindersParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetLiveRemindersResponseItem = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "userId": zod.number(),
+  "fanName": zod.string(),
+  "fanEmail": zod.string().optional(),
+  "fanPhone": zod.string().optional(),
+  "channel": zod.enum(['email', 'whatsapp', 'sms']),
+  "reminded": zod.boolean(),
+  "remindedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+export const GetLiveRemindersResponse = zod.array(GetLiveRemindersResponseItem)
+
+
+/**
+ * @summary Fan opt-in for live session reminder (public endpoint)
+ */
+export const RegisterLiveReminderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RegisterLiveReminderBody = zod.object({
+  "fanName": zod.string(),
+  "fanEmail": zod.string().optional(),
+  "fanPhone": zod.string().optional(),
+  "channel": zod.enum(['email', 'whatsapp', 'sms']).optional()
+})
+
+export const RegisterLiveReminderResponse = zod.object({
+  "message": zod.string().optional(),
+  "id": zod.number().optional()
+})
+
+
+/**
+ * @summary Send reminder notifications to all pending fans
+ */
+export const SendLiveRemindersParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SendLiveRemindersResponse = zod.object({
+  "message": zod.string().optional(),
+  "count": zod.number().optional()
+})
+
+
+/**
+ * @summary Generate a pre-live countdown post sequence (7d to 15min before)
+ */
+export const GenerateHypeScheduleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GenerateHypeScheduleResponse = zod.object({
+  "message": zod.string(),
+  "posts": zod.array(zod.object({
+  "platform": zod.string(),
+  "content": zod.string(),
+  "scheduledDate": zod.coerce.date(),
+  "hoursBeforeLive": zod.number()
+})),
+  "sessionId": zod.number()
+})
+
+

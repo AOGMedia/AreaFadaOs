@@ -7,6 +7,7 @@ import monetizationRouter from "./monetization";
 import analyticsRouter from "./analytics";
 import ambassadorsRouter from "./ambassadors";
 import bookPromoRouter from "./book-promo";
+import liveVideoRouter from "./live-video";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(monetizationRouter);
 router.use(analyticsRouter);
 router.use(ambassadorsRouter);
 router.use(bookPromoRouter);
+router.use(liveVideoRouter);
 
 export default router;

@@ -970,6 +970,187 @@ export interface CreateAffiliateBody {
   commissionRate?: string;
 }
 
+export type LiveSessionStatus = typeof LiveSessionStatus[keyof typeof LiveSessionStatus];
+
+
+export const LiveSessionStatus = {
+  scheduled: 'scheduled',
+  live: 'live',
+  ended: 'ended',
+  cancelled: 'cancelled',
+} as const;
+
+export interface LiveSession {
+  id: number;
+  userId: number;
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  scheduledAt: string;
+  endedAt?: string;
+  status: LiveSessionStatus;
+  platforms: string[];
+  rtmpUrl?: string;
+  streamKey?: string;
+  peakViewers: number;
+  totalViewers: number;
+  countdownPostsEnabled: boolean;
+  replayUrl?: string;
+  totalRevenue: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateLiveSessionBody {
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  scheduledAt: string;
+  platforms?: string[];
+  countdownPostsEnabled?: boolean;
+}
+
+export type UpdateLiveSessionBodyStatus = typeof UpdateLiveSessionBodyStatus[keyof typeof UpdateLiveSessionBodyStatus];
+
+
+export const UpdateLiveSessionBodyStatus = {
+  scheduled: 'scheduled',
+  live: 'live',
+  ended: 'ended',
+  cancelled: 'cancelled',
+} as const;
+
+export interface UpdateLiveSessionBody {
+  title?: string;
+  description?: string;
+  scheduledAt?: string;
+  platforms?: string[];
+  status?: UpdateLiveSessionBodyStatus;
+  replayUrl?: string;
+  countdownPostsEnabled?: boolean;
+  peakViewers?: number;
+  totalViewers?: number;
+  totalRevenue?: string;
+}
+
+export interface LivePlatformConfig {
+  id: number;
+  sessionId: number;
+  userId: number;
+  platform: string;
+  streamKey?: string;
+  rtmpEndpoint?: string;
+  broadcastUrl?: string;
+  status: string;
+}
+
+export interface LiveChatMessage {
+  id: number;
+  sessionId: number;
+  userId: number;
+  platform: string;
+  authorName: string;
+  authorHandle?: string;
+  message: string;
+  isPinned: boolean;
+  isBanned: boolean;
+  isQuestion: boolean;
+  isModerated: boolean;
+  sentAt: string;
+}
+
+export type LiveRevenueEventEventType = typeof LiveRevenueEventEventType[keyof typeof LiveRevenueEventEventType];
+
+
+export const LiveRevenueEventEventType = {
+  super_chat: 'super_chat',
+  donation: 'donation',
+  badge: 'badge',
+  product_sale: 'product_sale',
+} as const;
+
+export interface LiveRevenueEvent {
+  id: number;
+  sessionId: number;
+  userId: number;
+  platform: string;
+  eventType: LiveRevenueEventEventType;
+  senderName: string;
+  amount: string;
+  currency: string;
+  message?: string;
+  occurredAt: string;
+}
+
+export type LiveRevenueDataByType = {[key: string]: number};
+
+export type LiveRevenueDataByPlatform = {[key: string]: number};
+
+export interface LiveRevenueData {
+  events: LiveRevenueEvent[];
+  totalRevenue: number;
+  byType: LiveRevenueDataByType;
+  byPlatform: LiveRevenueDataByPlatform;
+}
+
+export type PostLiveClipStatus = typeof PostLiveClipStatus[keyof typeof PostLiveClipStatus];
+
+
+export const PostLiveClipStatus = {
+  pending: 'pending',
+  ready: 'ready',
+  queued: 'queued',
+  published: 'published',
+} as const;
+
+export interface PostLiveClip {
+  id: number;
+  sessionId: number;
+  userId: number;
+  label: string;
+  startSeconds: number;
+  endSeconds: number;
+  aiCaption?: string;
+  platform?: string;
+  status: PostLiveClipStatus;
+  createdAt: string;
+}
+
+export type LiveReminderSignupChannel = typeof LiveReminderSignupChannel[keyof typeof LiveReminderSignupChannel];
+
+
+export const LiveReminderSignupChannel = {
+  email: 'email',
+  whatsapp: 'whatsapp',
+  sms: 'sms',
+} as const;
+
+export interface LiveReminderSignup {
+  id: number;
+  sessionId: number;
+  userId: number;
+  fanName: string;
+  fanEmail?: string;
+  fanPhone?: string;
+  channel: LiveReminderSignupChannel;
+  reminded: boolean;
+  remindedAt?: string;
+  createdAt: string;
+}
+
+export interface HypeDripPost {
+  platform: string;
+  content: string;
+  scheduledDate: string;
+  hoursBeforeLive: number;
+}
+
+export interface HypeScheduleResponse {
+  message: string;
+  posts: HypeDripPost[];
+  sessionId: number;
+}
+
 export type ListPostsParams = {
 status?: ListPostsStatus;
 campaignId?: number;
@@ -1099,5 +1280,68 @@ export type SubmitPurchaseVerification201 = {
 
 export type ListAffiliateCommissionsParams = {
 campaignId?: number;
+};
+
+export type UpdateLivePlatformConfigBody = {
+  streamKey?: string;
+  broadcastUrl?: string;
+  status?: string;
+};
+
+export type AddLiveChatMessageBody = {
+  platform: string;
+  authorName: string;
+  authorHandle?: string;
+  message: string;
+  isQuestion?: boolean;
+};
+
+export type ModerateLiveChatMessageBody = {
+  isPinned?: boolean;
+  isBanned?: boolean;
+  isModerated?: boolean;
+  isQuestion?: boolean;
+};
+
+export type AddLiveRevenueEventBody = {
+  platform: string;
+  eventType: string;
+  senderName: string;
+  amount: string;
+  currency?: string;
+  message?: string;
+};
+
+export type CreateLiveClipBody = {
+  label: string;
+  startSeconds: number;
+  endSeconds: number;
+  platform?: string;
+};
+
+export type RegisterLiveReminderBodyChannel = typeof RegisterLiveReminderBodyChannel[keyof typeof RegisterLiveReminderBodyChannel];
+
+
+export const RegisterLiveReminderBodyChannel = {
+  email: 'email',
+  whatsapp: 'whatsapp',
+  sms: 'sms',
+} as const;
+
+export type RegisterLiveReminderBody = {
+  fanName: string;
+  fanEmail?: string;
+  fanPhone?: string;
+  channel?: RegisterLiveReminderBodyChannel;
+};
+
+export type RegisterLiveReminder201 = {
+  message?: string;
+  id?: number;
+};
+
+export type SendLiveReminders200 = {
+  message?: string;
+  count?: number;
 };
 

@@ -15,6 +15,8 @@ import SchedulingPage from "@/pages/scheduling";
 import MonetizationPage from "@/pages/monetization";
 import AnalyticsPage from "@/pages/analytics";
 import { AmbassadorsPage } from "@/pages/ambassadors";
+import { BookPromoPage } from "@/pages/book-promo";
+import { LiveVideoPage } from "@/pages/live-video";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -84,22 +86,6 @@ const clerkAppearance = {
     main: "p-6",
   },
 };
-
-const BookPromoPage = createModulePage({
-  title: "Book Promo Engine",
-  description: "Dedicated campaign manager for '999' and future releases — smart promo links, click tracking, and download conversions.",
-  icon: "📖",
-  moduleKey: "bookPromo",
-  requiredTier: "creator",
-});
-
-const LiveVideoPage = createModulePage({
-  title: "Live Video",
-  description: "Stream live sessions, schedule streams, and drive reminder opt-ins across all your platforms at once.",
-  icon: "🎬",
-  moduleKey: "liveVideo",
-  requiredTier: "brand",
-});
 
 const ClipEnginePage = createModulePage({
   title: "Clip Engine",
