@@ -20,6 +20,8 @@ tags:
     description: Campaign management
   - name: captions
     description: AI caption generation
+  - name: monetization
+    description: Brand deals, invoices, affiliate links, and revenue analytics
 
 paths:
   /healthz:
@@ -392,6 +394,334 @@ paths:
                 items:
                   $ref: "#/components/schemas/PlatformAccount"
 
+  /posts/{id}/history:
+    get:
+      operationId: getPostHistory
+      tags: [scheduling]
+      summary: Get revision history for a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Revision list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostRevision"
+
+  # ─── Monetization ────────────────────────────────────────────────────────────
+
+  /brand-deals:
+    get:
+      operationId: listBrandDeals
+      tags: [monetization]
+      summary: List brand deals for current user
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/DealStatus"
+      responses:
+        "200":
+          description: List of brand deals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrandDeal"
+    post:
+      operationId: createBrandDeal
+      tags: [monetization]
+      summary: Create a brand deal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrandDealBody"
+      responses:
+        "201":
+          description: Created brand deal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandDeal"
+
+  /brand-deals/{id}:
+    patch:
+      operationId: updateBrandDeal
+      tags: [monetization]
+      summary: Update a brand deal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrandDealBody"
+      responses:
+        "200":
+          description: Updated brand deal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandDeal"
+    delete:
+      operationId: deleteBrandDeal
+      tags: [monetization]
+      summary: Delete a brand deal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [monetization]
+      summary: List invoices for current user
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/InvoiceStatus"
+      responses:
+        "200":
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+    post:
+      operationId: createInvoice
+      tags: [monetization]
+      summary: Create an invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceBody"
+      responses:
+        "201":
+          description: Created invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [monetization]
+      summary: Get invoice with line items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Invoice with line items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceDetail"
+    patch:
+      operationId: updateInvoice
+      tags: [monetization]
+      summary: Update an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvoiceBody"
+      responses:
+        "200":
+          description: Updated invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    delete:
+      operationId: deleteInvoice
+      tags: [monetization]
+      summary: Delete an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /invoices/{id}/payment-link:
+    post:
+      operationId: generatePaymentLink
+      tags: [monetization]
+      summary: Generate a Paystack or Flutterwave payment link for an invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeneratePaymentLinkBody"
+      responses:
+        "200":
+          description: Payment link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentLinkResponse"
+
+  /invoices/{id}/remind:
+    post:
+      operationId: sendPaymentReminder
+      tags: [monetization]
+      summary: Send a payment reminder for an overdue invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reminder sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentReminder"
+
+  /affiliate-links:
+    get:
+      operationId: listAffiliateLinks
+      tags: [monetization]
+      summary: List affiliate links for current user
+      responses:
+        "200":
+          description: List of affiliate links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AffiliateLink"
+    post:
+      operationId: createAffiliateLink
+      tags: [monetization]
+      summary: Create an affiliate link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAffiliateLinkBody"
+      responses:
+        "201":
+          description: Created affiliate link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateLink"
+
+  /affiliate-links/{id}:
+    patch:
+      operationId: updateAffiliateLink
+      tags: [monetization]
+      summary: Update an affiliate link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAffiliateLinkBody"
+      responses:
+        "200":
+          description: Updated affiliate link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AffiliateLink"
+    delete:
+      operationId: deleteAffiliateLink
+      tags: [monetization]
+      summary: Delete an affiliate link
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /monetization/revenue:
+    get:
+      operationId: getRevenueWaterfall
+      tags: [monetization]
+      summary: Get revenue breakdown by source and currency for the waterfall chart
+      parameters:
+        - name: currency
+          in: query
+          schema:
+            $ref: "#/components/schemas/Currency"
+          description: Normalise all values to this currency (default NGN)
+        - name: months
+          in: query
+          schema:
+            type: integer
+            default: 6
+      responses:
+        "200":
+          description: Revenue waterfall data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevenueWaterfall"
+
 components:
   schemas:
     HealthStatus:
@@ -417,6 +747,22 @@ components:
     CaptionTone:
       type: string
       enum: [pidgin, yoruba, igbo, hausa, formal]
+
+    DealStatus:
+      type: string
+      enum: [prospecting, negotiating, active, completed, cancelled]
+
+    InvoiceStatus:
+      type: string
+      enum: [draft, sent, paid, overdue, cancelled]
+
+    Currency:
+      type: string
+      enum: [NGN, GHS, KES, ZAR, USD]
+
+    PaymentGateway:
+      type: string
+      enum: [paystack, flutterwave, manual]
 
     UserProfile:
       type: object
@@ -506,6 +852,21 @@ components:
             - fanHub
             - campaignIntelligence
 
+    ModuleKey:
+      type: string
+      enum:
+        - scheduling
+        - monetization
+        - analytics
+        - ambassadorCrm
+        - bookPromo
+        - liveVideo
+        - clipEngine
+        - autoPost
+        - trafficTools
+        - fanHub
+        - campaignIntelligence
+
     DashboardSummary:
       type: object
       required: [postsScheduled, revenueThisMonth, activeBrandDeals, ambassadorCount, fanHubMembers, totalReach]
@@ -591,6 +952,39 @@ components:
           type: string
           format: date-time
         updatedAt:
+          type: string
+          format: date-time
+
+    PostRevision:
+      type: object
+      required: [id, postId, userId, caption, platforms, hashtags, status, version, createdAt]
+      properties:
+        id:
+          type: integer
+        postId:
+          type: integer
+        userId:
+          type: integer
+        caption:
+          type: string
+        platforms:
+          type: array
+          items:
+            $ref: "#/components/schemas/Platform"
+        hashtags:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: "#/components/schemas/PostStatus"
+        scheduledAt:
+          type: ["string", "null"]
+          format: date-time
+        changeNote:
+          type: ["string", "null"]
+        version:
+          type: integer
+        createdAt:
           type: string
           format: date-time
 
@@ -822,3 +1216,310 @@ components:
           type: boolean
         followerCount:
           type: integer
+
+    # ─── Monetization schemas ────────────────────────────────────────────────
+
+    BrandDeal:
+      type: object
+      required: [id, userId, brandName, dealValue, currency, status, platforms, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        brandName:
+          type: string
+        contactName:
+          type: ["string", "null"]
+        contactEmail:
+          type: ["string", "null"]
+        dealValue:
+          type: number
+        currency:
+          $ref: "#/components/schemas/Currency"
+        status:
+          $ref: "#/components/schemas/DealStatus"
+        deliverables:
+          type: ["string", "null"]
+        platforms:
+          type: array
+          items:
+            type: string
+        startDate:
+          type: ["string", "null"]
+          format: date-time
+        endDate:
+          type: ["string", "null"]
+          format: date-time
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateBrandDealBody:
+      type: object
+      required: [brandName]
+      properties:
+        brandName:
+          type: string
+        contactName:
+          type: string
+        contactEmail:
+          type: string
+        dealValue:
+          type: number
+        currency:
+          $ref: "#/components/schemas/Currency"
+        status:
+          $ref: "#/components/schemas/DealStatus"
+        deliverables:
+          type: string
+        platforms:
+          type: array
+          items:
+            type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    Invoice:
+      type: object
+      required: [id, userId, invoiceNumber, clientName, clientEmail, currency, subtotal, taxRate, taxAmount, total, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        dealId:
+          type: ["integer", "null"]
+        invoiceNumber:
+          type: string
+        clientName:
+          type: string
+        clientEmail:
+          type: string
+        currency:
+          $ref: "#/components/schemas/Currency"
+        subtotal:
+          type: number
+        taxRate:
+          type: number
+        taxAmount:
+          type: number
+        total:
+          type: number
+        status:
+          $ref: "#/components/schemas/InvoiceStatus"
+        dueDate:
+          type: ["string", "null"]
+          format: date-time
+        paidAt:
+          type: ["string", "null"]
+          format: date-time
+        paymentGateway:
+          type: ["string", "null"]
+        paymentLink:
+          type: ["string", "null"]
+        paymentRef:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    InvoiceLineItem:
+      type: object
+      required: [id, invoiceId, description, quantity, unitPrice, amount]
+      properties:
+        id:
+          type: integer
+        invoiceId:
+          type: integer
+        description:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        amount:
+          type: number
+
+    InvoiceDetail:
+      allOf:
+        - $ref: "#/components/schemas/Invoice"
+        - type: object
+          required: [lineItems]
+          properties:
+            lineItems:
+              type: array
+              items:
+                $ref: "#/components/schemas/InvoiceLineItem"
+
+    CreateInvoiceBody:
+      type: object
+      required: [clientName, clientEmail, lineItems]
+      properties:
+        dealId:
+          type: integer
+        clientName:
+          type: string
+        clientEmail:
+          type: string
+        currency:
+          $ref: "#/components/schemas/Currency"
+        taxRate:
+          type: number
+        dueDate:
+          type: string
+          format: date-time
+        notes:
+          type: string
+        lineItems:
+          type: array
+          items:
+            type: object
+            required: [description, quantity, unitPrice]
+            properties:
+              description:
+                type: string
+              quantity:
+                type: number
+              unitPrice:
+                type: number
+
+    GeneratePaymentLinkBody:
+      type: object
+      required: [gateway]
+      properties:
+        gateway:
+          $ref: "#/components/schemas/PaymentGateway"
+
+    PaymentLinkResponse:
+      type: object
+      required: [paymentLink, gateway, invoiceId]
+      properties:
+        paymentLink:
+          type: string
+        gateway:
+          $ref: "#/components/schemas/PaymentGateway"
+        invoiceId:
+          type: integer
+        reference:
+          type: string
+
+    PaymentReminder:
+      type: object
+      required: [id, invoiceId, userId, channel, sentAt, status]
+      properties:
+        id:
+          type: integer
+        invoiceId:
+          type: integer
+        userId:
+          type: integer
+        channel:
+          type: string
+        sentAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        message:
+          type: ["string", "null"]
+
+    AffiliateLink:
+      type: object
+      required: [id, userId, name, destinationUrl, slug, clickCount, conversionCount, revenueGenerated, isActive, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        destinationUrl:
+          type: string
+        slug:
+          type: string
+        platform:
+          type: ["string", "null"]
+        campaignTag:
+          type: ["string", "null"]
+        clickCount:
+          type: integer
+        conversionCount:
+          type: integer
+        revenueGenerated:
+          type: number
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateAffiliateLinkBody:
+      type: object
+      required: [name, destinationUrl, slug]
+      properties:
+        name:
+          type: string
+        destinationUrl:
+          type: string
+        slug:
+          type: string
+        platform:
+          type: string
+        campaignTag:
+          type: string
+        isActive:
+          type: boolean
+
+    RevenueWaterfallMonth:
+      type: object
+      required: [month, brandDeals, invoices, affiliates, total]
+      properties:
+        month:
+          type: string
+        brandDeals:
+          type: number
+        invoices:
+          type: number
+        affiliates:
+          type: number
+        total:
+          type: number
+
+    RevenueWaterfall:
+      type: object
+      required: [currency, months, totalRevenue, totalBrandDeals, totalInvoices, totalAffiliates]
+      properties:
+        currency:
+          $ref: "#/components/schemas/Currency"
+        months:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevenueWaterfallMonth"
+        totalRevenue:
+          type: number
+        totalBrandDeals:
+          type: number
+        totalInvoices:
+          type: number
+        totalAffiliates:
+          type: number

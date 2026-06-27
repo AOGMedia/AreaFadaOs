@@ -53,6 +53,48 @@ export const CaptionTone = {
   formal: 'formal',
 } as const;
 
+export type DealStatus = typeof DealStatus[keyof typeof DealStatus];
+
+
+export const DealStatus = {
+  prospecting: 'prospecting',
+  negotiating: 'negotiating',
+  active: 'active',
+  completed: 'completed',
+  cancelled: 'cancelled',
+} as const;
+
+export type InvoiceStatus = typeof InvoiceStatus[keyof typeof InvoiceStatus];
+
+
+export const InvoiceStatus = {
+  draft: 'draft',
+  sent: 'sent',
+  paid: 'paid',
+  overdue: 'overdue',
+  cancelled: 'cancelled',
+} as const;
+
+export type Currency = typeof Currency[keyof typeof Currency];
+
+
+export const Currency = {
+  NGN: 'NGN',
+  GHS: 'GHS',
+  KES: 'KES',
+  ZAR: 'ZAR',
+  USD: 'USD',
+} as const;
+
+export type PaymentGateway = typeof PaymentGateway[keyof typeof PaymentGateway];
+
+
+export const PaymentGateway = {
+  paystack: 'paystack',
+  flutterwave: 'flutterwave',
+  manual: 'manual',
+} as const;
+
 export interface UserProfile {
   id: number;
   clerkId: string;
@@ -97,6 +139,23 @@ export interface TierInfo {
   features: string[];
   moduleAccess: TierInfoModuleAccess;
 }
+
+export type ModuleKey = typeof ModuleKey[keyof typeof ModuleKey];
+
+
+export const ModuleKey = {
+  scheduling: 'scheduling',
+  monetization: 'monetization',
+  analytics: 'analytics',
+  ambassadorCrm: 'ambassadorCrm',
+  bookPromo: 'bookPromo',
+  liveVideo: 'liveVideo',
+  clipEngine: 'clipEngine',
+  autoPost: 'autoPost',
+  trafficTools: 'trafficTools',
+  fanHub: 'fanHub',
+  campaignIntelligence: 'campaignIntelligence',
+} as const;
 
 export interface DashboardSummary {
   postsScheduled: number;
@@ -153,6 +212,22 @@ export interface Post {
   version: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PostRevision {
+  id: number;
+  postId: number;
+  userId: number;
+  caption: string;
+  platforms: Platform[];
+  hashtags: string[];
+  status: PostStatus;
+  /** @nullable */
+  scheduledAt?: string | null;
+  /** @nullable */
+  changeNote?: string | null;
+  version: number;
+  createdAt: string;
 }
 
 export type CreatePostBodyPlatformVariants = { [key: string]: unknown };
@@ -270,6 +345,170 @@ export interface PlatformAccount {
   followerCount: number;
 }
 
+export interface BrandDeal {
+  id: number;
+  userId: number;
+  brandName: string;
+  /** @nullable */
+  contactName?: string | null;
+  /** @nullable */
+  contactEmail?: string | null;
+  dealValue: number;
+  currency: Currency;
+  status: DealStatus;
+  /** @nullable */
+  deliverables?: string | null;
+  platforms: string[];
+  /** @nullable */
+  startDate?: string | null;
+  /** @nullable */
+  endDate?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateBrandDealBody {
+  brandName: string;
+  contactName?: string;
+  contactEmail?: string;
+  dealValue?: number;
+  currency?: Currency;
+  status?: DealStatus;
+  deliverables?: string;
+  platforms?: string[];
+  startDate?: string;
+  endDate?: string;
+  notes?: string;
+}
+
+export interface Invoice {
+  id: number;
+  userId: number;
+  /** @nullable */
+  dealId?: number | null;
+  invoiceNumber: string;
+  clientName: string;
+  clientEmail: string;
+  currency: Currency;
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  total: number;
+  status: InvoiceStatus;
+  /** @nullable */
+  dueDate?: string | null;
+  /** @nullable */
+  paidAt?: string | null;
+  /** @nullable */
+  paymentGateway?: string | null;
+  /** @nullable */
+  paymentLink?: string | null;
+  /** @nullable */
+  paymentRef?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceLineItem {
+  id: number;
+  invoiceId: number;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+}
+
+export type InvoiceDetail = Invoice & {
+  lineItems: InvoiceLineItem[];
+};
+
+export type CreateInvoiceBodyLineItemsItem = {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+export interface CreateInvoiceBody {
+  dealId?: number;
+  clientName: string;
+  clientEmail: string;
+  currency?: Currency;
+  taxRate?: number;
+  dueDate?: string;
+  notes?: string;
+  lineItems: CreateInvoiceBodyLineItemsItem[];
+}
+
+export interface GeneratePaymentLinkBody {
+  gateway: PaymentGateway;
+}
+
+export interface PaymentLinkResponse {
+  paymentLink: string;
+  gateway: PaymentGateway;
+  invoiceId: number;
+  reference?: string;
+}
+
+export interface PaymentReminder {
+  id: number;
+  invoiceId: number;
+  userId: number;
+  channel: string;
+  sentAt: string;
+  status: string;
+  /** @nullable */
+  message?: string | null;
+}
+
+export interface AffiliateLink {
+  id: number;
+  userId: number;
+  name: string;
+  destinationUrl: string;
+  slug: string;
+  /** @nullable */
+  platform?: string | null;
+  /** @nullable */
+  campaignTag?: string | null;
+  clickCount: number;
+  conversionCount: number;
+  revenueGenerated: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAffiliateLinkBody {
+  name: string;
+  destinationUrl: string;
+  slug: string;
+  platform?: string;
+  campaignTag?: string;
+  isActive?: boolean;
+}
+
+export interface RevenueWaterfallMonth {
+  month: string;
+  brandDeals: number;
+  invoices: number;
+  affiliates: number;
+  total: number;
+}
+
+export interface RevenueWaterfall {
+  currency: Currency;
+  months: RevenueWaterfallMonth[];
+  totalRevenue: number;
+  totalBrandDeals: number;
+  totalInvoices: number;
+  totalAffiliates: number;
+}
+
 export type ListPostsParams = {
 status?: ListPostsStatus;
 campaignId?: number;
@@ -291,5 +530,21 @@ export const ListPostsStatus = {
 export type GetTrendingHashtagsParams = {
 platform?: string;
 region?: string;
+};
+
+export type ListBrandDealsParams = {
+status?: DealStatus;
+};
+
+export type ListInvoicesParams = {
+status?: InvoiceStatus;
+};
+
+export type GetRevenueWaterfallParams = {
+/**
+ * Normalise all values to this currency (default NGN)
+ */
+currency?: Currency;
+months?: number;
 };
 

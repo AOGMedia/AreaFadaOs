@@ -489,3 +489,465 @@ export const ListPlatformAccountsResponseItem = zod.object({
 export const ListPlatformAccountsResponse = zod.array(ListPlatformAccountsResponseItem)
 
 
+/**
+ * @summary Get revision history for a post
+ */
+export const GetPostHistoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetPostHistoryResponseItem = zod.object({
+  "id": zod.number(),
+  "postId": zod.number(),
+  "userId": zod.number(),
+  "caption": zod.string(),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "hashtags": zod.array(zod.string()),
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "changeNote": zod.string().nullish(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const GetPostHistoryResponse = zod.array(GetPostHistoryResponseItem)
+
+
+/**
+ * @summary List brand deals for current user
+ */
+export const ListBrandDealsQueryParams = zod.object({
+  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']).optional()
+})
+
+export const ListBrandDealsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "brandName": zod.string(),
+  "contactName": zod.string().nullish(),
+  "contactEmail": zod.string().nullish(),
+  "dealValue": zod.number(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
+  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']),
+  "deliverables": zod.string().nullish(),
+  "platforms": zod.array(zod.string()),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListBrandDealsResponse = zod.array(ListBrandDealsResponseItem)
+
+
+/**
+ * @summary Create a brand deal
+ */
+export const CreateBrandDealBody = zod.object({
+  "brandName": zod.string(),
+  "contactName": zod.string().optional(),
+  "contactEmail": zod.string().optional(),
+  "dealValue": zod.number().optional(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']).optional(),
+  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']).optional(),
+  "deliverables": zod.string().optional(),
+  "platforms": zod.array(zod.string()).optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "notes": zod.string().optional()
+})
+
+export const CreateBrandDealResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "brandName": zod.string(),
+  "contactName": zod.string().nullish(),
+  "contactEmail": zod.string().nullish(),
+  "dealValue": zod.number(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
+  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']),
+  "deliverables": zod.string().nullish(),
+  "platforms": zod.array(zod.string()),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a brand deal
+ */
+export const UpdateBrandDealParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateBrandDealBody = zod.object({
+  "brandName": zod.string(),
+  "contactName": zod.string().optional(),
+  "contactEmail": zod.string().optional(),
+  "dealValue": zod.number().optional(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']).optional(),
+  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']).optional(),
+  "deliverables": zod.string().optional(),
+  "platforms": zod.array(zod.string()).optional(),
+  "startDate": zod.coerce.date().optional(),
+  "endDate": zod.coerce.date().optional(),
+  "notes": zod.string().optional()
+})
+
+export const UpdateBrandDealResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "brandName": zod.string(),
+  "contactName": zod.string().nullish(),
+  "contactEmail": zod.string().nullish(),
+  "dealValue": zod.number(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
+  "status": zod.enum(['prospecting', 'negotiating', 'active', 'completed', 'cancelled']),
+  "deliverables": zod.string().nullish(),
+  "platforms": zod.array(zod.string()),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a brand deal
+ */
+export const DeleteBrandDealParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteBrandDealResponse = zod.void()
+
+
+/**
+ * @summary List invoices for current user
+ */
+export const ListInvoicesQueryParams = zod.object({
+  "status": zod.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']).optional()
+})
+
+export const ListInvoicesResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "dealId": zod.number().nullish(),
+  "invoiceNumber": zod.string(),
+  "clientName": zod.string(),
+  "clientEmail": zod.string(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
+  "subtotal": zod.number(),
+  "taxRate": zod.number(),
+  "taxAmount": zod.number(),
+  "total": zod.number(),
+  "status": zod.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']),
+  "dueDate": zod.coerce.date().nullish(),
+  "paidAt": zod.coerce.date().nullish(),
+  "paymentGateway": zod.string().nullish(),
+  "paymentLink": zod.string().nullish(),
+  "paymentRef": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem)
+
+
+/**
+ * @summary Create an invoice
+ */
+export const CreateInvoiceBody = zod.object({
+  "dealId": zod.number().optional(),
+  "clientName": zod.string(),
+  "clientEmail": zod.string(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']).optional(),
+  "taxRate": zod.number().optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "notes": zod.string().optional(),
+  "lineItems": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number()
+}))
+})
+
+export const CreateInvoiceResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "dealId": zod.number().nullish(),
+  "invoiceNumber": zod.string(),
+  "clientName": zod.string(),
+  "clientEmail": zod.string(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
+  "subtotal": zod.number(),
+  "taxRate": zod.number(),
+  "taxAmount": zod.number(),
+  "total": zod.number(),
+  "status": zod.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']),
+  "dueDate": zod.coerce.date().nullish(),
+  "paidAt": zod.coerce.date().nullish(),
+  "paymentGateway": zod.string().nullish(),
+  "paymentLink": zod.string().nullish(),
+  "paymentRef": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get invoice with line items
+ */
+export const GetInvoiceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetInvoiceResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "dealId": zod.number().nullish(),
+  "invoiceNumber": zod.string(),
+  "clientName": zod.string(),
+  "clientEmail": zod.string(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
+  "subtotal": zod.number(),
+  "taxRate": zod.number(),
+  "taxAmount": zod.number(),
+  "total": zod.number(),
+  "status": zod.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']),
+  "dueDate": zod.coerce.date().nullish(),
+  "paidAt": zod.coerce.date().nullish(),
+  "paymentGateway": zod.string().nullish(),
+  "paymentLink": zod.string().nullish(),
+  "paymentRef": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "lineItems": zod.array(zod.object({
+  "id": zod.number(),
+  "invoiceId": zod.number(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "amount": zod.number()
+}))
+}))
+
+
+/**
+ * @summary Update an invoice
+ */
+export const UpdateInvoiceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateInvoiceBody = zod.object({
+  "dealId": zod.number().optional(),
+  "clientName": zod.string(),
+  "clientEmail": zod.string(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']).optional(),
+  "taxRate": zod.number().optional(),
+  "dueDate": zod.coerce.date().optional(),
+  "notes": zod.string().optional(),
+  "lineItems": zod.array(zod.object({
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number()
+}))
+})
+
+export const UpdateInvoiceResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "dealId": zod.number().nullish(),
+  "invoiceNumber": zod.string(),
+  "clientName": zod.string(),
+  "clientEmail": zod.string(),
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
+  "subtotal": zod.number(),
+  "taxRate": zod.number(),
+  "taxAmount": zod.number(),
+  "total": zod.number(),
+  "status": zod.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']),
+  "dueDate": zod.coerce.date().nullish(),
+  "paidAt": zod.coerce.date().nullish(),
+  "paymentGateway": zod.string().nullish(),
+  "paymentLink": zod.string().nullish(),
+  "paymentRef": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an invoice
+ */
+export const DeleteInvoiceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteInvoiceResponse = zod.void()
+
+
+/**
+ * @summary Generate a Paystack or Flutterwave payment link for an invoice
+ */
+export const GeneratePaymentLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GeneratePaymentLinkBody = zod.object({
+  "gateway": zod.enum(['paystack', 'flutterwave', 'manual'])
+})
+
+export const GeneratePaymentLinkResponse = zod.object({
+  "paymentLink": zod.string(),
+  "gateway": zod.enum(['paystack', 'flutterwave', 'manual']),
+  "invoiceId": zod.number(),
+  "reference": zod.string().optional()
+})
+
+
+/**
+ * @summary Send a payment reminder for an overdue invoice
+ */
+export const SendPaymentReminderParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const SendPaymentReminderResponse = zod.object({
+  "id": zod.number(),
+  "invoiceId": zod.number(),
+  "userId": zod.number(),
+  "channel": zod.string(),
+  "sentAt": zod.coerce.date(),
+  "status": zod.string(),
+  "message": zod.string().nullish()
+})
+
+
+/**
+ * @summary List affiliate links for current user
+ */
+export const ListAffiliateLinksResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "destinationUrl": zod.string(),
+  "slug": zod.string(),
+  "platform": zod.string().nullish(),
+  "campaignTag": zod.string().nullish(),
+  "clickCount": zod.number(),
+  "conversionCount": zod.number(),
+  "revenueGenerated": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListAffiliateLinksResponse = zod.array(ListAffiliateLinksResponseItem)
+
+
+/**
+ * @summary Create an affiliate link
+ */
+export const CreateAffiliateLinkBody = zod.object({
+  "name": zod.string(),
+  "destinationUrl": zod.string(),
+  "slug": zod.string(),
+  "platform": zod.string().optional(),
+  "campaignTag": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const CreateAffiliateLinkResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "destinationUrl": zod.string(),
+  "slug": zod.string(),
+  "platform": zod.string().nullish(),
+  "campaignTag": zod.string().nullish(),
+  "clickCount": zod.number(),
+  "conversionCount": zod.number(),
+  "revenueGenerated": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update an affiliate link
+ */
+export const UpdateAffiliateLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateAffiliateLinkBody = zod.object({
+  "name": zod.string(),
+  "destinationUrl": zod.string(),
+  "slug": zod.string(),
+  "platform": zod.string().optional(),
+  "campaignTag": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateAffiliateLinkResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "destinationUrl": zod.string(),
+  "slug": zod.string(),
+  "platform": zod.string().nullish(),
+  "campaignTag": zod.string().nullish(),
+  "clickCount": zod.number(),
+  "conversionCount": zod.number(),
+  "revenueGenerated": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete an affiliate link
+ */
+export const DeleteAffiliateLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteAffiliateLinkResponse = zod.void()
+
+
+/**
+ * @summary Get revenue breakdown by source and currency for the waterfall chart
+ */
+export const getRevenueWaterfallQueryMonthsDefault = 6;
+
+export const GetRevenueWaterfallQueryParams = zod.object({
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']).optional().describe('Normalise all values to this currency (default NGN)'),
+  "months": zod.coerce.number().default(getRevenueWaterfallQueryMonthsDefault)
+})
+
+export const GetRevenueWaterfallResponse = zod.object({
+  "currency": zod.enum(['NGN', 'GHS', 'KES', 'ZAR', 'USD']),
+  "months": zod.array(zod.object({
+  "month": zod.string(),
+  "brandDeals": zod.number(),
+  "invoices": zod.number(),
+  "affiliates": zod.number(),
+  "total": zod.number()
+})),
+  "totalRevenue": zod.number(),
+  "totalBrandDeals": zod.number(),
+  "totalInvoices": zod.number(),
+  "totalAffiliates": zod.number()
+})
+
+

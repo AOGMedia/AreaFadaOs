@@ -12,6 +12,7 @@ import Dashboard from "@/pages/dashboard";
 import UpgradePage from "@/pages/upgrade";
 import NotFound from "@/pages/not-found";
 import SchedulingPage from "@/pages/scheduling";
+import MonetizationPage from "@/pages/monetization";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -81,14 +82,6 @@ const clerkAppearance = {
     main: "p-6",
   },
 };
-
-const MonetizationPage = createModulePage({
-  title: "Monetization Hub",
-  description: "Track revenue, send Paystack invoices, manage brand deals, and monitor your creator earnings in one dashboard.",
-  icon: "💰",
-  moduleKey: "monetization",
-  requiredTier: "creator",
-});
 
 const BookPromoPage = createModulePage({
   title: "Book Promo Engine",
