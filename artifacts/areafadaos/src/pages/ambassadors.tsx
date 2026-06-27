@@ -18,7 +18,7 @@ import {
 } from "recharts";
 import {
   Users, Trophy, CheckSquare, Star, MessageCircle, Zap, Download, Plus,
-  MapPin, Phone, Mail, Send, Copy, ChevronRight, Search, Filter, X, FileText,
+  MapPin, Phone, Mail, Send, Copy, ChevronRight, Search, Filter, X,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
@@ -64,7 +64,7 @@ type Ambassador = {
   id: number; name: string; email: string; phone?: string; state: string; zone: string;
   city?: string; tier: string; status: string; avatarInitials?: string; platform?: string;
   handle?: string; followerCount: number; totalPoints: number; tasksCompleted: number;
-  referrals: number; rank?: number; bio?: string; portalToken?: string; joinedAt: string; createdAt: string;
+  referrals: number; rank?: number; bio?: string; joinedAt: string; createdAt: string;
 };
 type AmbassadorTask = {
   id: number; title: string; description?: string; deadline?: string; targetGroup: string;
@@ -1232,161 +1232,6 @@ function GamificationTab() {
   );
 }
 
-// ─── Applications Tab ───────────────────────────────────────────────────────────
-function ApplicationsTab({ ambassadors, onRefetch }: { ambassadors: Ambassador[]; onRefetch: () => void }) {
-  const { toast } = useToast();
-  const { user } = useUser();
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [copiedLink, setCopiedLink] = useState(false);
-
-  const pending = ambassadors.filter(a => a.status === "pending");
-  const rejected = ambassadors.filter(a => a.status === "rejected");
-
-  const approve = useMutation({
-    mutationFn: (id: number) => apiFetch(`/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "active" }) }),
-    onSuccess: () => { onRefetch(); toast({ title: "Ambassador approved!" }); },
-    onError: () => toast({ title: "Failed to approve", variant: "destructive" }),
-  });
-
-  const reject = useMutation({
-    mutationFn: (id: number) => apiFetch(`/ambassadors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "rejected" }) }),
-    onSuccess: () => { onRefetch(); toast({ title: "Application rejected." }); },
-    onError: () => toast({ title: "Failed to reject", variant: "destructive" }),
-  });
-
-  const portalUrl = user?.id
-    ? `${window.location.origin}${import.meta.env.BASE_URL}ambassador-portal?tenant=${user.id}`
-    : null;
-
-  function copyLink() {
-    if (!portalUrl) return;
-    navigator.clipboard?.writeText(portalUrl).catch(() => {
-      const el = document.createElement("textarea");
-      el.value = portalUrl;
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
-    });
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2000);
-    toast({ title: "Portal link copied!" });
-  }
-
-  function copyToken(amb: Ambassador) {
-    if (!amb.portalToken) return;
-    navigator.clipboard?.writeText(amb.portalToken).catch(() => {});
-    setCopiedId(amb.id);
-    setTimeout(() => setCopiedId(null), 2000);
-    toast({ title: "Token copied!" });
-  }
-
-  return (
-    <div className="space-y-5">
-      {/* Portal Link Card */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="pt-4 pb-4">
-          <div className="flex items-start gap-3">
-            <div className="text-2xl">🔗</div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm">Your Public Application Portal</p>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                Share this link with creators who want to apply as ambassadors.
-              </p>
-              {portalUrl ? (
-                <div className="flex items-center gap-2">
-                  <code className="text-xs bg-white border rounded px-2 py-1 flex-1 truncate">{portalUrl}</code>
-                  <Button size="sm" variant="outline" onClick={copyLink} className="flex-shrink-0 gap-1">
-                    {copiedLink ? <><CheckSquare className="w-3.5 h-3.5" />Copied</> : <><Copy className="w-3.5 h-3.5" />Copy</>}
-                  </Button>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Log in to generate your portal link.</p>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pending Applications */}
-      <div>
-        <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-          Pending Applications ({pending.length})
-        </h3>
-        {pending.length === 0 ? (
-          <Card><CardContent className="pt-5 pb-5 text-center text-sm text-muted-foreground">No pending applications.</CardContent></Card>
-        ) : (
-          <div className="space-y-2">
-            {pending.map(a => (
-              <Card key={a.id}>
-                <CardContent className="pt-3 pb-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600 text-sm flex-shrink-0">
-                      {a.avatarInitials ?? a.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-sm">{a.name}</span>
-                        <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50">Pending</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{a.email}</p>
-                      <p className="text-xs text-muted-foreground">{a.state} · {a.zone}{a.platform ? ` · ${a.platform}` : ""}{a.handle ? ` ${a.handle}` : ""}</p>
-                      {a.followerCount > 0 && <p className="text-xs text-muted-foreground">{a.followerCount.toLocaleString()} followers</p>}
-                      {a.portalToken && (
-                        <button
-                          onClick={() => copyToken(a)}
-                          className="text-[10px] text-muted-foreground hover:text-foreground mt-1 font-mono flex items-center gap-1"
-                        >
-                          {copiedId === a.id ? <><CheckSquare className="w-3 h-3" />Token copied</> : <><Copy className="w-3 h-3" />Copy access token</>}
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1.5 flex-shrink-0">
-                      <Button size="sm" className="h-7 text-xs" onClick={() => approve.mutate(a.id)} disabled={approve.isPending}>Approve</Button>
-                      <Button size="sm" variant="outline" className="h-7 text-xs text-red-600 border-red-200 hover:bg-red-50" onClick={() => reject.mutate(a.id)} disabled={reject.isPending}>Reject</Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Rejected Applications */}
-      {rejected.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
-            Rejected ({rejected.length})
-          </h3>
-          <div className="space-y-2">
-            {rejected.map(a => (
-              <Card key={a.id} className="opacity-60">
-                <CardContent className="pt-3 pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 text-xs flex-shrink-0">
-                      {a.avatarInitials ?? a.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{a.name}</p>
-                      <p className="text-xs text-muted-foreground">{a.email} · {a.state}</p>
-                    </div>
-                    <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => approve.mutate(a.id)} disabled={approve.isPending}>
-                      Reactivate
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export function AmbassadorsPage() {
   const { data: ambassadors = [], isLoading, refetch } = useQuery<Ambassador[]>({
@@ -1439,14 +1284,6 @@ export function AmbassadorsPage() {
               <TabsTrigger value="gamification" className="gap-1.5">
                 <Zap className="w-3.5 h-3.5" /> Gamification
               </TabsTrigger>
-              <TabsTrigger value="applications" className="gap-1.5">
-                <FileText className="w-3.5 h-3.5" /> Applications
-                {ambassadors.filter(a => a.status === "pending").length > 0 && (
-                  <span className="ml-1 w-4 h-4 rounded-full bg-amber-400 text-white text-[10px] font-bold flex items-center justify-center">
-                    {ambassadors.filter(a => a.status === "pending").length}
-                  </span>
-                )}
-              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="map" className="mt-4">
@@ -1479,10 +1316,6 @@ export function AmbassadorsPage() {
 
             <TabsContent value="gamification" className="mt-4">
               <GamificationTab />
-            </TabsContent>
-
-            <TabsContent value="applications" className="mt-4">
-              <ApplicationsTab ambassadors={ambassadors} onRefetch={() => refetch()} />
             </TabsContent>
           </Tabs>
         </div>

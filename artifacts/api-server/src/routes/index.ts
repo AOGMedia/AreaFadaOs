@@ -7,13 +7,6 @@ import monetizationRouter from "./monetization";
 import analyticsRouter from "./analytics";
 import ambassadorsRouter from "./ambassadors";
 import bookPromoRouter from "./book-promo";
-import liveVideoRouter from "./live-video";
-import clipEngineRouter from "./clip-engine";
-import autoPostRouter from "./auto-post";
-import trafficRouter from "./traffic";
-import fanHubRouter from "./fan-hub";
-import campaignIntelligenceRouter from "./campaign-intelligence";
-import mediaPartnersRouter from "./media-partners";
 
 const router: IRouter = Router();
 
@@ -25,12 +18,5 @@ router.use(monetizationRouter);
 router.use(analyticsRouter);
 router.use(ambassadorsRouter);
 router.use(bookPromoRouter);
-router.use(liveVideoRouter);
-router.use(clipEngineRouter);
-router.use(autoPostRouter);
-router.use(trafficRouter);
-router.use(fanHubRouter);
-router.use(campaignIntelligenceRouter);
-router.use(mediaPartnersRouter);
 
 export default router;

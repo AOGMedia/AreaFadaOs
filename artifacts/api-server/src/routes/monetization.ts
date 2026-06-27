@@ -152,7 +152,7 @@ router.get("/brand-deals", ...requireMonetization, async (req: any, res): Promis
     if (!user) { res.json([]); return; }
 
     const where = req.query.status
-      ? and(eq(brandDealsTable.userId, user.id), eq(brandDealsTable.status, req.query.status as "inbound" | "negotiating" | "agreed" | "deliverable_due" | "invoiced" | "paid" | "cancelled"))
+      ? and(eq(brandDealsTable.userId, user.id), eq(brandDealsTable.status, req.query.status as string))
       : eq(brandDealsTable.userId, user.id);
 
     const deals = await db.select().from(brandDealsTable).where(where).orderBy(desc(brandDealsTable.createdAt));
@@ -253,7 +253,7 @@ router.get("/invoices", ...requireMonetization, async (req: any, res): Promise<v
     if (!user) { res.json([]); return; }
 
     const where = req.query.status
-      ? and(eq(invoicesTable.userId, user.id), eq(invoicesTable.status, req.query.status as "draft" | "sent" | "paid" | "overdue" | "cancelled"))
+      ? and(eq(invoicesTable.userId, user.id), eq(invoicesTable.status, req.query.status as string))
       : eq(invoicesTable.userId, user.id);
 
     const invoices = await db.select().from(invoicesTable).where(where).orderBy(desc(invoicesTable.createdAt));

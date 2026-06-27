@@ -15,17 +15,6 @@ import SchedulingPage from "@/pages/scheduling";
 import MonetizationPage from "@/pages/monetization";
 import AnalyticsPage from "@/pages/analytics";
 import { AmbassadorsPage } from "@/pages/ambassadors";
-import { AmbassadorPortalPage } from "@/pages/ambassador-portal";
-import { BookPromoPage } from "@/pages/book-promo";
-import { LiveVideoPage } from "@/pages/live-video";
-import { LiveSessionSignupPage } from "@/pages/live-session-signup";
-import { ClipEnginePage } from "@/pages/clip-engine";
-import { AutoPostPage } from "@/pages/auto-post";
-import { TrafficPage } from "@/pages/traffic";
-import { FanHubPage } from "@/pages/fan-hub";
-import { IntelligencePage } from "@/pages/intelligence";
-import { MediaPartnersPage } from "@/pages/media-partners";
-import { InviteLandingPage } from "@/pages/invite-landing";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -96,8 +85,54 @@ const clerkAppearance = {
   },
 };
 
+const BookPromoPage = createModulePage({
+  title: "Book Promo Engine",
+  description: "Dedicated campaign manager for '999' and future releases — smart promo links, click tracking, and download conversions.",
+  icon: "📖",
+  moduleKey: "bookPromo",
+  requiredTier: "creator",
+});
+
+const LiveVideoPage = createModulePage({
+  title: "Live Video",
+  description: "Stream live sessions, schedule streams, and drive reminder opt-ins across all your platforms at once.",
+  icon: "🎬",
+  moduleKey: "liveVideo",
+  requiredTier: "brand",
+});
+
+const ClipEnginePage = createModulePage({
+  title: "Clip Engine",
+  description: "Auto-clip highlights from live sessions and long-form content into shareable TikTok/Reels-ready clips.",
+  icon: "✂️",
+  moduleKey: "clipEngine",
+  requiredTier: "brand",
+});
+
+const TrafficPage = createModulePage({
+  title: "Traffic Engine",
+  description: "Drive real traffic to your content and products through smart link tools, UTM tracking, and geo-targeted campaigns.",
+  icon: "🌍",
+  moduleKey: "trafficTools",
+  requiredTier: "brand",
+});
 
 
+const FanHubPage = createModulePage({
+  title: "Fan Hub",
+  description: "Verify '999' book buyers, build a paid inner circle, and reward Area Fada's superfans with exclusive access.",
+  icon: "⭐",
+  moduleKey: "fanHub",
+  requiredTier: "agency",
+});
+
+const IntelligencePage = createModulePage({
+  title: "Campaign Intelligence",
+  description: "AI-powered sentiment analysis, trend radar, competitive intel, and political campaign mode for enterprise clients.",
+  icon: "📊",
+  moduleKey: "campaignIntelligence",
+  requiredTier: "enterprise",
+});
 
 function SignInPage() {
   return (
@@ -217,14 +252,8 @@ function ClerkProviderWithRoutes() {
             <Route path="/live-video">
               <AuthRequired><LiveVideoPage /></AuthRequired>
             </Route>
-            <Route path="/live/:id">
-              {(params: { id?: string }) => <LiveSessionSignupPage sessionId={Number(params.id)} />}
-            </Route>
             <Route path="/clip-engine">
               <AuthRequired><ClipEnginePage /></AuthRequired>
-            </Route>
-            <Route path="/auto-post">
-              <AuthRequired><AutoPostPage /></AuthRequired>
             </Route>
             <Route path="/traffic">
               <AuthRequired><TrafficPage /></AuthRequired>
@@ -232,17 +261,12 @@ function ClerkProviderWithRoutes() {
             <Route path="/ambassadors">
               <AuthRequired><AmbassadorsPage /></AuthRequired>
             </Route>
-            <Route path="/ambassador-portal" component={AmbassadorPortalPage} />
             <Route path="/fan-hub">
               <AuthRequired><FanHubPage /></AuthRequired>
             </Route>
             <Route path="/intelligence">
               <AuthRequired><IntelligencePage /></AuthRequired>
             </Route>
-            <Route path="/media-partners">
-              <AuthRequired><MediaPartnersPage /></AuthRequired>
-            </Route>
-            <Route path="/invite/:token" component={InviteLandingPage} />
 
             <Route component={NotFound} />
           </Switch>
