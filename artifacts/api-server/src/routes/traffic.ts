@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { Router } from "express";
 import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
@@ -460,69 +461,131 @@ router.post("/seo-content-jobs/:id/publish-to-calendar", ...requireTraffic, asyn
   res.json({ post, piece: { ...piece, publishedToCalendar: true, scheduledPostId: post.id } });
 });
 
-// ─── Content velocity recommender ─────────────────────────────────────────────
+// ─── Content velocity recommender (AI-powered) ────────────────────────────────
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 router.get("/traffic/content-velocity", ...requireTraffic, async (req, res) => {
   const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-  // Analyse last 30 days of posts
+
+  // Collect last 30 days of posts for analysis
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const recentPosts = await db.select().from(postsTable)
-    .where(and(
-      eq(postsTable.userId, user.id),
-      gte(postsTable.scheduledAt, since),
-    ))
+    .where(and(eq(postsTable.userId, user.id), gte(postsTable.scheduledAt, since)))
+    .orderBy(desc(postsTable.scheduledAt))
     .limit(200);
 
-  const byPlatform: Record<string, number> = {};
+  const totalPosts = recentPosts.length;
+  const overallPostsPerWeek = Math.round((totalPosts / 30) * 7 * 10) / 10;
+
+  // Build per-platform summary for Claude
+  const byPlatform: Record<string, { count: number; captions: string[] }> = {};
   for (const p of recentPosts) {
     for (const plat of (p.platforms ?? [])) {
-      byPlatform[plat] = (byPlatform[plat] ?? 0) + 1;
+      if (!byPlatform[plat]) byPlatform[plat] = { count: 0, captions: [] };
+      byPlatform[plat].count++;
+      if (byPlatform[plat].captions.length < 5 && p.caption) {
+        byPlatform[plat].captions.push(p.caption.substring(0, 120));
+      }
     }
   }
-  const totalPosts = recentPosts.length;
-  const postsPerWeek = Math.round((totalPosts / 30) * 7 * 10) / 10;
 
-  const recommendations: Array<{ platform: string; currentPostsPerWeek: number; recommendedPostsPerWeek: number; contentMix: { educational: number; entertainment: number; promotional: number }; insight: string }> = [];
+  // Fall back to empty platform set hint if no posts yet
+  const platformSummary = Object.keys(byPlatform).length > 0
+    ? Object.entries(byPlatform).map(([plat, d]) => {
+        const perWeek = Math.round((d.count / 30) * 7 * 10) / 10;
+        return `- ${plat}: ${d.count} posts in 30 days (${perWeek}/week). Top captions: ${d.captions.map(c => `"${c}"`).join("; ") || "none"}`;
+      }).join("\n")
+    : "No posts found in the last 30 days on any platform.";
+
+  let aiAnalysis: { recommendations: Array<{ platform: string; currentPostsPerWeek: number; recommendedPostsPerWeek: number; contentMix: { educational: number; entertainment: number; promotional: number }; insight: string }>; overallInsight: string } | null = null;
+
+  try {
+    const msg = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8192,
+      messages: [{
+        role: "user",
+        content: `You are a Nigerian creator growth strategist. Analyse this creator's recent posting data and return a JSON object with actionable content velocity recommendations optimised for Nigerian and West African audiences.
+
+POSTING DATA (last 30 days):
+${platformSummary}
+
+Return ONLY valid JSON in this exact shape — no markdown, no explanation:
+{
+  "overallInsight": "2-3 sentence overall assessment of the creator's posting strategy",
+  "recommendations": [
+    {
+      "platform": "instagram",
+      "currentPostsPerWeek": 3.5,
+      "recommendedPostsPerWeek": 7,
+      "contentMix": { "educational": 30, "entertainment": 50, "promotional": 20 },
+      "insight": "Specific actionable advice for this platform, referencing Nigerian audiences and creator context. Mention top-performing content types for the Nigerian market."
+    }
+  ]
+}
+
+Rules:
+- Include a recommendation for every platform in the posting data, plus any high-priority platforms they are missing (instagram, tiktok, youtube, twitter).
+- contentMix values must sum to 100.
+- Insights must be specific, Nigerian-market-aware, and mention 1-2 concrete tactics (e.g. "Reel hooks featuring Lagos street culture", "Gospel/motivational content for Sunday morning posts").
+- recommendedPostsPerWeek should reflect Nigerian creator best practices for each platform.`
+      }],
+    });
+
+    const text = msg.content[0].type === "text" ? msg.content[0].text.trim() : "";
+    const json = text.startsWith("{") ? text : text.replace(/```json\n?|```/g, "").trim();
+    aiAnalysis = JSON.parse(json);
+  } catch (err) {
+    console.error("Claude content velocity error:", err);
+    // Graceful fallback to static recommendations
+  }
+
+  if (aiAnalysis) {
+    res.json({
+      analysedPeriodDays: 30,
+      totalPostsAnalysed: totalPosts,
+      overallPostsPerWeek,
+      overallInsight: aiAnalysis.overallInsight,
+      recommendations: aiAnalysis.recommendations,
+      generatedAt: new Date().toISOString(),
+      aiPowered: true,
+    });
+    return;
+  }
+
+  // Static fallback if Claude fails
   const PLATFORM_TARGETS: Record<string, { target: number; mix: { educational: number; entertainment: number; promotional: number }; tip: string }> = {
-    instagram: { target: 7, mix: { educational: 30, entertainment: 50, promotional: 20 }, tip: "Post 1 Reel, 1 carousel, and 1 story daily for compound growth." },
-    tiktok: { target: 14, mix: { educational: 20, entertainment: 70, promotional: 10 }, tip: "TikTok rewards volume. Aim for 2+ posts/day — short, fast, hook in 1s." },
-    twitter: { target: 21, mix: { educational: 40, entertainment: 40, promotional: 20 }, tip: "3 tweets per day builds authority. Mix threads, hot takes, and retweets." },
-    youtube: { target: 2, mix: { educational: 60, entertainment: 30, promotional: 10 }, tip: "2 videos per week is optimal for search ranking. Focus on long-tail keywords." },
-    facebook: { target: 5, mix: { educational: 35, entertainment: 45, promotional: 20 }, tip: "Facebook Groups drive the most reach. Post in your community daily." },
+    instagram: { target: 7, mix: { educational: 30, entertainment: 50, promotional: 20 }, tip: "Post 1 Reel, 1 carousel, and 1 story daily for compound growth. Lagos lifestyle hooks perform strongly." },
+    tiktok: { target: 14, mix: { educational: 20, entertainment: 70, promotional: 10 }, tip: "TikTok rewards volume. Aim for 2+ posts/day — open with a bold Naija culture hook in the first second." },
+    twitter: { target: 21, mix: { educational: 40, entertainment: 40, promotional: 20 }, tip: "3 tweets per day builds authority. Mix threads, hot takes, and retweets of trending Nigerian conversations." },
+    youtube: { target: 2, mix: { educational: 60, entertainment: 30, promotional: 10 }, tip: "2 videos per week is optimal. Optimise titles for Nigerian search queries (e.g. 'how to make money in Nigeria 2026')." },
+    facebook: { target: 5, mix: { educational: 35, entertainment: 45, promotional: 20 }, tip: "Facebook Groups drive the most reach for Nigerian audiences. Post in your community daily." },
   };
-  for (const [platform, count] of Object.entries(byPlatform)) {
+  const platforms = Object.keys(byPlatform).length > 0 ? Object.keys(byPlatform) : Object.keys(PLATFORM_TARGETS);
+  const recommendations = platforms.map(platform => {
     const target = PLATFORM_TARGETS[platform] ?? { target: 5, mix: { educational: 33, entertainment: 34, promotional: 33 }, tip: "Aim for daily posting for best results." };
-    const currentPerWeek = Math.round((count / 30) * 7 * 10) / 10;
-    recommendations.push({
+    const currentPerWeek = byPlatform[platform] ? Math.round((byPlatform[platform].count / 30) * 7 * 10) / 10 : 0;
+    return {
       platform,
       currentPostsPerWeek: currentPerWeek,
       recommendedPostsPerWeek: target.target,
       contentMix: target.mix,
       insight: currentPerWeek < target.target * 0.5
-        ? `⚠️ Underposting detected — you're at ${currentPerWeek}/week vs recommended ${target.target}/week. ${target.tip}`
+        ? `⚠️ Underposting on ${platform} — ${currentPerWeek}/week vs recommended ${target.target}/week. ${target.tip}`
         : currentPerWeek > target.target * 1.5
-        ? `⚡ High volume detected — great cadence! Ensure content quality doesn't drop. ${target.tip}`
-        : `✅ Good cadence! Maintain this momentum. ${target.tip}`,
-    });
-  }
-  if (recommendations.length === 0) {
-    for (const [platform, target] of Object.entries(PLATFORM_TARGETS)) {
-      recommendations.push({
-        platform,
-        currentPostsPerWeek: 0,
-        recommendedPostsPerWeek: target.target,
-        contentMix: target.mix,
-        insight: `🚀 No ${platform} posts in the last 30 days. Start now! ${target.tip}`,
-      });
-    }
-  }
+        ? `⚡ Strong volume on ${platform}! Ensure quality stays high. ${target.tip}`
+        : `✅ Good ${platform} cadence. ${target.tip}`,
+    };
+  });
   res.json({
     analysedPeriodDays: 30,
     totalPostsAnalysed: totalPosts,
-    overallPostsPerWeek: postsPerWeek,
+    overallPostsPerWeek,
     recommendations,
     generatedAt: new Date().toISOString(),
+    aiPowered: false,
   });
 });
 

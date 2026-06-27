@@ -1407,7 +1407,7 @@ function SeoEngine() {
 function ContentVelocity() {
   const { data, isLoading, refetch, isFetching } = useQuery<{
     analysedPeriodDays: number; totalPostsAnalysed: number; overallPostsPerWeek: number;
-    recommendations: ContentVelocityRec[]; generatedAt: string;
+    overallInsight?: string; recommendations: ContentVelocityRec[]; generatedAt: string; aiPowered?: boolean;
   }>({
     queryKey: ["content-velocity"],
     queryFn: async () => {
@@ -1417,22 +1417,33 @@ function ContentVelocity() {
     staleTime: 5 * 60 * 1000,
   });
 
-  if (isLoading) return <div className="text-center text-muted-foreground py-12">Analysing your posting history...</div>;
+  if (isLoading) return <div className="text-center text-muted-foreground py-12">Analysing your posting history with AI...</div>;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h3 className="font-semibold">Content Velocity Recommender</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold">Content Velocity Recommender</h3>
+            {data?.aiPowered && <Badge className="text-xs bg-purple-100 text-purple-700">✨ AI-powered</Badge>}
+          </div>
           <p className="text-sm text-muted-foreground">
             Analysed {data?.totalPostsAnalysed ?? 0} posts in the last {data?.analysedPeriodDays} days
             · {data?.overallPostsPerWeek ?? 0} posts/week overall
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
-          {isFetching ? "Refreshing..." : "↻ Refresh"}
+          {isFetching ? "Analysing..." : "↻ Re-analyse"}
         </Button>
       </div>
+
+      {/* AI overall insight banner */}
+      {data?.overallInsight && (
+        <div className="rounded-lg border border-purple-200 bg-purple-50/50 p-4">
+          <div className="text-xs font-medium text-purple-700 mb-1">✨ Claude's Assessment</div>
+          <p className="text-sm text-purple-900">{data.overallInsight}</p>
+        </div>
+      )}
 
       <div className="space-y-3">
         {data?.recommendations.map(rec => (
