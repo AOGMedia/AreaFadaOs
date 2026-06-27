@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect } from "wouter";
@@ -150,7 +150,29 @@ function HomeRedirect() {
   );
 }
 
+function useConsumeInviteToken() {
+  const { user } = useUser();
+  useEffect(() => {
+    if (!user) return;
+    const token = localStorage.getItem("partnerInviteToken");
+    if (!token) return;
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    fetch(`${base}/api/partner-invites/complete-signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ token }),
+    })
+      .then(() => {
+        localStorage.removeItem("partnerInviteToken");
+        localStorage.removeItem("partnerInviteTier");
+      })
+      .catch(() => {});
+  }, [user?.id]);
+}
+
 function AuthRequired({ children }: { children: React.ReactNode }) {
+  useConsumeInviteToken();
   return (
     <>
       <Show when="signed-in">{children}</Show>

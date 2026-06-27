@@ -161,7 +161,11 @@ export function InviteLandingPage() {
           <Button
             size="lg"
             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-base py-6"
-            onClick={() => navigate("/sign-up")}
+            onClick={() => {
+              localStorage.setItem("partnerInviteToken", invite.token);
+              localStorage.setItem("partnerInviteTier", invite.tierPreset);
+              navigate("/sign-up");
+            }}
           >
             Accept Invite & Create Your Account
           </Button>

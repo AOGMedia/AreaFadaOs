@@ -212,6 +212,27 @@ async function seedDemoDirectory() {
   );
 }
 
+// ─── Public: Complete Signup (marks invite signed_up) ───────────────────────
+// Called post-signup by the frontend when localStorage has a partnerInviteToken.
+
+router.post("/partner-invites/complete-signup", async (req: any, res) => {
+  const { token } = req.body;
+  if (!token || typeof token !== "string") { res.status(400).json({ error: "token required" }); return; }
+  const rows = await db.select().from(partnerInvitesTable)
+    .where(eq(partnerInvitesTable.token, token)).limit(1);
+  if (!rows.length) { res.status(404).json({ error: "Invite not found" }); return; }
+  const invite = rows[0];
+  if (invite.status === "revoked") { res.status(410).json({ error: "Invite revoked" }); return; }
+  if (new Date(invite.expiresAt) < new Date()) { res.status(410).json({ error: "Invite expired" }); return; }
+  if (["signed_up", "converted"].includes(invite.status)) {
+    res.json({ status: invite.status, tierPreset: invite.tierPreset }); return;
+  }
+  const [updated] = await db.update(partnerInvitesTable).set({
+    status: "signed_up", signedUpAt: new Date(), updatedAt: new Date(),
+  }).where(eq(partnerInvitesTable.id, invite.id)).returning();
+  res.json({ status: updated.status, tierPreset: updated.tierPreset });
+});
+
 // ─── Public: Validate Invite Token ────────────────────────────────────────────
 
 router.get("/partner-invites/public/:token", async (req: any, res) => {
@@ -335,6 +356,20 @@ router.post("/partner-invites/bulk", ...requireAgency, async (req: any, res) => 
     }
   }
   res.json({ successCount, errorCount, invites: created });
+});
+
+// ─── Convert Invite ───────────────────────────────────────────────────────────
+
+router.post("/partner-invites/:id/convert", ...requireAgency, async (req: any, res) => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const rows = await db.select().from(partnerInvitesTable)
+    .where(and(eq(partnerInvitesTable.id, Number(req.params.id)), eq(partnerInvitesTable.userId, user.id))).limit(1);
+  if (!rows.length) { res.status(404).json({ error: "Not found" }); return; }
+  const [updated] = await db.update(partnerInvitesTable).set({
+    status: "converted", convertedAt: new Date(), updatedAt: new Date(),
+  }).where(eq(partnerInvitesTable.id, Number(req.params.id))).returning();
+  res.json(updated);
 });
 
 // ─── Re-send Invite ───────────────────────────────────────────────────────────

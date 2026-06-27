@@ -256,6 +256,12 @@ function OutreachDashboardTab() {
     queryFn: () => apiFetch(`/partner-invites?${params}`),
   });
 
+  const convertMut = useMutation({
+    mutationFn: (id: number) => apiFetch(`/partner-invites/${id}/convert`, { method: "POST" }),
+    onSuccess: () => { toast({ title: "Invite marked as Converted" }); qc.invalidateQueries({ queryKey: ["partner-invites"] }); qc.invalidateQueries({ queryKey: ["partner-analytics"] }); },
+    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+  });
+
   const resendMut = useMutation({
     mutationFn: (id: number) => apiFetch(`/partner-invites/${id}/resend`, { method: "POST" }),
     onSuccess: (d) => {
@@ -373,6 +379,11 @@ function OutreachDashboardTab() {
                         {invite.status !== "revoked" && invite.status !== "converted" && (
                           <Button size="sm" variant="ghost" onClick={() => resendMut.mutate(invite.id)} disabled={resendMut.isPending} className="h-7 w-7 p-0 text-blue-400 hover:text-blue-300" title="Resend">
                             <RefreshCw className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {invite.status === "signed_up" && (
+                          <Button size="sm" variant="ghost" onClick={() => convertMut.mutate(invite.id)} disabled={convertMut.isPending} className="h-7 w-7 p-0 text-emerald-400 hover:text-emerald-300" title="Mark as Converted">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
                           </Button>
                         )}
                         {invite.status !== "revoked" && (
