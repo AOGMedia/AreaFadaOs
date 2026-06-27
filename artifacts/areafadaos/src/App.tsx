@@ -15,6 +15,7 @@ import SchedulingPage from "@/pages/scheduling";
 import MonetizationPage from "@/pages/monetization";
 import AnalyticsPage from "@/pages/analytics";
 import { AmbassadorsPage } from "@/pages/ambassadors";
+import { AmbassadorPortalPage } from "@/pages/ambassador-portal";
 import { BookPromoPage } from "@/pages/book-promo";
 import { LiveVideoPage } from "@/pages/live-video";
 import { LiveSessionSignupPage } from "@/pages/live-session-signup";
@@ -231,6 +232,7 @@ function ClerkProviderWithRoutes() {
             <Route path="/ambassadors">
               <AuthRequired><AmbassadorsPage /></AuthRequired>
             </Route>
+            <Route path="/ambassador-portal" component={AmbassadorPortalPage} />
             <Route path="/fan-hub">
               <AuthRequired><FanHubPage /></AuthRequired>
             </Route>
