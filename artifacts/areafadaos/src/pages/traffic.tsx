@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { TierGuard } from "@/components/TierGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -244,6 +245,15 @@ function CampaignDetail({ campaign, onStatusChange }: { campaign: TrafficCampaig
 
       {/* Meta Ads Africa presets */}
       <MetaAdsPanel campaignId={campaign.id} channels={channels} />
+
+      {/* WhatsApp blast manager */}
+      <WhatsAppBlastPanel campaignId={campaign.id} channels={channels} />
+
+      {/* Influencer network activations */}
+      <InfluencerPanel campaignId={campaign.id} />
+
+      {/* Attribution chart — only when data exists */}
+      <AttributionChart channels={channels} />
     </div>
   );
 }
@@ -291,6 +301,538 @@ function MetaAdsPanel({ campaignId, channels }: { campaignId: number; channels: 
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── Attribution Chart ────────────────────────────────────────────────────────
+function AttributionChart({ channels }: { channels: CampaignChannel[] }) {
+  const data = channels.filter(c => c.visits > 0 || c.clicks > 0).map(ch => ({
+    name: CHANNEL_META[ch.channel]?.label ?? ch.channel,
+    visits: ch.visits,
+    clicks: ch.clicks,
+    cpv: ch.costPerVisit ? Number(ch.costPerVisit) : 0,
+  }));
+  if (data.length === 0) return null;
+  return (
+    <div>
+      <h3 className="text-sm font-semibold mb-2">📊 Channel Attribution</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <div className="text-xs text-muted-foreground mb-1">Visits & Clicks by Channel</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={data} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip />
+              <Bar dataKey="visits" name="Visits" fill="#2dd172" radius={[3,3,0,0]} />
+              <Bar dataKey="clicks" name="Clicks" fill="#6366f1" radius={[3,3,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground mb-1">Cost Per Visit (₦) by Channel</div>
+          <ResponsiveContainer width="100%" height={160}>
+            <BarChart data={data.filter(d => d.cpv > 0)} margin={{ top: 0, right: 8, left: -20, bottom: 0 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} />
+              <Tooltip formatter={(v: number) => `₦${v}`} />
+              <Bar dataKey="cpv" name="CPV (₦)" radius={[3,3,0,0]}>
+                {data.map((_, i) => <Cell key={i} fill={i % 2 === 0 ? "#f59e0b" : "#f97316"} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Influencer Activation Panel ──────────────────────────────────────────────
+interface InfluencerActivationRecord {
+  influencerId: string; influencerName: string; action: string;
+  status: string; notes?: string; activatedAt?: string;
+}
+
+const INFLUENCER_PRESETS = [
+  { id: "creator_001", name: "Adaobi Nwosu – Lagos Fashion" },
+  { id: "creator_002", name: "Emeka Okafor – Tech/Startup" },
+  { id: "creator_003", name: "Fatimah Bello – Gospel Music" },
+  { id: "creator_004", name: "Chidi Eze – Comedy/Skit" },
+  { id: "creator_005", name: "Ngozi Obi – Lifestyle/Food" },
+];
+
+function InfluencerPanel({ campaignId }: { campaignId: number }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [activations, setActivations] = useState<InfluencerActivationRecord[]>([]);
+  const [actionInfluencer, setActionInfluencer] = useState<{ id: string; name: string } | null>(null);
+  const [actionType, setActionType] = useState("send_brief");
+  const [notes, setNotes] = useState("");
+
+  const { mutate: activate, isPending } = useMutation({
+    mutationFn: async () => {
+      if (!actionInfluencer) return null;
+      const res = await apiFetch(
+        "POST",
+        `${BASE}/api/traffic-campaigns/${campaignId}/influencer-activations/${actionInfluencer.id}`,
+        { action: actionType, notes, influencerName: actionInfluencer.name }
+      );
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data) setActivations(prev => [data, ...prev.filter(a => a.influencerId !== data.influencerId)]);
+      setActionInfluencer(null); setNotes("");
+      toast({ title: `Influencer ${actionType === "send_brief" ? "brief sent" : actionType === "mark_active" ? "activated" : "completed"}!` });
+      qc.invalidateQueries({ queryKey: ["traffic-campaign-detail", campaignId] });
+    },
+    onError: () => toast({ title: "Action failed", variant: "destructive" }),
+  });
+
+  const currentAction = (influencerId: string) => activations.find(a => a.influencerId === influencerId);
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold mb-2">🌟 Influencer Network</h3>
+      <div className="space-y-2">
+        {INFLUENCER_PRESETS.map(inf => {
+          const act = currentAction(inf.id);
+          return (
+            <div key={inf.id} className="flex items-center justify-between gap-3 border rounded-lg p-3">
+              <div>
+                <div className="text-sm font-medium">{inf.name}</div>
+                {act && (
+                  <Badge className={`text-xs mt-1 ${act.status === "active" ? "bg-green-100 text-green-700" : act.status === "completed" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>
+                    {act.status}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex gap-1">
+                {(!act || act.status === "pending") && (
+                  <Button size="sm" className="h-7 px-2 text-xs" onClick={() => { setActionInfluencer(inf); setActionType("send_brief"); }}>
+                    📨 Brief
+                  </Button>
+                )}
+                {act?.status === "pending" && (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => { setActionInfluencer(inf); setActionType("mark_active"); }}>
+                    ▶ Activate
+                  </Button>
+                )}
+                {act?.status === "active" && (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => { setActionInfluencer(inf); setActionType("mark_completed"); }}>
+                    ✓ Complete
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <Dialog open={!!actionInfluencer} onOpenChange={() => setActionInfluencer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {actionType === "send_brief" ? "Send Campaign Brief" : actionType === "mark_active" ? "Mark Influencer Active" : "Mark Complete"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Influencer: <strong>{actionInfluencer?.name}</strong>
+            </p>
+            <div>
+              <Label>Notes / Instructions</Label>
+              <Textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder={actionType === "send_brief" ? "Include campaign goal, posting guidelines, hashtags..." : "Any notes for this status change..."}
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setActionInfluencer(null)}>Cancel</Button>
+              <Button onClick={() => activate()} disabled={isPending}>
+                {isPending ? "Saving..." : actionType === "send_brief" ? "Send Brief" : actionType === "mark_active" ? "Mark Active" : "Mark Complete"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── WhatsApp Blast Panel ─────────────────────────────────────────────────────
+const WA_LISTS = [
+  { id: "list_vip", label: "VIP Fans (₦250k+)" },
+  { id: "list_general", label: "General Community" },
+  { id: "list_diaspora", label: "Diaspora UK/US/CA" },
+  { id: "list_lagos", label: "Lagos Core" },
+  { id: "list_gospel", label: "Gospel Network" },
+];
+
+interface BlastLog { id: string; list: string; sentAt: string; clicks: number; }
+
+function WhatsAppBlastPanel({ campaignId, channels }: { campaignId: number; channels: CampaignChannel[] }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [selectedList, setSelectedList] = useState("");
+  const [message, setMessage] = useState("");
+  const [logs, setLogs] = useState<BlastLog[]>([]);
+
+  const waChannel = channels.find(c => c.channel === "whatsapp");
+
+  const trackedSlug = `wa-${campaignId}-${selectedList}`;
+  const trackedUrl = selectedList ? `${window.location.origin}${BASE}/t/${trackedSlug}` : "";
+
+  const { mutate: sendBlast, isPending } = useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch("POST", `${BASE}/api/traffic-campaigns/${campaignId}/events`, {
+        channel: "whatsapp",
+        eventType: "click",
+        trackedLinkSlug: trackedSlug,
+        metadata: { broadcastList: selectedList, message },
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      const newLog: BlastLog = { id: trackedSlug, list: WA_LISTS.find(l => l.id === selectedList)?.label ?? selectedList, sentAt: new Date().toISOString(), clicks: 0 };
+      setLogs(prev => [newLog, ...prev]);
+      qc.invalidateQueries({ queryKey: ["traffic-campaign-detail", campaignId] });
+      toast({ title: "Blast logged! Share the tracked link via WhatsApp." });
+    },
+    onError: () => toast({ title: "Failed to log blast", variant: "destructive" }),
+  });
+
+  if (!waChannel?.enabled) return (
+    <div className="border rounded-lg p-3 text-xs text-muted-foreground">
+      Enable the WhatsApp Blast channel above to use the blast manager.
+    </div>
+  );
+
+  return (
+    <div>
+      <h3 className="text-sm font-semibold mb-2">💬 WhatsApp Blast Manager</h3>
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs">Broadcast List</Label>
+            <Select value={selectedList} onValueChange={setSelectedList}>
+              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select list..." /></SelectTrigger>
+              <SelectContent>
+                {WA_LISTS.map(l => <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          {selectedList && (
+            <div>
+              <Label className="text-xs">Tracked Link (paste into WhatsApp)</Label>
+              <div className="flex gap-1 mt-1">
+                <Input value={trackedUrl} readOnly className="h-8 text-xs" />
+                <Button size="sm" className="h-8 px-2 text-xs shrink-0" onClick={() => { navigator.clipboard.writeText(trackedUrl); toast({ title: "Copied!" }); }}>
+                  Copy
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        <div>
+          <Label className="text-xs">Message Template</Label>
+          <Textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder="Hey fam! 👋 Check out this exclusive deal for you → [paste tracked link above]"
+            rows={3}
+            className="text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            disabled={isPending || !selectedList || !message}
+            onClick={() => sendBlast()}
+          >
+            {isPending ? "Logging..." : "📤 Log Blast & Track Clicks"}
+          </Button>
+          <span className="text-xs text-muted-foreground">Compose your message in WhatsApp, include the tracked link, then log here to track clicks.</span>
+        </div>
+
+        {logs.length > 0 && (
+          <div>
+            <div className="text-xs font-medium mb-1">Recent Blasts</div>
+            <div className="space-y-1">
+              {logs.map(log => (
+                <div key={log.id} className="flex items-center justify-between text-xs border rounded p-2">
+                  <div>
+                    <span className="font-medium">{log.list}</span>
+                    <span className="text-muted-foreground ml-2">{new Date(log.sentAt).toLocaleString("en-NG")}</span>
+                  </div>
+                  <Badge variant="outline" className="text-xs">{log.clicks} clicks</Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Follower Funnel Builder ───────────────────────────────────────────────────
+const FUNNEL_STAGES = [
+  { key: "discovery", label: "Discovery", icon: "🔍", color: "bg-blue-100 border-blue-300 text-blue-800", description: "People who find your content for the first time" },
+  { key: "follow", label: "Follow", icon: "👤", color: "bg-purple-100 border-purple-300 text-purple-800", description: "Viewers who click Follow / Subscribe" },
+  { key: "engage", label: "Engage", icon: "💬", color: "bg-yellow-100 border-yellow-300 text-yellow-800", description: "Followers who comment, DM or share your content" },
+  { key: "buy", label: "Buy / Convert", icon: "💰", color: "bg-green-100 border-green-300 text-green-800", description: "Engaged audience who purchase or sign up" },
+];
+
+interface FunnelMetrics { discovery: number; follow: number; engage: number; buy: number; }
+
+function FunnelBuilder() {
+  const [metrics, setMetrics] = useState<FunnelMetrics>({ discovery: 10000, follow: 1200, engage: 360, buy: 54 });
+  const [platform, setPlatform] = useState("instagram");
+  const [tactics, setTactics] = useState<Record<string, string>>({
+    discovery: "Reel/TikTok viral hooks + SEO content + hashtag clusters",
+    follow: "Strong CTAs in bio + pinned posts + follow-for-value offer",
+    engage: "Story polls, Q&A, DM automation for new followers",
+    buy: "WhatsApp blast to warm community + limited-time offer",
+  });
+
+  const set = (k: keyof FunnelMetrics, v: string) => {
+    const n = Number(v.replace(/\D/g, ""));
+    if (!isNaN(n)) setMetrics(prev => ({ ...prev, [k]: n }));
+  };
+
+  const conversionRate = (a: number, b: number) => a > 0 ? ((b / a) * 100).toFixed(1) : "—";
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold">Follower Funnel Architecture</h3>
+          <p className="text-sm text-muted-foreground">Map your Discovery → Follow → Engage → Buy journey and the tactics at each stage.</p>
+        </div>
+        <Select value={platform} onValueChange={setPlatform}>
+          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="instagram">Instagram</SelectItem>
+            <SelectItem value="tiktok">TikTok</SelectItem>
+            <SelectItem value="youtube">YouTube</SelectItem>
+            <SelectItem value="twitter">Twitter/X</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Funnel visualization */}
+      <div className="space-y-2">
+        {FUNNEL_STAGES.map((stage, i) => {
+          const prev = i > 0 ? Object.values(metrics)[i - 1] : null;
+          const curr = Object.values(metrics)[i];
+          const maxVal = metrics.discovery;
+          const width = Math.max(20, (curr / maxVal) * 100);
+          return (
+            <div key={stage.key} className="space-y-1">
+              {i > 0 && prev && (
+                <div className="text-xs text-center text-muted-foreground">
+                  ↓ {conversionRate(prev, curr)}% conversion
+                </div>
+              )}
+              <div className={`relative rounded-lg border-2 p-4 ${stage.color}`} style={{ marginLeft: `${(100 - width) / 2}%`, marginRight: `${(100 - width) / 2}%` }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{stage.icon}</span>
+                    <div>
+                      <div className="font-semibold text-sm">{stage.label}</div>
+                      <div className="text-xs opacity-75">{stage.description}</div>
+                    </div>
+                  </div>
+                  <Input
+                    className="w-28 h-8 text-right font-bold text-base bg-white/60 border-0"
+                    value={curr.toLocaleString("en-NG")}
+                    onChange={e => set(stage.key as keyof FunnelMetrics, e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Tactics per stage */}
+      <div>
+        <h4 className="font-medium mb-3">Tactics by Stage</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {FUNNEL_STAGES.map(stage => (
+            <div key={stage.key} className={`rounded-lg border-2 p-3 ${stage.color}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span>{stage.icon}</span>
+                <span className="font-medium text-sm">{stage.label}</span>
+              </div>
+              <Textarea
+                value={tactics[stage.key] ?? ""}
+                onChange={e => setTactics(prev => ({ ...prev, [stage.key]: e.target.value }))}
+                rows={2}
+                className="text-xs bg-white/60 border-0 resize-none"
+                placeholder={`Tactics to move people into ${stage.label}...`}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary card */}
+      <Card className="bg-muted/30">
+        <CardContent className="pt-4 grid grid-cols-3 gap-3 text-center">
+          <div>
+            <div className="text-lg font-bold text-green-600">{conversionRate(metrics.discovery, metrics.follow)}%</div>
+            <div className="text-xs text-muted-foreground">Discovery → Follow</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-yellow-600">{conversionRate(metrics.follow, metrics.engage)}%</div>
+            <div className="text-xs text-muted-foreground">Follow → Engage</div>
+          </div>
+          <div>
+            <div className="text-lg font-bold text-blue-600">{conversionRate(metrics.engage, metrics.buy)}%</div>
+            <div className="text-xs text-muted-foreground">Engage → Buy</div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Migration Planner ────────────────────────────────────────────────────────
+const MIGRATION_PLATFORMS = [
+  { value: "instagram", label: "Instagram" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "youtube", label: "YouTube" },
+  { value: "twitter", label: "Twitter/X" },
+  { value: "whatsapp", label: "WhatsApp Community" },
+  { value: "telegram", label: "Telegram Channel" },
+  { value: "email", label: "Email List" },
+];
+
+interface MigrationPlan {
+  id: string; from: string; to: string; audience: string; message: string;
+  ctaText: string; scheduledDate: string; status: "planned" | "active" | "done";
+}
+
+function MigrationPlanner() {
+  const { toast } = useToast();
+  const [plans, setPlans] = useState<MigrationPlan[]>([]);
+  const [form, setForm] = useState({ from: "instagram", to: "whatsapp", audience: "", message: "", ctaText: "", scheduledDate: "" });
+  const setF = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }));
+
+  const createPlan = () => {
+    if (!form.audience || !form.message) { toast({ title: "Fill audience size and message", variant: "destructive" }); return; }
+    const plan: MigrationPlan = { id: Date.now().toString(), ...form, status: "planned" };
+    setPlans(prev => [plan, ...prev]);
+    setForm({ from: "instagram", to: "whatsapp", audience: "", message: "", ctaText: "", scheduledDate: "" });
+    toast({ title: "Migration plan saved!" });
+  };
+
+  const updateStatus = (id: string, status: MigrationPlan["status"]) => {
+    setPlans(prev => prev.map(p => p.id === id ? { ...p, status } : p));
+  };
+
+  const platformLabel = (v: string) => MIGRATION_PLATFORMS.find(p => p.value === v)?.label ?? v;
+
+  const STATUS_BADGES: Record<MigrationPlan["status"], string> = {
+    planned: "bg-gray-100 text-gray-700",
+    active: "bg-green-100 text-green-700",
+    done: "bg-blue-100 text-blue-700",
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="font-semibold">Cross-Platform Audience Migration</h3>
+        <p className="text-sm text-muted-foreground">Plan and schedule campaigns to migrate your audience from one platform to another — own your audience on channels you control.</p>
+      </div>
+
+      {/* Create plan */}
+      <Card>
+        <CardHeader><CardTitle className="text-base">New Migration Campaign</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>From Platform</Label>
+              <Select value={form.from} onValueChange={v => setF("from", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{MIGRATION_PLATFORMS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>To Platform (destination you own)</Label>
+              <Select value={form.to} onValueChange={v => setF("to", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{MIGRATION_PLATFORMS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Target Audience Size</Label>
+              <Input value={form.audience} onChange={e => setF("audience", e.target.value)} placeholder="e.g. 12,000 followers" />
+            </div>
+            <div>
+              <Label>Scheduled Date</Label>
+              <Input type="date" value={form.scheduledDate} onChange={e => setF("scheduledDate", e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <Label>Migration Message</Label>
+            <Textarea
+              value={form.message}
+              onChange={e => setF("message", e.target.value)}
+              placeholder={`e.g. "I'm moving to WhatsApp so you never miss my content. Join my exclusive community now: [link]"`}
+              rows={3}
+            />
+          </div>
+          <div>
+            <Label>CTA Button Text</Label>
+            <Input value={form.ctaText} onChange={e => setF("ctaText", e.target.value)} placeholder="e.g. Join My WhatsApp Community" />
+          </div>
+          <Button onClick={createPlan} disabled={!form.audience || !form.message}>
+            + Save Migration Plan
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Plan list */}
+      {plans.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground border rounded-lg">
+          <div className="text-4xl mb-3">🔀</div>
+          <div className="font-medium">No migration plans yet</div>
+          <div className="text-sm mt-1">Own your audience by migrating them to platforms you control — WhatsApp, Telegram, or Email.</div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {plans.map(plan => (
+            <Card key={plan.id} className="hover:border-green-300 transition-colors">
+              <CardContent className="pt-4 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-sm">
+                      {platformLabel(plan.from)} → {platformLabel(plan.to)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {plan.audience} · {plan.scheduledDate ? new Date(plan.scheduledDate).toLocaleDateString("en-NG") : "No date set"}
+                    </div>
+                  </div>
+                  <Badge className={`text-xs ${STATUS_BADGES[plan.status]}`}>{plan.status}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground italic border-l-2 border-green-300 pl-2">"{plan.message}"</p>
+                {plan.ctaText && <div className="text-xs"><span className="font-medium">CTA: </span>{plan.ctaText}</div>}
+                <div className="flex gap-2">
+                  {plan.status === "planned" && <Button size="sm" className="h-7 px-2 text-xs" onClick={() => updateStatus(plan.id, "active")}>▶ Activate</Button>}
+                  {plan.status === "active" && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => updateStatus(plan.id, "done")}>✓ Mark Done</Button>}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -875,8 +1417,10 @@ export function TrafficPage() {
         </div>
 
         <Tabs defaultValue="generator">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap h-auto gap-1">
             <TabsTrigger value="generator">🚀 Traffic Generator</TabsTrigger>
+            <TabsTrigger value="funnel">🔻 Funnel Builder</TabsTrigger>
+            <TabsTrigger value="migration">🔀 Migration</TabsTrigger>
             <TabsTrigger value="velocity">⚡ Content Velocity</TabsTrigger>
             <TabsTrigger value="hooks">🪝 Hook Library</TabsTrigger>
             <TabsTrigger value="seo">🔍 SEO Engine</TabsTrigger>
@@ -943,6 +1487,16 @@ export function TrafficPage() {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* ─── Funnel Builder Tab ────────────────────────────────────────── */}
+          <TabsContent value="funnel">
+            <FunnelBuilder />
+          </TabsContent>
+
+          {/* ─── Migration Planner Tab ─────────────────────────────────────── */}
+          <TabsContent value="migration">
+            <MigrationPlanner />
           </TabsContent>
 
           {/* ─── Content Velocity Tab ──────────────────────────────────────── */}

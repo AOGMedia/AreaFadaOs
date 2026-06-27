@@ -226,9 +226,13 @@ router.post("/traffic-campaigns/:id/influencer-activations/:influencerId", ...re
 router.post("/traffic-campaigns/:id/events", ...requireTraffic, async (req, res) => {
   const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  // Ownership check — prevent IDOR on cross-tenant metric manipulation
+  const [campaign] = await db.select().from(trafficCampaignsTable)
+    .where(and(eq(trafficCampaignsTable.id, Number(req.params.id)), eq(trafficCampaignsTable.userId, user.id)));
+  if (!campaign) { res.status(404).json({ error: "Campaign not found" }); return; }
   const { channel, eventType, trackedLinkSlug, referrer, region, metadata } = req.body;
   const [event] = await db.insert(trafficEventsTable).values({
-    campaignId: Number(req.params.id),
+    campaignId: campaign.id,
     userId: user.id,
     channel: channel ?? "organic_social",
     eventType: eventType ?? "click",
@@ -237,18 +241,18 @@ router.post("/traffic-campaigns/:id/events", ...requireTraffic, async (req, res)
     region,
     metadata: metadata ?? {},
   }).returning();
-  // Increment channel visits
+  // Increment channel visits (scoped by userId)
   await db.update(campaignChannelConfigsTable)
     .set({ visits: sql`visits + 1`, updatedAt: new Date() })
     .where(and(
-      eq(campaignChannelConfigsTable.campaignId, Number(req.params.id)),
+      eq(campaignChannelConfigsTable.campaignId, campaign.id),
       eq(campaignChannelConfigsTable.userId, user.id),
       eq(campaignChannelConfigsTable.channel, channel ?? "organic_social"),
     ));
-  // Increment campaign total
+  // Increment campaign total (already scoped to owned campaign)
   await db.update(trafficCampaignsTable)
     .set({ totalVisits: sql`total_visits + 1`, updatedAt: new Date() })
-    .where(eq(trafficCampaignsTable.id, Number(req.params.id)));
+    .where(and(eq(trafficCampaignsTable.id, campaign.id), eq(trafficCampaignsTable.userId, user.id)));
   res.status(201).json(event);
 });
 
