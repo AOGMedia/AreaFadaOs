@@ -328,6 +328,7 @@ function ClipsTab({ accounts }: { accounts: ClipAccount[] }) {
   });
 
   const accountMap = Object.fromEntries(accounts.map(a => [a.id, a]));
+  const [collabTarget, setCollabTarget] = useState<{ clipId: number; accountId: string } | null>(null);
 
   return (
     <div className="space-y-4">
@@ -377,6 +378,12 @@ function ClipsTab({ accounts }: { accounts: ClipAccount[] }) {
                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => generateCaption.mutate(clip.id)} disabled={generateCaption.isPending}>
                         AI Caption
                       </Button>
+                      {!clip.collabEnabled && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-amber-700 border-amber-300 hover:bg-amber-50"
+                          onClick={() => setCollabTarget({ clipId: clip.id, accountId: "" })}>
+                          🤝 Collab
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -384,6 +391,35 @@ function ClipsTab({ accounts }: { accounts: ClipAccount[] }) {
             );
           })}
         </div>
+      )}
+
+      {collabTarget && (
+        <Dialog open onOpenChange={() => setCollabTarget(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>Enable Collab Mode</DialogTitle></DialogHeader>
+            <p className="text-sm text-muted-foreground">Select a second account to post this clip simultaneously. The collaborating account's handle will be auto-tagged in both captions.</p>
+            <div className="space-y-1 mt-2">
+              <Label>Collab Account</Label>
+              <Select value={collabTarget.accountId} onValueChange={v => setCollabTarget(t => t ? { ...t, accountId: v } : null)}>
+                <SelectTrigger><SelectValue placeholder="Pick an account…" /></SelectTrigger>
+                <SelectContent>
+                  {accounts.filter(a => a.id !== clips.find(c => c.id === collabTarget.clipId)?.accountId).map(a => (
+                    <SelectItem key={a.id} value={String(a.id)}>
+                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: a.color }} />{a.name}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2 mt-3 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setCollabTarget(null)}>Cancel</Button>
+              <Button size="sm" disabled={!collabTarget.accountId || setCollab.isPending}
+                onClick={() => setCollab.mutate({ id: collabTarget.clipId, collabAccountId: Number(collabTarget.accountId) }, { onSuccess: () => setCollabTarget(null) })}>
+                {setCollab.isPending ? "Setting up…" : "Enable Collab"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
       {genCaptions && (

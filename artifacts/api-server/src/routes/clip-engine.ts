@@ -510,7 +510,27 @@ router.post("/clips/:id/collab", ...requireClip, async (req: any, res): Promise<
       .where(and(eq(clipAccountsTable.id, Number(collabAccountId)), eq(clipAccountsTable.userId, user.id)));
     if (!collabAccount) { res.status(404).json({ error: "Collab account not found" }); return; }
 
-    await db.update(clipsTable).set({ collabEnabled: true, collabAccountId, updatedAt: new Date() }).where(eq(clipsTable.id, clip.id));
+    // Fetch the original account so we can tag its handle in the collab copy
+    let originalAccount: typeof clipAccountsTable.$inferSelect | null = null;
+    if (clip.accountId) {
+      const [oa] = await db.select().from(clipAccountsTable)
+        .where(and(eq(clipAccountsTable.id, clip.accountId), eq(clipAccountsTable.userId, user.id)));
+      originalAccount = oa ?? null;
+    }
+
+    // Auto-insert collaborating account tag into caption text
+    const collabHandle = (collabAccount.personaProfile as Record<string, string>)?.handle ?? `@${collabAccount.name.replace(/\s+/g, "_").toLowerCase()}`;
+    const origHandle = originalAccount
+      ? ((originalAccount.personaProfile as Record<string, string>)?.handle ?? `@${originalAccount.name.replace(/\s+/g, "_").toLowerCase()}`)
+      : "";
+    const taggedCaption = clip.captionText
+      ? `${clip.captionText}\n\n🤝 ft. ${collabHandle}`
+      : `🤝 ft. ${collabHandle}`;
+    const collabCopyCaption = clip.captionText
+      ? `${clip.captionText}\n\n🤝 ft. ${origHandle}`
+      : `🤝 ft. ${origHandle}`;
+
+    await db.update(clipsTable).set({ collabEnabled: true, collabAccountId, captionText: taggedCaption, updatedAt: new Date() }).where(eq(clipsTable.id, clip.id));
 
     const collabClip = await db.insert(clipsTable).values({
       userId: user.id,
@@ -522,7 +542,7 @@ router.post("/clips/:id/collab", ...requireClip, async (req: any, res): Promise<
       endSeconds: clip.endSeconds,
       format: clip.format,
       captionTone: (collabAccount.personaProfile as Record<string, string>)?.tone ?? "african_english",
-      captionText: clip.captionText,
+      captionText: collabCopyCaption,
       hashtags: clip.hashtags as string[],
       coverFrameTime: clip.coverFrameTime,
       status: "draft",
@@ -636,6 +656,12 @@ router.patch("/clip-schedules/:id", ...requireClip, async (req: any, res): Promi
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const { scheduledAt, status, accountId } = req.body;
+    // Validate any mutated foreign key belongs to this user before applying
+    if (accountId !== undefined) {
+      const [ownedAcct] = await db.select({ id: clipAccountsTable.id }).from(clipAccountsTable)
+        .where(and(eq(clipAccountsTable.id, Number(accountId)), eq(clipAccountsTable.userId, user.id)));
+      if (!ownedAcct) { res.status(403).json({ error: "Clip account not found or not owned by you" }); return; }
+    }
     const patch: Record<string, unknown> = {};
     if (scheduledAt !== undefined) patch.scheduledAt = new Date(scheduledAt);
     if (status !== undefined) patch.status = status;
@@ -679,6 +705,10 @@ router.post("/brand-overlay-configs", ...requireClip, async (req: any, res): Pro
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const { accountId, watermarkUrl, watermarkPosition, watermarkOpacity, introBumperUrl, endCardTemplate, endCardText } = req.body;
     if (!accountId) { res.status(400).json({ error: "accountId required" }); return; }
+    // Validate accountId belongs to this user before insert
+    const [ownedAcct] = await db.select({ id: clipAccountsTable.id }).from(clipAccountsTable)
+      .where(and(eq(clipAccountsTable.id, Number(accountId)), eq(clipAccountsTable.userId, user.id)));
+    if (!ownedAcct) { res.status(403).json({ error: "Clip account not found or not owned by you" }); return; }
     const [config] = await db.insert(brandOverlayConfigsTable).values({ userId: user.id, accountId, watermarkUrl, watermarkPosition: watermarkPosition ?? "bottom_right", watermarkOpacity: String(watermarkOpacity ?? 0.8), introBumperUrl, endCardTemplate: endCardTemplate ?? "minimal", endCardText }).returning();
     res.status(201).json(config);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to create overlay config" }); }
@@ -724,6 +754,13 @@ router.post("/clip-performance", ...requireClip, async (req: any, res): Promise<
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const { clipId, accountId, views, shares, comments, saves, watchTimeSeconds, source } = req.body;
     if (!clipId || !accountId) { res.status(400).json({ error: "clipId and accountId required" }); return; }
+    // Validate ownership of referenced clipId and accountId before insert
+    const [ownedClip] = await db.select({ id: clipsTable.id }).from(clipsTable)
+      .where(and(eq(clipsTable.id, Number(clipId)), eq(clipsTable.userId, user.id)));
+    if (!ownedClip) { res.status(403).json({ error: "Clip not found or not owned by you" }); return; }
+    const [ownedAcct] = await db.select({ id: clipAccountsTable.id }).from(clipAccountsTable)
+      .where(and(eq(clipAccountsTable.id, Number(accountId)), eq(clipAccountsTable.userId, user.id)));
+    if (!ownedAcct) { res.status(403).json({ error: "Clip account not found or not owned by you" }); return; }
     const [log] = await db.insert(clipPerformanceLogsTable).values({ userId: user.id, clipId, accountId, views: views ?? 0, shares: shares ?? 0, comments: comments ?? 0, saves: saves ?? 0, watchTimeSeconds: watchTimeSeconds ?? 0, source: source ?? "manual" }).returning();
 
     const score = Math.min(100, ((views ?? 0) * 0.4 + (shares ?? 0) * 1.5 + (saves ?? 0) * 2 + (comments ?? 0) * 1.2) / 10);
