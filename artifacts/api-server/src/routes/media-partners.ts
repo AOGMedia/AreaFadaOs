@@ -9,7 +9,7 @@ import {
   partnerEmailTemplatesTable,
   usersTable,
 } from "@workspace/db";
-import { eq, and, desc, ilike, or, sql, count } from "drizzle-orm";
+import { eq, and, desc, ilike, or, sql, count, lt, notInArray } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
 import { randomBytes } from "crypto";
@@ -28,6 +28,18 @@ async function getDbUser(clerkId: string) {
 
 function generateToken(): string {
   return randomBytes(24).toString("hex");
+}
+
+// Batch-marks any non-terminal invites whose expiresAt has passed as "expired".
+// Called at read/write boundaries so dashboard state is always accurate.
+const TERMINAL_STATUSES = ["converted", "revoked", "expired"];
+async function markExpiredInvites(userId: number): Promise<void> {
+  await db.update(partnerInvitesTable).set({ status: "expired", updatedAt: new Date() })
+    .where(and(
+      eq(partnerInvitesTable.userId, userId),
+      notInArray(partnerInvitesTable.status, TERMINAL_STATUSES),
+      lt(partnerInvitesTable.expiresAt, new Date()),
+    ));
 }
 
 function expiresAt30Days(): Date {
@@ -300,6 +312,7 @@ router.get("/partner-invites", ...requireAgency, async (req: any, res) => {
   const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   await seedDemoDirectory();
+  await markExpiredInvites(user.id);
 
   const { status, partnerType, search } = req.query as Record<string, string>;
   let conditions: any[] = [eq(partnerInvitesTable.userId, user.id)];
@@ -716,6 +729,7 @@ router.get("/partner-outreach-emails/opened/:id", async (req: any, res) => {
 router.get("/partner-analytics", ...requireAgency, async (req: any, res) => {
   const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  await markExpiredInvites(user.id);
 
   const allInvites = await db.select().from(partnerInvitesTable)
     .where(eq(partnerInvitesTable.userId, user.id));
