@@ -1,0 +1,967 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Layout } from "@/components/layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface TrafficCampaign {
+  id: number; name: string; destinationUrl: string; budgetNgn: string;
+  startDate?: string; endDate?: string; status: string; goal: string;
+  targetRegion: string; totalVisits: number; totalConversions: number; roiPercent?: string;
+  channels?: CampaignChannel[];
+}
+interface CampaignChannel {
+  id: number; channel: string; enabled: boolean; budgetAllocationNgn: string;
+  visits: number; clicks: number; costPerVisit?: string; status: string;
+  settings: Record<string, unknown>;
+}
+interface HookEntry {
+  id: number; title: string; hookText: string; platform: string; niche: string;
+  format: string; useCount: number; likeCount: number; tags: string[]; curated: boolean;
+}
+interface SeoJob {
+  id: number; topic: string; contentType: string; targetKeywords: string[];
+  region: string; title?: string; body?: string; status: string; publishedToCalendar: boolean;
+}
+interface GrowthSnapshot {
+  id: number; platform: string; handle: string; followerCount: number;
+  followerGrowthRate: string; reachCount: number; engagementVelocity: string;
+  healthScore: number; alertEnabled: boolean; alertThresholdRate: string; snapshotDate: string;
+}
+interface ContentVelocityRec {
+  platform: string; currentPostsPerWeek: number; recommendedPostsPerWeek: number;
+  contentMix: { educational: number; entertainment: number; promotional: number };
+  insight: string;
+}
+
+const CHANNEL_META: Record<string, { label: string; icon: string; color: string }> = {
+  organic_social: { label: "Organic Social", icon: "📱", color: "bg-blue-100 text-blue-800" },
+  whatsapp: { label: "WhatsApp Blast", icon: "💬", color: "bg-green-100 text-green-800" },
+  meta_ads: { label: "Meta Ads", icon: "📢", color: "bg-indigo-100 text-indigo-800" },
+  influencer: { label: "Influencer Network", icon: "🌟", color: "bg-yellow-100 text-yellow-800" },
+  tiktok_spark: { label: "TikTok Spark Ads", icon: "🎵", color: "bg-pink-100 text-pink-800" },
+  email: { label: "Email Sequences", icon: "📧", color: "bg-orange-100 text-orange-800" },
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  draft: "bg-gray-100 text-gray-700",
+  active: "bg-green-100 text-green-800",
+  paused: "bg-yellow-100 text-yellow-800",
+  completed: "bg-blue-100 text-blue-800",
+  generating: "bg-purple-100 text-purple-800",
+  done: "bg-green-100 text-green-800",
+  failed: "bg-red-100 text-red-800",
+};
+
+function healthScoreColor(score: number) {
+  if (score >= 70) return "text-green-600";
+  if (score >= 40) return "text-yellow-600";
+  return "text-red-600";
+}
+
+// ─── Campaign Creation Dialog ─────────────────────────────────────────────────
+function CampaignDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (c: TrafficCampaign) => void }) {
+  const { toast } = useToast();
+  const [form, setForm] = useState({ name: "", destinationUrl: "", budgetNgn: "", goal: "visits", targetRegion: "NG" });
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `${BASE}/api/traffic-campaigns`, form);
+      return res.json();
+    },
+    onSuccess: (campaign) => { onCreated(campaign); onClose(); toast({ title: "Campaign created!" }); },
+    onError: () => toast({ title: "Failed to create campaign", variant: "destructive" }),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>New Traffic Campaign</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div><Label>Campaign Name</Label><Input value={form.name} onChange={e => set("name", e.target.value)} placeholder="Book launch — June 2026" /></div>
+          <div><Label>Destination URL</Label><Input value={form.destinationUrl} onChange={e => set("destinationUrl", e.target.value)} placeholder="https://areafada.com/999" /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Budget (₦)</Label>
+              <Input type="number" value={form.budgetNgn} onChange={e => set("budgetNgn", e.target.value)} placeholder="50000" />
+            </div>
+            <div>
+              <Label>Goal</Label>
+              <Select value={form.goal} onValueChange={v => set("goal", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="visits">Visits</SelectItem>
+                  <SelectItem value="leads">Leads</SelectItem>
+                  <SelectItem value="sales">Sales</SelectItem>
+                  <SelectItem value="downloads">Downloads</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label>Target Region</Label>
+            <Select value={form.targetRegion} onValueChange={v => set("targetRegion", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NG">Nigeria</SelectItem>
+                <SelectItem value="GH">Ghana</SelectItem>
+                <SelectItem value="ZA">South Africa</SelectItem>
+                <SelectItem value="KE">Kenya</SelectItem>
+                <SelectItem value="DIASPORA">Diaspora (UK/US/UAE)</SelectItem>
+                <SelectItem value="ALL">All Africa</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={() => mutate()} disabled={isPending || !form.name || !form.destinationUrl}>
+              {isPending ? "Creating..." : "Create Campaign"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Campaign Detail Panel ────────────────────────────────────────────────────
+function CampaignDetail({ campaign, onStatusChange }: { campaign: TrafficCampaign; onStatusChange: () => void }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data: detail, isLoading } = useQuery<TrafficCampaign>({
+    queryKey: ["traffic-campaign-detail", campaign.id],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/traffic-campaigns/${campaign.id}`, { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const { mutate: toggleChannel, isPending: toggling } = useMutation({
+    mutationFn: async ({ channelId, enabled }: { channelId: number; enabled: boolean }) => {
+      const res = await apiRequest("PATCH", `${BASE}/api/traffic-campaigns/${campaign.id}/channels/${channelId}`, { enabled, status: enabled ? "active" : "idle" });
+      return res.json();
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["traffic-campaign-detail", campaign.id] }); toast({ title: "Channel updated" }); },
+    onError: () => toast({ title: "Failed to update channel", variant: "destructive" }),
+  });
+
+  const { mutate: updateStatus } = useMutation({
+    mutationFn: async (status: string) => {
+      const res = await apiRequest("PATCH", `${BASE}/api/traffic-campaigns/${campaign.id}`, { status });
+      return res.json();
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["traffic-campaigns"] }); onStatusChange(); },
+    onError: () => toast({ title: "Failed to update status", variant: "destructive" }),
+  });
+
+  if (isLoading) return <div className="p-4 text-center text-muted-foreground">Loading campaign...</div>;
+  const d = detail ?? campaign;
+  const channels = d.channels ?? [];
+
+  return (
+    <div className="space-y-4">
+      {/* Campaign stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card><CardContent className="pt-4 text-center">
+          <div className="text-2xl font-bold text-green-600">{d.totalVisits.toLocaleString()}</div>
+          <div className="text-xs text-muted-foreground">Total Visits</div>
+        </CardContent></Card>
+        <Card><CardContent className="pt-4 text-center">
+          <div className="text-2xl font-bold">{d.totalConversions.toLocaleString()}</div>
+          <div className="text-xs text-muted-foreground">Conversions</div>
+        </CardContent></Card>
+        <Card><CardContent className="pt-4 text-center">
+          <div className="text-2xl font-bold">{d.roiPercent ? `${d.roiPercent}%` : "—"}</div>
+          <div className="text-xs text-muted-foreground">ROI</div>
+        </CardContent></Card>
+      </div>
+
+      {/* Status controls */}
+      <div className="flex gap-2 flex-wrap">
+        <Badge className={STATUS_COLORS[d.status] ?? "bg-gray-100"}>{d.status}</Badge>
+        {d.status === "draft" && <Button size="sm" onClick={() => updateStatus("active")}>▶ Activate</Button>}
+        {d.status === "active" && <Button size="sm" variant="outline" onClick={() => updateStatus("paused")}>⏸ Pause</Button>}
+        {d.status === "paused" && <Button size="sm" onClick={() => updateStatus("active")}>▶ Resume</Button>}
+        {d.status !== "completed" && <Button size="sm" variant="outline" onClick={() => updateStatus("completed")}>✓ Mark Complete</Button>}
+      </div>
+
+      {/* Channels */}
+      <div>
+        <h3 className="text-sm font-semibold mb-2">Channels</h3>
+        <div className="space-y-2">
+          {channels.map(ch => {
+            const meta = CHANNEL_META[ch.channel] ?? { label: ch.channel, icon: "📡", color: "bg-gray-100 text-gray-700" };
+            return (
+              <div key={ch.id} className={`rounded-lg border p-3 flex items-center gap-3 ${ch.enabled ? "border-green-200 bg-green-50/30" : ""}`}>
+                <span className="text-xl">{meta.icon}</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{meta.label}</span>
+                    {ch.enabled && <Badge className="text-xs bg-green-100 text-green-700">Active</Badge>}
+                  </div>
+                  <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                    <span>{ch.visits} visits</span>
+                    <span>{ch.clicks} clicks</span>
+                    {ch.costPerVisit && <span>₦{ch.costPerVisit} CPV</span>}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant={ch.enabled ? "outline" : "default"}
+                  disabled={toggling}
+                  onClick={() => toggleChannel({ channelId: ch.id, enabled: !ch.enabled })}
+                >
+                  {ch.enabled ? "Deactivate" : "Activate"}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Meta Ads Africa presets */}
+      <MetaAdsPanel campaignId={campaign.id} channels={channels} />
+    </div>
+  );
+}
+
+function MetaAdsPanel({ campaignId, channels }: { campaignId: number; channels: CampaignChannel[] }) {
+  const { data: presets = [] } = useQuery<Array<{ id: string; label: string; country: string; ageMin: number; ageMax: number }>>({
+    queryKey: ["meta-audience-presets"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/traffic/meta-audience-presets`, { credentials: "include" });
+      return res.json();
+    },
+  });
+  const metaChannel = channels.find(c => c.channel === "meta_ads");
+  const selectedPreset = (metaChannel?.settings as Record<string, unknown>)?.audiencePreset as string | undefined;
+
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { mutate: applyPreset, isPending } = useMutation({
+    mutationFn: async (presetId: string) => {
+      if (!metaChannel) return;
+      const res = await apiRequest("PATCH", `${BASE}/api/traffic-campaigns/${campaignId}/channels/${metaChannel.id}`, {
+        settings: { ...(metaChannel.settings ?? {}), audiencePreset: presetId },
+      });
+      return res.json();
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["traffic-campaign-detail", campaignId] }); toast({ title: "Audience preset applied" }); },
+  });
+
+  if (!metaChannel) return null;
+  return (
+    <div>
+      <h3 className="text-sm font-semibold mb-2">🌍 Meta Ads — Africa Audience Presets</h3>
+      <p className="text-xs text-muted-foreground mb-2">Select an Africa-specific audience preset. Actual ad launch requires Facebook Business Manager OAuth (stubbed).</p>
+      <div className="grid grid-cols-2 gap-2">
+        {presets.map(preset => (
+          <button
+            key={preset.id}
+            onClick={() => applyPreset(preset.id)}
+            disabled={isPending}
+            className={`rounded-lg border p-2 text-left text-xs transition-all ${selectedPreset === preset.id ? "border-green-500 bg-green-50" : "hover:border-gray-300"}`}
+          >
+            <div className="font-medium">{preset.label}</div>
+            <div className="text-muted-foreground">{preset.country} · Age {preset.ageMin}–{preset.ageMax}</div>
+            {selectedPreset === preset.id && <div className="text-green-600 mt-1">✓ Selected</div>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Hook Library ─────────────────────────────────────────────────────────────
+function HookLibrary() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [q, setQ] = useState("");
+  const [platform, setPlatform] = useState("all");
+  const [niche, setNiche] = useState("all");
+  const [format, setFormat] = useState("all");
+  const [addOpen, setAddOpen] = useState(false);
+  const [newHook, setNewHook] = useState({ title: "", hookText: "", platform: "all", niche: "general", format: "caption" });
+
+  const { data: hooks = [], isLoading } = useQuery<HookEntry[]>({
+    queryKey: ["hook-library", platform, niche, format],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (platform !== "all") params.set("platform", platform);
+      if (niche !== "all") params.set("niche", niche);
+      if (format !== "all") params.set("format", format);
+      const res = await fetch(`${BASE}/api/hook-library?${params}`, { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const filtered = q ? hooks.filter(h => h.title.toLowerCase().includes(q.toLowerCase()) || h.hookText.toLowerCase().includes(q.toLowerCase())) : hooks;
+
+  const { mutate: like } = useMutation({
+    mutationFn: async (id: number) => { await apiRequest("POST", `${BASE}/api/hook-library/${id}/like`, {}); },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["hook-library"] }),
+  });
+
+  const { mutate: useHook } = useMutation({
+    mutationFn: async (id: number) => { await apiRequest("POST", `${BASE}/api/hook-library/${id}/use`, {}); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["hook-library"] }); toast({ title: "Hook applied to draft!" }); },
+  });
+
+  const { mutate: addHook, isPending: adding } = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `${BASE}/api/hook-library`, newHook);
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hook-library"] });
+      setAddOpen(false);
+      setNewHook({ title: "", hookText: "", platform: "all", niche: "general", format: "caption" });
+      toast({ title: "Hook added to library" });
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Input placeholder="Search hooks..." value={q} onChange={e => setQ(e.target.value)} className="max-w-xs" />
+        <Select value={platform} onValueChange={setPlatform}>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Platform" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Platforms</SelectItem>
+            <SelectItem value="instagram">Instagram</SelectItem>
+            <SelectItem value="tiktok">TikTok</SelectItem>
+            <SelectItem value="twitter">Twitter/X</SelectItem>
+            <SelectItem value="youtube">YouTube</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={niche} onValueChange={setNiche}>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Niche" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Niches</SelectItem>
+            <SelectItem value="general">General</SelectItem>
+            <SelectItem value="music">Music</SelectItem>
+            <SelectItem value="tech">Tech</SelectItem>
+            <SelectItem value="fashion">Fashion</SelectItem>
+            <SelectItem value="gospel">Gospel</SelectItem>
+            <SelectItem value="business">Business</SelectItem>
+            <SelectItem value="lifestyle">Lifestyle</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={format} onValueChange={setFormat}>
+          <SelectTrigger className="w-36"><SelectValue placeholder="Format" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Formats</SelectItem>
+            <SelectItem value="opener">Opener</SelectItem>
+            <SelectItem value="caption">Caption</SelectItem>
+            <SelectItem value="thumbnail">Thumbnail</SelectItem>
+            <SelectItem value="cta">CTA</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button size="sm" onClick={() => setAddOpen(true)}>+ Add Hook</Button>
+      </div>
+
+      {isLoading && <div className="text-center text-muted-foreground py-8">Loading hooks...</div>}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {filtered.map(hook => (
+          <Card key={hook.id} className="hover:border-green-300 transition-colors">
+            <CardContent className="pt-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="font-medium text-sm">{hook.title}</div>
+                  {hook.curated && <Badge className="text-xs bg-emerald-100 text-emerald-700 mt-1">✓ Curated</Badge>}
+                </div>
+                <div className="flex gap-1">
+                  <Badge variant="outline" className="text-xs">{hook.platform}</Badge>
+                  <Badge variant="outline" className="text-xs">{hook.format}</Badge>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground italic leading-snug">"{hook.hookText}"</p>
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2 text-xs text-muted-foreground">
+                  <span>❤️ {hook.likeCount}</span>
+                  <span>🔁 {hook.useCount} uses</span>
+                  <span>#{hook.niche}</span>
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => like(hook.id)}>❤️</Button>
+                  <Button size="sm" className="h-7 px-2 text-xs" onClick={() => { useHook(hook.id); navigator.clipboard.writeText(hook.hookText); }}>Copy & Use</Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      {filtered.length === 0 && !isLoading && (
+        <div className="text-center py-12 text-muted-foreground">No hooks match your filters. Add your own above.</div>
+      )}
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Hook to Library</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Title</Label><Input value={newHook.title} onChange={e => setNewHook(h => ({ ...h, title: e.target.value }))} placeholder="Bold opener for musicians" /></div>
+            <div><Label>Hook Text</Label><Textarea value={newHook.hookText} onChange={e => setNewHook(h => ({ ...h, hookText: e.target.value }))} placeholder="I need to tell you something..." rows={3} /></div>
+            <div className="grid grid-cols-3 gap-2">
+              <div><Label className="text-xs">Platform</Label>
+                <Select value={newHook.platform} onValueChange={v => setNewHook(h => ({ ...h, platform: v }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
+                    <SelectItem value="twitter">Twitter</SelectItem>
+                    <SelectItem value="youtube">YouTube</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label className="text-xs">Niche</Label>
+                <Select value={newHook.niche} onValueChange={v => setNewHook(h => ({ ...h, niche: v }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="music">Music</SelectItem>
+                    <SelectItem value="tech">Tech</SelectItem>
+                    <SelectItem value="fashion">Fashion</SelectItem>
+                    <SelectItem value="gospel">Gospel</SelectItem>
+                    <SelectItem value="business">Business</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label className="text-xs">Format</Label>
+                <Select value={newHook.format} onValueChange={v => setNewHook(h => ({ ...h, format: v }))}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="opener">Opener</SelectItem>
+                    <SelectItem value="caption">Caption</SelectItem>
+                    <SelectItem value="thumbnail">Thumbnail</SelectItem>
+                    <SelectItem value="cta">CTA</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button onClick={() => addHook()} disabled={adding || !newHook.title || !newHook.hookText}>
+                {adding ? "Adding..." : "Add Hook"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── SEO Content Engine ───────────────────────────────────────────────────────
+function SeoEngine() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [topic, setTopic] = useState("");
+  const [contentType, setContentType] = useState("blog");
+  const [keywords, setKeywords] = useState("");
+  const [region, setRegion] = useState("NG");
+  const [viewJob, setViewJob] = useState<SeoJob | null>(null);
+
+  const { data: jobs = [], isLoading } = useQuery<SeoJob[]>({
+    queryKey: ["seo-content-jobs"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/seo-content-jobs`, { credentials: "include" });
+      return res.json();
+    },
+    refetchInterval: (data) => {
+      const arr = Array.isArray(data) ? data : (data?.state?.data ?? []);
+      return arr.some?.((j: SeoJob) => j.status === "generating") ? 3000 : false;
+    },
+  });
+
+  const { mutate: generate, isPending } = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `${BASE}/api/seo-content-jobs`, {
+        topic, contentType, region,
+        targetKeywords: keywords.split(",").map(k => k.trim()).filter(Boolean),
+      });
+      return res.json();
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["seo-content-jobs"] }); setTopic(""); setKeywords(""); toast({ title: "Generating SEO content..." }); },
+    onError: () => toast({ title: "Failed to start generation", variant: "destructive" }),
+  });
+
+  const { mutate: publish } = useMutation({
+    mutationFn: async (jobId: number) => {
+      const res = await apiRequest("POST", `${BASE}/api/seo-content-jobs/${jobId}/publish-to-calendar`, { platform: "instagram" });
+      return res.json();
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["seo-content-jobs"] }); toast({ title: "Published to content calendar!" }); },
+    onError: () => toast({ title: "Failed to publish", variant: "destructive" }),
+  });
+
+  return (
+    <div className="space-y-5">
+      <Card>
+        <CardHeader><CardTitle className="text-base">Generate SEO Content</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="md:col-span-2">
+              <Label>Topic / Main Keyword</Label>
+              <Input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. How to grow on Instagram in Nigeria" />
+            </div>
+            <div>
+              <Label>Content Type</Label>
+              <Select value={contentType} onValueChange={setContentType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="blog">Blog Post</SelectItem>
+                  <SelectItem value="youtube_description">YouTube Description</SelectItem>
+                  <SelectItem value="thread">Twitter Thread</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label>Target Keywords <span className="text-muted-foreground text-xs">(comma-separated)</span></Label>
+              <Input value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="Nigerian creator, grow on Instagram, monetize" />
+            </div>
+            <div>
+              <Label>Region</Label>
+              <Select value={region} onValueChange={setRegion}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NG">Nigeria</SelectItem>
+                  <SelectItem value="GH">Ghana</SelectItem>
+                  <SelectItem value="KE">Kenya</SelectItem>
+                  <SelectItem value="ZA">South Africa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Button onClick={() => generate()} disabled={isPending || !topic}>
+            {isPending ? "Submitting..." : "Generate SEO Content"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {isLoading && <div className="text-center text-muted-foreground py-6">Loading content jobs...</div>}
+
+      <div className="space-y-2">
+        {jobs.map(job => (
+          <Card key={job.id} className="hover:border-green-300 transition-colors cursor-pointer" onClick={() => job.status === "done" ? setViewJob(job) : null}>
+            <CardContent className="pt-4 flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm truncate">{job.title ?? job.topic}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{job.contentType} · {job.region} · {job.targetKeywords.join(", ")}</div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {job.publishedToCalendar && <Badge className="text-xs bg-blue-100 text-blue-700">📅 Scheduled</Badge>}
+                <Badge className={`text-xs ${STATUS_COLORS[job.status] ?? "bg-gray-100"}`}>
+                  {job.status === "generating" ? "⏳ Generating..." : job.status}
+                </Badge>
+                {job.status === "done" && !job.publishedToCalendar && (
+                  <Button size="sm" className="h-7 px-2 text-xs" onClick={e => { e.stopPropagation(); publish(job.id); }}>
+                    📅 Schedule
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+        {jobs.length === 0 && !isLoading && (
+          <div className="text-center py-12 text-muted-foreground">No SEO content yet. Generate your first piece above.</div>
+        )}
+      </div>
+
+      {/* View content dialog */}
+      <Dialog open={!!viewJob} onOpenChange={() => setViewJob(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{viewJob?.title ?? viewJob?.topic}</DialogTitle></DialogHeader>
+          {viewJob?.body && (
+            <pre className="text-xs whitespace-pre-wrap font-sans leading-relaxed border rounded-lg p-4 bg-muted/30">{viewJob.body}</pre>
+          )}
+          {viewJob?.metaDescription && (
+            <div className="text-xs text-muted-foreground border-t pt-2">
+              <span className="font-medium">Meta description: </span>{viewJob.metaDescription}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Content Velocity Recommender ────────────────────────────────────────────
+function ContentVelocity() {
+  const { data, isLoading, refetch, isFetching } = useQuery<{
+    analysedPeriodDays: number; totalPostsAnalysed: number; overallPostsPerWeek: number;
+    recommendations: ContentVelocityRec[]; generatedAt: string;
+  }>({
+    queryKey: ["content-velocity"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/traffic/content-velocity`, { credentials: "include" });
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (isLoading) return <div className="text-center text-muted-foreground py-12">Analysing your posting history...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold">Content Velocity Recommender</h3>
+          <p className="text-sm text-muted-foreground">
+            Analysed {data?.totalPostsAnalysed ?? 0} posts in the last {data?.analysedPeriodDays} days
+            · {data?.overallPostsPerWeek ?? 0} posts/week overall
+          </p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
+          {isFetching ? "Refreshing..." : "↻ Refresh"}
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {data?.recommendations.map(rec => (
+          <Card key={rec.platform} className="border-l-4 border-l-green-400">
+            <CardContent className="pt-4">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <div className="font-medium capitalize">{rec.platform}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {rec.currentPostsPerWeek}/week current · {rec.recommendedPostsPerWeek}/week recommended
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <Badge variant="outline" className="text-xs">{rec.currentPostsPerWeek}/wk now</Badge>
+                  <Badge className="text-xs bg-green-100 text-green-700">→ {rec.recommendedPostsPerWeek}/wk</Badge>
+                </div>
+              </div>
+
+              {/* Content mix bar */}
+              <div className="mb-2">
+                <div className="text-xs text-muted-foreground mb-1">Recommended content mix:</div>
+                <div className="flex rounded overflow-hidden h-3 text-xs">
+                  <div className="bg-blue-400" style={{ width: `${rec.contentMix.educational}%` }} title={`Educational ${rec.contentMix.educational}%`} />
+                  <div className="bg-purple-400" style={{ width: `${rec.contentMix.entertainment}%` }} title={`Entertainment ${rec.contentMix.entertainment}%`} />
+                  <div className="bg-orange-400" style={{ width: `${rec.contentMix.promotional}%` }} title={`Promotional ${rec.contentMix.promotional}%`} />
+                </div>
+                <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                  <span><span className="inline-block w-2 h-2 rounded-full bg-blue-400 mr-1" />{rec.contentMix.educational}% Edu</span>
+                  <span><span className="inline-block w-2 h-2 rounded-full bg-purple-400 mr-1" />{rec.contentMix.entertainment}% Entertain</span>
+                  <span><span className="inline-block w-2 h-2 rounded-full bg-orange-400 mr-1" />{rec.contentMix.promotional}% Promo</span>
+                </div>
+              </div>
+
+              <p className="text-sm">{rec.insight}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Growth Dashboard ─────────────────────────────────────────────────────────
+function GrowthDashboard() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState({ platformAccountId: "", platform: "instagram", handle: "", followerCount: "", followerGrowthRate: "", healthScore: "50" });
+
+  const { data: snapshots = [], isLoading } = useQuery<GrowthSnapshot[]>({
+    queryKey: ["growth-snapshots"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/growth-snapshots`, { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  // Deduplicate — latest per account
+  const latestByAccount = new Map<string, GrowthSnapshot>();
+  for (const s of snapshots) {
+    const key = `${s.platform}:${s.handle}`;
+    if (!latestByAccount.has(key)) latestByAccount.set(key, s);
+  }
+  const latest = [...latestByAccount.values()];
+
+  const { mutate: addSnapshot, isPending: adding } = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `${BASE}/api/growth-snapshots`, {
+        ...form,
+        platformAccountId: Number(form.platformAccountId) || 1,
+        followerCount: Number(form.followerCount),
+        followerGrowthRate: form.followerGrowthRate,
+        healthScore: Number(form.healthScore),
+      });
+      return res.json();
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["growth-snapshots"] }); setAddOpen(false); toast({ title: "Snapshot recorded" }); },
+    onError: () => toast({ title: "Failed to add snapshot", variant: "destructive" }),
+  });
+
+  const { mutate: toggleAlert } = useMutation({
+    mutationFn: async ({ id, enabled }: { id: number; enabled: boolean }) => {
+      await apiRequest("PATCH", `${BASE}/api/growth-snapshots/${id}/alert`, { alertEnabled: enabled });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["growth-snapshots"] }),
+    onError: () => toast({ title: "Failed to update alert", variant: "destructive" }),
+  });
+
+  const PLATFORM_ICONS: Record<string, string> = {
+    instagram: "📸", tiktok: "🎵", twitter: "🐦", youtube: "📺", facebook: "👥", threads: "🔗",
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">Growth Dashboard</h3>
+        <Button size="sm" onClick={() => setAddOpen(true)}>+ Log Snapshot</Button>
+      </div>
+
+      {isLoading && <div className="text-center text-muted-foreground py-8">Loading growth data...</div>}
+
+      {latest.length === 0 && !isLoading && (
+        <div className="text-center py-12 text-muted-foreground">
+          No growth snapshots yet. Log your first snapshot to start tracking.
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {latest.map(snap => (
+          <Card key={snap.id} className={`${parseFloat(snap.followerGrowthRate) < 0 ? "border-red-200" : ""}`}>
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{PLATFORM_ICONS[snap.platform] ?? "📱"}</span>
+                  <div>
+                    <div className="font-medium text-sm">{snap.handle}</div>
+                    <div className="text-xs text-muted-foreground capitalize">{snap.platform}</div>
+                  </div>
+                </div>
+                <div className={`text-2xl font-bold ${healthScoreColor(snap.healthScore)}`}>{snap.healthScore}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground">Followers</div>
+                  <div className="font-semibold">{snap.followerCount.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Growth/wk</div>
+                  <div className={`font-semibold ${parseFloat(snap.followerGrowthRate) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {parseFloat(snap.followerGrowthRate) >= 0 ? "+" : ""}{parseFloat(snap.followerGrowthRate).toFixed(2)}%
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Reach</div>
+                  <div className="font-semibold">{Number(snap.reachCount).toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Eng. Velocity</div>
+                  <div className="font-semibold">{parseFloat(snap.engagementVelocity).toFixed(1)}/day</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-3 pt-2 border-t">
+                <span className="text-xs text-muted-foreground">
+                  {snap.alertEnabled ? `🔔 Alert at ${parseFloat(snap.alertThresholdRate).toFixed(1)}%` : "🔕 Alert off"}
+                </span>
+                <Button size="sm" variant="outline" className="h-6 text-xs px-2"
+                  onClick={() => toggleAlert({ id: snap.id, enabled: !snap.alertEnabled })}>
+                  {snap.alertEnabled ? "Disable" : "Enable"} Alert
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Log Growth Snapshot</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Platform</Label>
+                <Select value={form.platform} onValueChange={v => setForm(f => ({ ...f, platform: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="tiktok">TikTok</SelectItem>
+                    <SelectItem value="twitter">Twitter/X</SelectItem>
+                    <SelectItem value="youtube">YouTube</SelectItem>
+                    <SelectItem value="facebook">Facebook</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Handle</Label><Input value={form.handle} onChange={e => setForm(f => ({ ...f, handle: e.target.value }))} placeholder="@areafada" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Follower Count</Label><Input type="number" value={form.followerCount} onChange={e => setForm(f => ({ ...f, followerCount: e.target.value }))} placeholder="120000" /></div>
+              <div><Label>Growth Rate (% per week)</Label><Input type="number" step="0.01" value={form.followerGrowthRate} onChange={e => setForm(f => ({ ...f, followerGrowthRate: e.target.value }))} placeholder="1.5" /></div>
+            </div>
+            <div>
+              <Label>Health Score (0–100)</Label>
+              <Input type="number" min={0} max={100} value={form.healthScore} onChange={e => setForm(f => ({ ...f, healthScore: e.target.value }))} />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+              <Button onClick={() => addSnapshot()} disabled={adding || !form.handle}>
+                {adding ? "Saving..." : "Log Snapshot"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+export function TrafficPage() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [selectedCampaign, setSelectedCampaign] = useState<TrafficCampaign | null>(null);
+
+  const { data: campaigns = [], isLoading } = useQuery<TrafficCampaign[]>({
+    queryKey: ["traffic-campaigns"],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/traffic-campaigns`, { credentials: "include" });
+      return res.json();
+    },
+  });
+
+  const { mutate: deleteCampaign } = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `${BASE}/api/traffic-campaigns/${id}`, undefined);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["traffic-campaigns"] });
+      setSelectedCampaign(null);
+      toast({ title: "Campaign deleted" });
+    },
+    onError: () => toast({ title: "Failed to delete", variant: "destructive" }),
+  });
+
+  return (
+    <Layout>
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Traffic Generator & Engine</h1>
+          <p className="text-muted-foreground text-sm">Drive targeted visitors and build compounding audience growth for Nigerian creators.</p>
+        </div>
+
+        <Tabs defaultValue="generator">
+          <TabsList className="mb-6">
+            <TabsTrigger value="generator">🚀 Traffic Generator</TabsTrigger>
+            <TabsTrigger value="velocity">⚡ Content Velocity</TabsTrigger>
+            <TabsTrigger value="hooks">🪝 Hook Library</TabsTrigger>
+            <TabsTrigger value="seo">🔍 SEO Engine</TabsTrigger>
+            <TabsTrigger value="growth">📈 Growth Dashboard</TabsTrigger>
+          </TabsList>
+
+          {/* ─── Traffic Generator Tab ─────────────────────────────────────── */}
+          <TabsContent value="generator">
+            <div className={`grid gap-6 ${selectedCampaign ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"}`}>
+              {/* Campaign list */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Campaigns</h2>
+                  <Button onClick={() => setCreateOpen(true)}>+ New Campaign</Button>
+                </div>
+                {isLoading && <div className="text-center text-muted-foreground py-8">Loading...</div>}
+                {campaigns.length === 0 && !isLoading && (
+                  <div className="text-center py-12 text-muted-foreground border rounded-lg">
+                    <div className="text-4xl mb-3">🚀</div>
+                    <div className="font-medium">No traffic campaigns yet</div>
+                    <div className="text-sm mt-1">Create your first campaign to drive targeted visitors to your content.</div>
+                    <Button className="mt-4" onClick={() => setCreateOpen(true)}>Create Campaign</Button>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {campaigns.map(c => (
+                    <Card
+                      key={c.id}
+                      className={`cursor-pointer hover:border-green-300 transition-colors ${selectedCampaign?.id === c.id ? "border-green-500 bg-green-50/20" : ""}`}
+                      onClick={() => setSelectedCampaign(s => s?.id === c.id ? null : c)}
+                    >
+                      <CardContent className="pt-4 flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">{c.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">{c.destinationUrl}</div>
+                          <div className="flex gap-2 mt-1 flex-wrap">
+                            <Badge className={`text-xs ${STATUS_COLORS[c.status] ?? "bg-gray-100"}`}>{c.status}</Badge>
+                            <Badge variant="outline" className="text-xs">₦{Number(c.budgetNgn).toLocaleString()}</Badge>
+                            <Badge variant="outline" className="text-xs">{c.goal}</Badge>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-lg font-bold text-green-600">{c.totalVisits.toLocaleString()}</div>
+                          <div className="text-xs text-muted-foreground">visits</div>
+                          <Button size="sm" variant="ghost" className="h-6 px-1 text-xs text-red-500 mt-1"
+                            onClick={e => { e.stopPropagation(); if (confirm("Delete this campaign?")) deleteCampaign(c.id); }}>
+                            Delete
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+
+              {/* Campaign detail */}
+              {selectedCampaign && (
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">{selectedCampaign.name}</h2>
+                  <CampaignDetail
+                    campaign={selectedCampaign}
+                    onStatusChange={() => qc.invalidateQueries({ queryKey: ["traffic-campaigns"] })}
+                  />
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* ─── Content Velocity Tab ──────────────────────────────────────── */}
+          <TabsContent value="velocity">
+            <ContentVelocity />
+          </TabsContent>
+
+          {/* ─── Hook Library Tab ──────────────────────────────────────────── */}
+          <TabsContent value="hooks">
+            <HookLibrary />
+          </TabsContent>
+
+          {/* ─── SEO Engine Tab ────────────────────────────────────────────── */}
+          <TabsContent value="seo">
+            <SeoEngine />
+          </TabsContent>
+
+          {/* ─── Growth Dashboard Tab ─────────────────────────────────────── */}
+          <TabsContent value="growth">
+            <GrowthDashboard />
+          </TabsContent>
+        </Tabs>
+
+        <CampaignDialog
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(c) => { setSelectedCampaign(c); qc.invalidateQueries({ queryKey: ["traffic-campaigns"] }); }}
+        />
+      </div>
+    </Layout>
+  );
+}

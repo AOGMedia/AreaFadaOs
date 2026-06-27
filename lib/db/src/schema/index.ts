@@ -7,3 +7,4 @@ export * from "./book-promo";
 export * from "./live-video";
 export * from "./clip-engine";
 export * from "./auto-post";
+export * from "./traffic";
