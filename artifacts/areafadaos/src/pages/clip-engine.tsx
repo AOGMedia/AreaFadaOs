@@ -426,6 +426,12 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
   const { data: clips = [] } = useQuery<Clip[]>({ queryKey: ["clips"], queryFn: () => apiFetch("/clips") });
 
   const [schedForm, setSchedForm] = useState({ clipId: "", accountId: "", scheduledAt: "" });
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkClips, setBulkClips] = useState<number[]>([]);
+  const [bulkAccounts, setBulkAccounts] = useState<number[]>([]);
+  const [bulkStartDate, setBulkStartDate] = useState("");
+  const [bulkTime, setBulkTime] = useState("10:00");
+  const [bulkIntervalDays, setBulkIntervalDays] = useState("1");
 
   const addSchedule = useMutation({
     mutationFn: (body: Record<string, unknown>) => apiFetch("/clip-schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
@@ -433,43 +439,133 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const bulkSchedule = useMutation({
+    mutationFn: (body: Record<string, unknown>) => apiFetch("/clip-schedules/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    onSuccess: (r: { count: number }) => {
+      qc.invalidateQueries({ queryKey: ["clip-schedules-calendar"] });
+      toast({ title: `${r.count} clips scheduled`, description: "Your 30-day content calendar has been populated." });
+      setBulkClips([]); setBulkAccounts([]); setBulkStartDate(""); setBulkMode(false);
+    },
+    onError: (e: Error) => toast({ title: "Bulk schedule failed", description: e.message, variant: "destructive" }),
+  });
+
   const delSchedule = useMutation({
     mutationFn: (id: number) => apiFetch(`/clip-schedules/${id}`, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["clip-schedules-calendar"] }); toast({ title: "Removed from schedule" }); },
   });
 
+  function buildBulkPayload() {
+    if (!bulkStartDate || bulkClips.length === 0 || bulkAccounts.length === 0) return null;
+    const interval = Math.max(1, Number(bulkIntervalDays));
+    const schedules: Array<{ clipId: number; accountId: number; scheduledAt: string }> = [];
+    let dayOffset = 0;
+    for (let ai = 0; ai < bulkAccounts.length; ai++) {
+      for (let ci = 0; ci < bulkClips.length; ci++) {
+        const dt = new Date(`${bulkStartDate}T${bulkTime}:00`);
+        dt.setDate(dt.getDate() + dayOffset * interval);
+        schedules.push({ clipId: bulkClips[ci], accountId: bulkAccounts[ai], scheduledAt: dt.toISOString() });
+        dayOffset++;
+      }
+    }
+    return schedules;
+  }
+
   const days: Date[] = Array.from({ length: 30 }, (_, i) => new Date(today.getTime() + i * 86400000));
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Schedule a Clip</CardTitle></CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3 items-end">
-            <div className="space-y-1 flex-1 min-w-40">
-              <Label>Clip</Label>
-              <Select value={schedForm.clipId} onValueChange={v => setSchedForm(f => ({ ...f, clipId: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select clip" /></SelectTrigger>
-                <SelectContent>{clips.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.label} ({c.format})</SelectItem>)}</SelectContent>
-              </Select>
+      <div className="flex gap-2">
+        <Button variant={!bulkMode ? "default" : "outline"} size="sm" onClick={() => setBulkMode(false)}>Single Schedule</Button>
+        <Button variant={bulkMode ? "default" : "outline"} size="sm" onClick={() => setBulkMode(true)}>Bulk Schedule (30-day)</Button>
+      </div>
+
+      {!bulkMode ? (
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base">Schedule a Clip</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3 items-end">
+              <div className="space-y-1 flex-1 min-w-40">
+                <Label>Clip</Label>
+                <Select value={schedForm.clipId} onValueChange={v => setSchedForm(f => ({ ...f, clipId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select clip" /></SelectTrigger>
+                  <SelectContent>{clips.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.label} ({c.format})</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 flex-1 min-w-40">
+                <Label>Account</Label>
+                <Select value={schedForm.accountId} onValueChange={v => setSchedForm(f => ({ ...f, accountId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                  <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Date & Time</Label>
+                <Input type="datetime-local" value={schedForm.scheduledAt} onChange={e => setSchedForm(f => ({ ...f, scheduledAt: e.target.value }))} />
+              </div>
+              <Button onClick={() => addSchedule.mutate({ clipId: Number(schedForm.clipId), accountId: Number(schedForm.accountId), scheduledAt: new Date(schedForm.scheduledAt).toISOString() })} disabled={addSchedule.isPending || !schedForm.clipId || !schedForm.accountId || !schedForm.scheduledAt}>
+                Schedule
+              </Button>
             </div>
-            <div className="space-y-1 flex-1 min-w-40">
-              <Label>Account</Label>
-              <Select value={schedForm.accountId} onValueChange={v => setSchedForm(f => ({ ...f, accountId: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                <SelectContent>{accounts.map(a => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}</SelectContent>
-              </Select>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Bulk Schedule — Populate 30 Days</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Select clips and accounts. Each clip×account combination is assigned one slot, spaced by the interval you set, starting from your chosen date.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select Clips</Label>
+              <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-muted/30">
+                {clips.length === 0 && <p className="text-xs text-muted-foreground">No clips available. Generate some from the Pipeline tab first.</p>}
+                {clips.map(c => (
+                  <button key={c.id} onClick={() => setBulkClips(prev => prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id])}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${bulkClips.includes(c.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:border-primary"}`}>
+                    {c.label} <span className="opacity-60">({c.format})</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label>Date & Time</Label>
-              <Input type="datetime-local" value={schedForm.scheduledAt} onChange={e => setSchedForm(f => ({ ...f, scheduledAt: e.target.value }))} />
+            <div className="space-y-2">
+              <Label>Select Accounts</Label>
+              <div className="flex flex-wrap gap-2 p-3 border rounded-lg bg-muted/30">
+                {accounts.map(a => (
+                  <button key={a.id} onClick={() => setBulkAccounts(prev => prev.includes(a.id) ? prev.filter(x => x !== a.id) : [...prev, a.id])}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border-2`}
+                    style={{ borderColor: a.color, backgroundColor: bulkAccounts.includes(a.id) ? a.color : undefined, color: bulkAccounts.includes(a.id) ? "white" : undefined }}>
+                    {a.name}
+                  </button>
+                ))}
+              </div>
             </div>
-            <Button onClick={() => addSchedule.mutate({ clipId: Number(schedForm.clipId), accountId: Number(schedForm.accountId), scheduledAt: new Date(schedForm.scheduledAt).toISOString() })} disabled={addSchedule.isPending || !schedForm.clipId || !schedForm.accountId || !schedForm.scheduledAt}>
-              Schedule
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label>Start Date</Label>
+                <Input type="date" value={bulkStartDate} onChange={e => setBulkStartDate(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Post Time</Label>
+                <Input type="time" value={bulkTime} onChange={e => setBulkTime(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label>Interval (days)</Label>
+                <Input type="number" min="1" max="7" value={bulkIntervalDays} onChange={e => setBulkIntervalDays(e.target.value)} />
+              </div>
+            </div>
+            {bulkClips.length > 0 && bulkAccounts.length > 0 && bulkStartDate && (
+              <div className="p-3 rounded-lg bg-muted text-xs space-y-1">
+                <p className="font-medium">Preview: {bulkClips.length} clips × {bulkAccounts.length} accounts = <strong>{bulkClips.length * bulkAccounts.length} scheduled posts</strong></p>
+                <p className="text-muted-foreground">Starting {bulkStartDate} at {bulkTime}, one post every {bulkIntervalDays} day(s) per account.</p>
+              </div>
+            )}
+            <Button className="w-full" onClick={() => { const s = buildBulkPayload(); if (s) bulkSchedule.mutate({ schedules: s }); }}
+              disabled={bulkSchedule.isPending || !bulkStartDate || bulkClips.length === 0 || bulkAccounts.length === 0}>
+              {bulkSchedule.isPending ? "Scheduling…" : `Schedule ${bulkClips.length * bulkAccounts.length || 0} Posts`}
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-1">
         <p className="text-sm font-medium">30-Day Content Calendar</p>

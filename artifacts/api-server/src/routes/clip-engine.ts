@@ -301,6 +301,20 @@ router.post("/clips", ...requireClip, async (req: any, res): Promise<void> => {
     if (!sourceVideoId || !label || startSeconds === undefined || endSeconds === undefined) {
       res.status(400).json({ error: "sourceVideoId, label, startSeconds, endSeconds required" }); return;
     }
+    // Validate foreign key ownership before insert
+    const [ownedVideo] = await db.select({ id: sourceVideosTable.id }).from(sourceVideosTable)
+      .where(and(eq(sourceVideosTable.id, Number(sourceVideoId)), eq(sourceVideosTable.userId, user.id)));
+    if (!ownedVideo) { res.status(403).json({ error: "Source video not found or not owned by you" }); return; }
+    if (accountId) {
+      const [ownedAcct] = await db.select({ id: clipAccountsTable.id }).from(clipAccountsTable)
+        .where(and(eq(clipAccountsTable.id, Number(accountId)), eq(clipAccountsTable.userId, user.id)));
+      if (!ownedAcct) { res.status(403).json({ error: "Clip account not found or not owned by you" }); return; }
+    }
+    if (jobId) {
+      const [ownedJob] = await db.select({ id: clipJobsTable.id }).from(clipJobsTable)
+        .where(and(eq(clipJobsTable.id, Number(jobId)), eq(clipJobsTable.userId, user.id)));
+      if (!ownedJob) { res.status(403).json({ error: "Clip job not found or not owned by you" }); return; }
+    }
     const [clip] = await db.insert(clipsTable).values({ userId: user.id, sourceVideoId, accountId, jobId, label, startSeconds, endSeconds, format: format ?? "9:16", captionTone: captionTone ?? "african_english", captionText, hashtags: hashtags ?? [], coverFrameTime: coverFrameTime ?? startSeconds }).returning();
     res.status(201).json(clip);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to create clip" }); }
@@ -408,20 +422,55 @@ router.post("/source-videos/:id/distribute", ...requireClip, async (req: any, re
     const tones = ["african_english", "pidgin", "yoruba", "hausa"];
     const formats = ["9:16", "1:1", "16:9"];
 
-    const created: Array<{ accountId: number; accountName: string; clipId: number; momentLabel: string; format: string; tone: string }> = [];
+    // Hashtag pools per tone/language for differentiation
+    const hashtagsByTone: Record<string, string[]> = {
+      african_english: ["#NigeriaYouth", "#AreaFada", "#AfricanCreators", "#NaijaContent", "#MadeInNigeria"],
+      pidgin: ["#NaijaVibes", "#PidginNation", "#AreaFada", "#NaijaStreet", "#NaijaTalk"],
+      yoruba: ["#YorubaTwitter", "#OmoYoruba", "#AreaFada", "#NaijaCulture", "#LagosLife"],
+      hausa: ["#NorthNigeria", "#ArewaSocial", "#AreaFada", "#HausaCommunity", "#Arewa"],
+    };
+
+    // CTA variants per tone
+    const ctaByTone: Record<string, string[]> = {
+      african_english: ["Follow for more", "Watch the full episode", "Share with your network", "Subscribe now", "Comment your thoughts"],
+      pidgin: ["Abeg share am", "Follow follow", "Watch the full thing", "Tell person", "Repost make dem see"],
+      yoruba: ["Share fun ara ẹ", "Tẹle wa", "Gbọ gbogbo rẹ", "Pín kiri", "Jẹ ki a mọ"],
+      hausa: ["Raba wannan", "Bimu don kari", "Kalli dukkan shi", "Fadawa mutane", "Bayar da ra'ayi"],
+    };
+
+    const created: Array<{ accountId: number; accountName: string; clipId: number; momentLabel: string; format: string; tone: string; startSeconds: number; endSeconds: number }> = [];
 
     for (let i = 0; i < targetAccounts.length; i++) {
       const account = targetAccounts[i];
-      // Rotate moment index so no two accounts get the same clip
+      // Rotate moment index — cycle through all moments before repeating (guarantees variety)
       const momentIdx = i % moments.length;
       const moment = moments[momentIdx];
+
       // Vary format per account
       const format = (moment.suggestedFormats?.[i % (moment.suggestedFormats?.length ?? 1)] ?? formats[i % formats.length]) as string;
+
       // Vary caption tone — prefer account's persona tone, else rotate
       const personaTone = (account.personaProfile as Record<string, string>)?.tone;
       const tone = personaTone && tones.includes(personaTone) ? personaTone : tones[i % tones.length];
-      // Vary cover frame slightly per account
-      const coverFrameTime = moment.startSeconds + Math.floor((moment.endSeconds - moment.startSeconds) * (0.1 + (i * 0.15) % 0.7));
+
+      // Vary clip length: each account gets a different window within the moment (±10% jitter)
+      const momentDuration = moment.endSeconds - moment.startSeconds;
+      const jitterFraction = 0.05 * ((i % 4) - 1.5); // -7.5%, -2.5%, +2.5%, +7.5% rotation
+      const jitterSeconds = Math.round(momentDuration * jitterFraction);
+      const startSeconds = Math.max(moment.startSeconds, moment.startSeconds + jitterSeconds);
+      const endSeconds = Math.min(moment.endSeconds, moment.endSeconds + jitterSeconds);
+
+      // Vary cover frame per account across the clip window
+      const coverFrameTime = startSeconds + Math.floor((endSeconds - startSeconds) * (0.1 + (i * 0.15) % 0.7));
+
+      // Vary hashtags: pick 3 from tone-specific pool, offset by account index
+      const pool = hashtagsByTone[tone] ?? hashtagsByTone.african_english;
+      const hashtags = [pool[(i) % pool.length], pool[(i + 1) % pool.length], pool[(i + 2) % pool.length]];
+
+      // Vary CTA
+      const ctaPool = ctaByTone[tone] ?? ctaByTone.african_english;
+      const cta = ctaPool[i % ctaPool.length];
+      const captionText = `${moment.suggestedCaption} ${cta} 👇`;
 
       const [clip] = await db.insert(clipsTable).values({
         userId: user.id,
@@ -429,17 +478,17 @@ router.post("/source-videos/:id/distribute", ...requireClip, async (req: any, re
         accountId: account.id,
         jobId: job.id,
         label: moment.label,
-        startSeconds: moment.startSeconds,
-        endSeconds: moment.endSeconds,
+        startSeconds,
+        endSeconds,
         format,
         captionTone: tone,
-        captionText: moment.suggestedCaption,
-        hashtags: [],
+        captionText,
+        hashtags,
         coverFrameTime,
         status: "draft",
       }).returning();
 
-      created.push({ accountId: account.id, accountName: account.name, clipId: clip.id, momentLabel: moment.label, format, tone });
+      created.push({ accountId: account.id, accountName: account.name, clipId: clip.id, momentLabel: moment.label, format, tone, startSeconds, endSeconds });
     }
 
     res.json({ message: `Distributed across ${created.length} accounts with unique clip/format/tone combinations`, distributed: created });
@@ -540,8 +589,17 @@ router.post("/clip-schedules", ...requireClip, async (req: any, res): Promise<vo
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const { clipId, accountId, scheduledAt } = req.body;
     if (!clipId || !accountId || !scheduledAt) { res.status(400).json({ error: "clipId, accountId, scheduledAt required" }); return; }
+    // Validate that clipId and accountId belong to this user before insert
+    const [ownedClip] = await db.select({ id: clipsTable.id }).from(clipsTable)
+      .where(and(eq(clipsTable.id, Number(clipId)), eq(clipsTable.userId, user.id)));
+    if (!ownedClip) { res.status(403).json({ error: "Clip not found or not owned by you" }); return; }
+    const [ownedAcct] = await db.select({ id: clipAccountsTable.id }).from(clipAccountsTable)
+      .where(and(eq(clipAccountsTable.id, Number(accountId)), eq(clipAccountsTable.userId, user.id)));
+    if (!ownedAcct) { res.status(403).json({ error: "Clip account not found or not owned by you" }); return; }
     const [schedule] = await db.insert(clipSchedulesTable).values({ userId: user.id, clipId, accountId, scheduledAt: new Date(scheduledAt) }).returning();
-    await db.update(clipAccountsTable).set({ queueCount: sql`${clipAccountsTable.queueCount} + 1`, updatedAt: new Date() }).where(eq(clipAccountsTable.id, accountId));
+    // Scope queueCount increment to this user's account only (prevents cross-tenant mutation)
+    await db.update(clipAccountsTable).set({ queueCount: sql`${clipAccountsTable.queueCount} + 1`, updatedAt: new Date() })
+      .where(and(eq(clipAccountsTable.id, Number(accountId)), eq(clipAccountsTable.userId, user.id)));
     res.status(201).json(schedule);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to create schedule" }); }
 });
@@ -552,6 +610,19 @@ router.post("/clip-schedules/bulk", ...requireClip, async (req: any, res): Promi
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const { schedules } = req.body;
     if (!Array.isArray(schedules) || schedules.length === 0) { res.status(400).json({ error: "schedules array required" }); return; }
+
+    // Validate that all referenced clips and accounts belong to this user
+    const clipIds = [...new Set(schedules.map((s: { clipId: number }) => Number(s.clipId)))];
+    const accountIds = [...new Set(schedules.map((s: { accountId: number }) => Number(s.accountId)))];
+    const ownedClips = await db.select({ id: clipsTable.id }).from(clipsTable).where(eq(clipsTable.userId, user.id));
+    const ownedAccts = await db.select({ id: clipAccountsTable.id }).from(clipAccountsTable).where(eq(clipAccountsTable.userId, user.id));
+    const ownedClipIds = new Set(ownedClips.map(c => c.id));
+    const ownedAcctIds = new Set(ownedAccts.map(a => a.id));
+    const unauthorizedClip = clipIds.find(id => !ownedClipIds.has(id));
+    if (unauthorizedClip) { res.status(403).json({ error: `Clip ${unauthorizedClip} not found or not owned by you` }); return; }
+    const unauthorizedAcct = accountIds.find(id => !ownedAcctIds.has(id));
+    if (unauthorizedAcct) { res.status(403).json({ error: `Clip account ${unauthorizedAcct} not found or not owned by you` }); return; }
+
     const rows = schedules.map((s: { clipId: number; accountId: number; scheduledAt: string }) => ({
       userId: user.id, clipId: s.clipId, accountId: s.accountId, scheduledAt: new Date(s.scheduledAt),
     }));
@@ -668,18 +739,25 @@ router.get("/clip-performance/summary", ...requireClip, async (req: any, res): P
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const logs = await db.select().from(clipPerformanceLogsTable).where(eq(clipPerformanceLogsTable.userId, user.id));
-    const clips = await db.select().from(clipsTable).where(eq(clipsTable.userId, user.id)).orderBy(desc(clipsTable.performanceScore)).limit(10);
+    // Fetch ALL clips for correct byFormat aggregation (not just top-10 subset)
+    const allClips = await db.select().from(clipsTable).where(eq(clipsTable.userId, user.id));
+    const topClips = [...allClips].sort((a, b) => Number(b.performanceScore ?? 0) - Number(a.performanceScore ?? 0)).slice(0, 10);
 
     const totals = logs.reduce((acc, l) => ({ views: acc.views + l.views, shares: acc.shares + l.shares, saves: acc.saves + l.saves, comments: acc.comments + l.comments, watchTime: acc.watchTime + l.watchTimeSeconds }), { views: 0, shares: 0, saves: 0, comments: 0, watchTime: 0 });
 
+    // Correct weighted average: accumulate totalScore then divide by count at the end
+    const byFormatAcc: Record<string, { count: number; totalScore: number }> = {};
+    for (const c of allClips) {
+      if (!byFormatAcc[c.format]) byFormatAcc[c.format] = { count: 0, totalScore: 0 };
+      byFormatAcc[c.format].count++;
+      byFormatAcc[c.format].totalScore += Number(c.performanceScore ?? 0);
+    }
     const byFormat: Record<string, { count: number; avgScore: number }> = {};
-    for (const c of clips) {
-      if (!byFormat[c.format]) byFormat[c.format] = { count: 0, avgScore: 0 };
-      byFormat[c.format].count++;
-      byFormat[c.format].avgScore = (byFormat[c.format].avgScore + Number(c.performanceScore ?? 0)) / byFormat[c.format].count;
+    for (const [fmt, agg] of Object.entries(byFormatAcc)) {
+      byFormat[fmt] = { count: agg.count, avgScore: agg.count > 0 ? agg.totalScore / agg.count : 0 };
     }
 
-    res.json({ totals, topClips: clips, byFormat, totalClips: clips.length });
+    res.json({ totals, topClips, byFormat, totalClips: allClips.length });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to fetch performance summary" }); }
 });
 
