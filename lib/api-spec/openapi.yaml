@@ -3,20 +3,24 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AreaFada OS API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: User profile and subscription management
+  - name: dashboard
+    description: Dashboard summary and activity
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +28,78 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /users/me:
+    get:
+      operationId: getMe
+      tags: [users]
+      summary: Get current user profile
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+    patch:
+      operationId: updateMe
+      tags: [users]
+      summary: Update current user profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserProfileUpdate"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /users/me/tier:
+    get:
+      operationId: getMyTier
+      tags: [users]
+      summary: Get current user subscription tier details
+      responses:
+        "200":
+          description: Tier info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TierInfo"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard stats summary for current user
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/activity:
+    get:
+      operationId: getDashboardActivity
+      tags: [dashboard]
+      summary: Get recent activity feed for current user
+      responses:
+        "200":
+          description: Activity feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +110,131 @@ components:
       required:
         - status
 
+    SubscriptionTier:
+      type: string
+      enum: [free, creator, brand, agency, enterprise]
+
+    UserProfile:
+      type: object
+      required: [id, clerkId, email, displayName, tier, createdAt]
+      properties:
+        id:
+          type: integer
+        clerkId:
+          type: string
+        email:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        tier:
+          $ref: "#/components/schemas/SubscriptionTier"
+        bio:
+          type: ["string", "null"]
+        country:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+
+    UserProfileUpdate:
+      type: object
+      properties:
+        displayName:
+          type: string
+        bio:
+          type: string
+        country:
+          type: string
+        avatarUrl:
+          type: string
+
+    TierInfo:
+      type: object
+      required: [tier, tierName, monthlyPrice, features, moduleAccess]
+      properties:
+        tier:
+          $ref: "#/components/schemas/SubscriptionTier"
+        tierName:
+          type: string
+        monthlyPrice:
+          type: ["number", "null"]
+        features:
+          type: array
+          items:
+            type: string
+        moduleAccess:
+          type: object
+          properties:
+            scheduling:
+              type: boolean
+            monetization:
+              type: boolean
+            analytics:
+              type: boolean
+            ambassadorCrm:
+              type: boolean
+            bookPromo:
+              type: boolean
+            liveVideo:
+              type: boolean
+            clipEngine:
+              type: boolean
+            autoPost:
+              type: boolean
+            trafficTools:
+              type: boolean
+            fanHub:
+              type: boolean
+            campaignIntelligence:
+              type: boolean
+          required:
+            - scheduling
+            - monetization
+            - analytics
+            - ambassadorCrm
+            - bookPromo
+            - liveVideo
+            - clipEngine
+            - autoPost
+            - trafficTools
+            - fanHub
+            - campaignIntelligence
+
+    DashboardSummary:
+      type: object
+      required: [postsScheduled, revenueThisMonth, activeBrandDeals, ambassadorCount, fanHubMembers, totalReach]
+      properties:
+        postsScheduled:
+          type: integer
+        revenueThisMonth:
+          type: number
+        activeBrandDeals:
+          type: integer
+        ambassadorCount:
+          type: integer
+        fanHubMembers:
+          type: integer
+        totalReach:
+          type: integer
+        platformsConnected:
+          type: integer
+        aiCaptionsGenerated:
+          type: integer
+
+    ActivityItem:
+      type: object
+      required: [id, type, description, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        description:
+          type: string
+        metadata:
+          type: ["object", "null"]
+        createdAt:
+          type: string
+          format: date-time
