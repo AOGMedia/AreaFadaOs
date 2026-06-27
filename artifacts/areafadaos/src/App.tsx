@@ -18,6 +18,7 @@ import { AmbassadorsPage } from "@/pages/ambassadors";
 import { BookPromoPage } from "@/pages/book-promo";
 import { LiveVideoPage } from "@/pages/live-video";
 import { LiveSessionSignupPage } from "@/pages/live-session-signup";
+import { ClipEnginePage } from "@/pages/clip-engine";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -88,13 +89,6 @@ const clerkAppearance = {
   },
 };
 
-const ClipEnginePage = createModulePage({
-  title: "Clip Engine",
-  description: "Auto-clip highlights from live sessions and long-form content into shareable TikTok/Reels-ready clips.",
-  icon: "✂️",
-  moduleKey: "clipEngine",
-  requiredTier: "brand",
-});
 
 const TrafficPage = createModulePage({
   title: "Traffic Engine",

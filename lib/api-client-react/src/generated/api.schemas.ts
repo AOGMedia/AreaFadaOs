@@ -1215,6 +1215,333 @@ export interface LiveNotificationEvent {
   createdAt: string;
 }
 
+export type ClipAccountPersonaProfile = { [key: string]: unknown };
+
+export interface ClipAccount {
+  id: number;
+  userId: number;
+  name: string;
+  platform: string;
+  handle: string;
+  personaLabel: string;
+  personaProfile?: ClipAccountPersonaProfile;
+  color: string;
+  queueCount: number;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type CreateClipAccountRequestPersonaProfile = { [key: string]: unknown };
+
+export interface CreateClipAccountRequest {
+  name: string;
+  platform: string;
+  handle: string;
+  personaLabel?: string;
+  personaProfile?: CreateClipAccountRequestPersonaProfile;
+  color?: string;
+  status?: string;
+}
+
+export interface SourceVideo {
+  id: number;
+  userId: number;
+  title: string;
+  description?: string;
+  url: string;
+  durationSeconds?: number;
+  transcript?: string;
+  analysisStatus: string;
+  createdAt: string;
+}
+
+export interface CreateSourceVideoRequest {
+  title: string;
+  description?: string;
+  url: string;
+  durationSeconds?: number;
+  transcript?: string;
+}
+
+export interface DetectedMoment {
+  label: string;
+  startSeconds: number;
+  endSeconds: number;
+  retentionScore: number;
+  suggestedFormats: string[];
+  suggestedCaption: string;
+}
+
+export type ClipJobStatus = typeof ClipJobStatus[keyof typeof ClipJobStatus];
+
+
+export const ClipJobStatus = {
+  pending: 'pending',
+  running: 'running',
+  completed: 'completed',
+  failed: 'failed',
+} as const;
+
+export interface ClipJob {
+  id: number;
+  userId: number;
+  sourceVideoId: number;
+  status: ClipJobStatus;
+  momentsDetected: DetectedMoment[];
+  errorMessage?: string;
+  completedAt?: string;
+  createdAt: string;
+}
+
+export interface AnalyzeVideoResponse {
+  jobId: number;
+  momentsDetected: DetectedMoment[];
+  count: number;
+}
+
+export interface DistributeVideoRequest {
+  accountIds: number[];
+  jobId?: number;
+}
+
+export type DistributeVideoResponseDistributedItem = {
+  accountId?: number;
+  accountName?: string;
+  clipId?: number;
+  momentLabel?: string;
+  format?: string;
+  tone?: string;
+};
+
+export interface DistributeVideoResponse {
+  message: string;
+  distributed: DistributeVideoResponseDistributedItem[];
+}
+
+export type ClipFormat = typeof ClipFormat[keyof typeof ClipFormat];
+
+
+export const ClipFormat = {
+  '9:16': '9:16',
+  '1:1': '1:1',
+  '16:9': '16:9',
+} as const;
+
+export type ClipCaptionTone = typeof ClipCaptionTone[keyof typeof ClipCaptionTone];
+
+
+export const ClipCaptionTone = {
+  african_english: 'african_english',
+  pidgin: 'pidgin',
+  yoruba: 'yoruba',
+  hausa: 'hausa',
+} as const;
+
+export type ClipStatus = typeof ClipStatus[keyof typeof ClipStatus];
+
+
+export const ClipStatus = {
+  draft: 'draft',
+  ready: 'ready',
+  scheduled: 'scheduled',
+  published: 'published',
+  failed: 'failed',
+} as const;
+
+export interface Clip {
+  id: number;
+  userId: number;
+  sourceVideoId: number;
+  accountId?: number;
+  jobId?: number;
+  label: string;
+  startSeconds: number;
+  endSeconds: number;
+  format: ClipFormat;
+  captionTone: ClipCaptionTone;
+  captionText?: string;
+  hashtags: string[];
+  coverFrameTime: number;
+  status: ClipStatus;
+  performanceScore?: string;
+  collabEnabled: boolean;
+  collabAccountId?: number;
+  watermarkApplied: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateClipRequest {
+  sourceVideoId: number;
+  accountId?: number;
+  jobId?: number;
+  label: string;
+  startSeconds: number;
+  endSeconds: number;
+  format?: string;
+  captionTone?: string;
+  captionText?: string;
+  hashtags?: string[];
+  coverFrameTime?: number;
+}
+
+export interface UpdateClipRequest {
+  label?: string;
+  format?: string;
+  captionTone?: string;
+  captionText?: string;
+  hashtags?: string[];
+  status?: string;
+  coverFrameTime?: number;
+  collabEnabled?: boolean;
+  collabAccountId?: number;
+  watermarkApplied?: boolean;
+  accountId?: number;
+}
+
+export interface CaptionVariant {
+  caption: string;
+  hashtags: string[];
+  cta: string;
+}
+
+export type GenerateCaptionResponseCaptions = {[key: string]: CaptionVariant};
+
+export interface GenerateCaptionResponse {
+  clipId: number;
+  captions: GenerateCaptionResponseCaptions;
+}
+
+export interface CollabRequest {
+  collabAccountId: number;
+  scheduledAt?: string;
+}
+
+export interface CollabResponse {
+  message: string;
+  originalClipId: number;
+  collabClipId: number;
+  collabAccount: string;
+}
+
+export type ClipScheduleStatus = typeof ClipScheduleStatus[keyof typeof ClipScheduleStatus];
+
+
+export const ClipScheduleStatus = {
+  scheduled: 'scheduled',
+  posted: 'posted',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ClipSchedule {
+  id: number;
+  userId: number;
+  clipId: number;
+  accountId: number;
+  scheduledAt: string;
+  status: ClipScheduleStatus;
+  postedAt?: string;
+  createdAt: string;
+}
+
+export interface CreateClipScheduleRequest {
+  clipId: number;
+  accountId: number;
+  scheduledAt: string;
+}
+
+export interface UpdateClipScheduleRequest {
+  scheduledAt?: string;
+  status?: string;
+  accountId?: number;
+}
+
+export interface CalendarEntry {
+  schedule: ClipSchedule;
+  clip?: Clip;
+  account?: ClipAccount;
+}
+
+export interface BulkScheduleRequest {
+  schedules: CreateClipScheduleRequest[];
+}
+
+export interface BulkScheduleResponse {
+  count: number;
+  schedules: ClipSchedule[];
+}
+
+export interface BrandOverlayConfig {
+  id: number;
+  userId: number;
+  accountId: number;
+  watermarkUrl?: string;
+  watermarkPosition: string;
+  watermarkOpacity: string;
+  introBumperUrl?: string;
+  endCardTemplate: string;
+  endCardText?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateBrandOverlayConfigRequest {
+  accountId: number;
+  watermarkUrl?: string;
+  watermarkPosition?: string;
+  watermarkOpacity?: number;
+  introBumperUrl?: string;
+  endCardTemplate?: string;
+  endCardText?: string;
+}
+
+export interface ClipPerformanceLog {
+  id: number;
+  userId: number;
+  clipId: number;
+  accountId: number;
+  views: number;
+  shares: number;
+  comments: number;
+  saves: number;
+  watchTimeSeconds: number;
+  source: string;
+  recordedAt: string;
+  createdAt: string;
+}
+
+export interface LogClipPerformanceRequest {
+  clipId: number;
+  accountId: number;
+  views?: number;
+  shares?: number;
+  comments?: number;
+  saves?: number;
+  watchTimeSeconds?: number;
+  source?: string;
+}
+
+export type ClipPerformanceSummaryTotals = {
+  views?: number;
+  shares?: number;
+  saves?: number;
+  comments?: number;
+  watchTime?: number;
+};
+
+export type ClipPerformanceSummaryByFormat = {[key: string]: {
+  count?: number;
+  avgScore?: number;
+}};
+
+export interface ClipPerformanceSummary {
+  totals: ClipPerformanceSummaryTotals;
+  topClips: Clip[];
+  byFormat: ClipPerformanceSummaryByFormat;
+  totalClips: number;
+}
+
 export type ListPostsParams = {
 status?: ListPostsStatus;
 campaignId?: number;
@@ -1488,5 +1815,34 @@ export type CheckChatModeration200 = {
 
 export type ListNotificationEventsParams = {
 sessionId?: number;
+};
+
+export type ListClipsParams = {
+accountId?: number;
+sourceVideoId?: number;
+status?: string;
+};
+
+export type GenerateClipCaptionBody = {
+  tones?: string[];
+};
+
+export type ListClipSchedulesParams = {
+accountId?: number;
+from?: string;
+to?: string;
+};
+
+export type GetClipScheduleCalendarParams = {
+from?: string;
+};
+
+export type ListBrandOverlayConfigsParams = {
+accountId?: number;
+};
+
+export type ListClipPerformanceParams = {
+clipId?: number;
+accountId?: number;
 };
 

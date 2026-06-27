@@ -5,3 +5,4 @@ export * from "./analytics";
 export * from "./ambassadors";
 export * from "./book-promo";
 export * from "./live-video";
+export * from "./clip-engine";

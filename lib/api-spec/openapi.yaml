@@ -2295,6 +2295,570 @@ paths:
                 items:
                   $ref: "#/components/schemas/LiveNotificationEvent"
 
+  /clip-accounts:
+    get:
+      operationId: listClipAccounts
+      tags: [clip-engine]
+      summary: List all clip accounts for the user
+      responses:
+        "200":
+          description: List of clip accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClipAccount"
+    post:
+      operationId: createClipAccount
+      tags: [clip-engine]
+      summary: Create a new clip account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClipAccountRequest"
+      responses:
+        "201":
+          description: Created clip account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipAccount"
+
+  /clip-accounts/{id}:
+    patch:
+      operationId: updateClipAccount
+      tags: [clip-engine]
+      summary: Update a clip account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClipAccountRequest"
+      responses:
+        "200":
+          description: Updated clip account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipAccount"
+    delete:
+      operationId: deleteClipAccount
+      tags: [clip-engine]
+      summary: Delete a clip account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /source-videos:
+    get:
+      operationId: listSourceVideos
+      tags: [clip-engine]
+      summary: List source videos
+      responses:
+        "200":
+          description: List of source videos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SourceVideo"
+    post:
+      operationId: createSourceVideo
+      tags: [clip-engine]
+      summary: Add a source video
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSourceVideoRequest"
+      responses:
+        "201":
+          description: Created source video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceVideo"
+
+  /source-videos/{id}:
+    get:
+      operationId: getSourceVideo
+      tags: [clip-engine]
+      summary: Get a source video by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Source video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceVideo"
+
+  /source-videos/{id}/analyze:
+    post:
+      operationId: analyzeSourceVideo
+      tags: [clip-engine]
+      summary: Run AI moment detection on a source video
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Detected moments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyzeVideoResponse"
+
+  /source-videos/{id}/distribute:
+    post:
+      operationId: distributeSourceVideo
+      tags: [clip-engine]
+      summary: Distribute source video across accounts with content differentiation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DistributeVideoRequest"
+      responses:
+        "200":
+          description: Distribution result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DistributeVideoResponse"
+
+  /clip-jobs:
+    get:
+      operationId: listClipJobs
+      tags: [clip-engine]
+      summary: List AI clip analysis jobs
+      responses:
+        "200":
+          description: List of clip jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClipJob"
+
+  /clip-jobs/{id}:
+    get:
+      operationId: getClipJob
+      tags: [clip-engine]
+      summary: Get a clip job by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Clip job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipJob"
+
+  /clips:
+    get:
+      operationId: listClips
+      tags: [clip-engine]
+      summary: List clips with optional filters
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: integer
+        - name: sourceVideoId
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of clips
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Clip"
+    post:
+      operationId: createClip
+      tags: [clip-engine]
+      summary: Create a clip manually
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClipRequest"
+      responses:
+        "201":
+          description: Created clip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clip"
+
+  /clips/{id}:
+    patch:
+      operationId: updateClip
+      tags: [clip-engine]
+      summary: Update a clip
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClipRequest"
+      responses:
+        "200":
+          description: Updated clip
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Clip"
+
+  /clips/{id}/generate-caption:
+    post:
+      operationId: generateClipCaption
+      tags: [clip-engine]
+      summary: Generate AI captions in multiple tones for a clip
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tones:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Generated captions per tone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateCaptionResponse"
+
+  /clips/{id}/collab:
+    post:
+      operationId: enableClipCollab
+      tags: [clip-engine]
+      summary: Enable collab mode — queue the clip from a second account simultaneously
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollabRequest"
+      responses:
+        "200":
+          description: Collab enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollabResponse"
+
+  /clip-schedules:
+    get:
+      operationId: listClipSchedules
+      tags: [clip-engine]
+      summary: List clip schedules
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: integer
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: List of clip schedules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClipSchedule"
+    post:
+      operationId: createClipSchedule
+      tags: [clip-engine]
+      summary: Schedule a clip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClipScheduleRequest"
+      responses:
+        "201":
+          description: Created schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipSchedule"
+
+  /clip-schedules/calendar:
+    get:
+      operationId: getClipScheduleCalendar
+      tags: [clip-engine]
+      summary: Get 30-day clip scheduling calendar
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Calendar entries with clip and account details
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEntry"
+
+  /clip-schedules/bulk:
+    post:
+      operationId: bulkCreateClipSchedules
+      tags: [clip-engine]
+      summary: Bulk schedule clips across accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkScheduleRequest"
+      responses:
+        "201":
+          description: Bulk schedule result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkScheduleResponse"
+
+  /clip-schedules/{id}:
+    patch:
+      operationId: updateClipSchedule
+      tags: [clip-engine]
+      summary: Update a clip schedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClipScheduleRequest"
+      responses:
+        "200":
+          description: Updated schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipSchedule"
+    delete:
+      operationId: deleteClipSchedule
+      tags: [clip-engine]
+      summary: Delete a clip schedule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /brand-overlay-configs:
+    get:
+      operationId: listBrandOverlayConfigs
+      tags: [clip-engine]
+      summary: List brand overlay configs
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of brand overlay configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrandOverlayConfig"
+    post:
+      operationId: createBrandOverlayConfig
+      tags: [clip-engine]
+      summary: Create a brand overlay config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrandOverlayConfigRequest"
+      responses:
+        "201":
+          description: Created brand overlay config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandOverlayConfig"
+
+  /brand-overlay-configs/{id}:
+    patch:
+      operationId: updateBrandOverlayConfig
+      tags: [clip-engine]
+      summary: Update a brand overlay config
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrandOverlayConfigRequest"
+      responses:
+        "200":
+          description: Updated brand overlay config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandOverlayConfig"
+
+  /clip-performance:
+    get:
+      operationId: listClipPerformance
+      tags: [clip-engine]
+      summary: List clip performance logs
+      parameters:
+        - name: clipId
+          in: query
+          schema:
+            type: integer
+        - name: accountId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of performance logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ClipPerformanceLog"
+    post:
+      operationId: logClipPerformance
+      tags: [clip-engine]
+      summary: Log clip performance data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogClipPerformanceRequest"
+      responses:
+        "201":
+          description: Created performance log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipPerformanceLog"
+
+  /clip-performance/summary:
+    get:
+      operationId: getClipPerformanceSummary
+      tags: [clip-engine]
+      summary: Get clip performance summary and top clips
+      responses:
+        "200":
+          description: Performance summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClipPerformanceSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -4288,3 +4852,555 @@ components:
         createdAt:
           type: string
           format: date-time
+
+    ClipAccount:
+      type: object
+      required: [id, userId, name, platform, handle, personaLabel, color, queueCount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        platform:
+          type: string
+        handle:
+          type: string
+        personaLabel:
+          type: string
+        personaProfile:
+          type: object
+          additionalProperties: true
+        color:
+          type: string
+        queueCount:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateClipAccountRequest:
+      type: object
+      required: [name, platform, handle]
+      properties:
+        name:
+          type: string
+        platform:
+          type: string
+        handle:
+          type: string
+        personaLabel:
+          type: string
+        personaProfile:
+          type: object
+          additionalProperties: true
+        color:
+          type: string
+        status:
+          type: string
+
+    SourceVideo:
+      type: object
+      required: [id, userId, title, url, analysisStatus, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        durationSeconds:
+          type: integer
+        transcript:
+          type: string
+        analysisStatus:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateSourceVideoRequest:
+      type: object
+      required: [title, url]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        url:
+          type: string
+        durationSeconds:
+          type: integer
+        transcript:
+          type: string
+
+    DetectedMoment:
+      type: object
+      required: [label, startSeconds, endSeconds, retentionScore, suggestedFormats, suggestedCaption]
+      properties:
+        label:
+          type: string
+        startSeconds:
+          type: integer
+        endSeconds:
+          type: integer
+        retentionScore:
+          type: integer
+        suggestedFormats:
+          type: array
+          items:
+            type: string
+        suggestedCaption:
+          type: string
+
+    ClipJob:
+      type: object
+      required: [id, userId, sourceVideoId, status, momentsDetected, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        sourceVideoId:
+          type: integer
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        momentsDetected:
+          type: array
+          items:
+            $ref: "#/components/schemas/DetectedMoment"
+        errorMessage:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    AnalyzeVideoResponse:
+      type: object
+      required: [jobId, momentsDetected, count]
+      properties:
+        jobId:
+          type: integer
+        momentsDetected:
+          type: array
+          items:
+            $ref: "#/components/schemas/DetectedMoment"
+        count:
+          type: integer
+
+    DistributeVideoRequest:
+      type: object
+      required: [accountIds]
+      properties:
+        accountIds:
+          type: array
+          items:
+            type: integer
+        jobId:
+          type: integer
+
+    DistributeVideoResponse:
+      type: object
+      required: [message, distributed]
+      properties:
+        message:
+          type: string
+        distributed:
+          type: array
+          items:
+            type: object
+            properties:
+              accountId:
+                type: integer
+              accountName:
+                type: string
+              clipId:
+                type: integer
+              momentLabel:
+                type: string
+              format:
+                type: string
+              tone:
+                type: string
+
+    Clip:
+      type: object
+      required: [id, userId, sourceVideoId, label, startSeconds, endSeconds, format, captionTone, hashtags, status, collabEnabled, watermarkApplied, coverFrameTime, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        sourceVideoId:
+          type: integer
+        accountId:
+          type: integer
+        jobId:
+          type: integer
+        label:
+          type: string
+        startSeconds:
+          type: integer
+        endSeconds:
+          type: integer
+        format:
+          type: string
+          enum: ["9:16", "1:1", "16:9"]
+        captionTone:
+          type: string
+          enum: [african_english, pidgin, yoruba, hausa]
+        captionText:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        coverFrameTime:
+          type: integer
+        status:
+          type: string
+          enum: [draft, ready, scheduled, published, failed]
+        performanceScore:
+          type: string
+        collabEnabled:
+          type: boolean
+        collabAccountId:
+          type: integer
+        watermarkApplied:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateClipRequest:
+      type: object
+      required: [sourceVideoId, label, startSeconds, endSeconds]
+      properties:
+        sourceVideoId:
+          type: integer
+        accountId:
+          type: integer
+        jobId:
+          type: integer
+        label:
+          type: string
+        startSeconds:
+          type: integer
+        endSeconds:
+          type: integer
+        format:
+          type: string
+        captionTone:
+          type: string
+        captionText:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        coverFrameTime:
+          type: integer
+
+    UpdateClipRequest:
+      type: object
+      properties:
+        label:
+          type: string
+        format:
+          type: string
+        captionTone:
+          type: string
+        captionText:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        coverFrameTime:
+          type: integer
+        collabEnabled:
+          type: boolean
+        collabAccountId:
+          type: integer
+        watermarkApplied:
+          type: boolean
+        accountId:
+          type: integer
+
+    CaptionVariant:
+      type: object
+      required: [caption, hashtags, cta]
+      properties:
+        caption:
+          type: string
+        hashtags:
+          type: array
+          items:
+            type: string
+        cta:
+          type: string
+
+    GenerateCaptionResponse:
+      type: object
+      required: [clipId, captions]
+      properties:
+        clipId:
+          type: integer
+        captions:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/CaptionVariant"
+
+    CollabRequest:
+      type: object
+      required: [collabAccountId]
+      properties:
+        collabAccountId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+
+    CollabResponse:
+      type: object
+      required: [message, originalClipId, collabClipId, collabAccount]
+      properties:
+        message:
+          type: string
+        originalClipId:
+          type: integer
+        collabClipId:
+          type: integer
+        collabAccount:
+          type: string
+
+    ClipSchedule:
+      type: object
+      required: [id, userId, clipId, accountId, scheduledAt, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        clipId:
+          type: integer
+        accountId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [scheduled, posted, cancelled]
+        postedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateClipScheduleRequest:
+      type: object
+      required: [clipId, accountId, scheduledAt]
+      properties:
+        clipId:
+          type: integer
+        accountId:
+          type: integer
+        scheduledAt:
+          type: string
+          format: date-time
+
+    UpdateClipScheduleRequest:
+      type: object
+      properties:
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        accountId:
+          type: integer
+
+    CalendarEntry:
+      type: object
+      required: [schedule]
+      properties:
+        schedule:
+          $ref: "#/components/schemas/ClipSchedule"
+        clip:
+          $ref: "#/components/schemas/Clip"
+        account:
+          $ref: "#/components/schemas/ClipAccount"
+
+    BulkScheduleRequest:
+      type: object
+      required: [schedules]
+      properties:
+        schedules:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateClipScheduleRequest"
+
+    BulkScheduleResponse:
+      type: object
+      required: [count, schedules]
+      properties:
+        count:
+          type: integer
+        schedules:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClipSchedule"
+
+    BrandOverlayConfig:
+      type: object
+      required: [id, userId, accountId, watermarkPosition, watermarkOpacity, endCardTemplate, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        accountId:
+          type: integer
+        watermarkUrl:
+          type: string
+        watermarkPosition:
+          type: string
+        watermarkOpacity:
+          type: string
+        introBumperUrl:
+          type: string
+        endCardTemplate:
+          type: string
+        endCardText:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateBrandOverlayConfigRequest:
+      type: object
+      required: [accountId]
+      properties:
+        accountId:
+          type: integer
+        watermarkUrl:
+          type: string
+        watermarkPosition:
+          type: string
+        watermarkOpacity:
+          type: number
+        introBumperUrl:
+          type: string
+        endCardTemplate:
+          type: string
+        endCardText:
+          type: string
+
+    ClipPerformanceLog:
+      type: object
+      required: [id, userId, clipId, accountId, views, shares, comments, saves, watchTimeSeconds, source, recordedAt, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        clipId:
+          type: integer
+        accountId:
+          type: integer
+        views:
+          type: integer
+        shares:
+          type: integer
+        comments:
+          type: integer
+        saves:
+          type: integer
+        watchTimeSeconds:
+          type: integer
+        source:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    LogClipPerformanceRequest:
+      type: object
+      required: [clipId, accountId]
+      properties:
+        clipId:
+          type: integer
+        accountId:
+          type: integer
+        views:
+          type: integer
+        shares:
+          type: integer
+        comments:
+          type: integer
+        saves:
+          type: integer
+        watchTimeSeconds:
+          type: integer
+        source:
+          type: string
+
+    ClipPerformanceSummary:
+      type: object
+      required: [totals, topClips, byFormat, totalClips]
+      properties:
+        totals:
+          type: object
+          properties:
+            views:
+              type: integer
+            shares:
+              type: integer
+            saves:
+              type: integer
+            comments:
+              type: integer
+            watchTime:
+              type: integer
+        topClips:
+          type: array
+          items:
+            $ref: "#/components/schemas/Clip"
+        byFormat:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              count:
+                type: integer
+              avgScore:
+                type: number
+        totalClips:
+          type: integer

@@ -8,6 +8,7 @@ import analyticsRouter from "./analytics";
 import ambassadorsRouter from "./ambassadors";
 import bookPromoRouter from "./book-promo";
 import liveVideoRouter from "./live-video";
+import clipEngineRouter from "./clip-engine";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(analyticsRouter);
 router.use(ambassadorsRouter);
 router.use(bookPromoRouter);
 router.use(liveVideoRouter);
+router.use(clipEngineRouter);
 
 export default router;

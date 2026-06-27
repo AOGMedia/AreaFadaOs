@@ -29,15 +29,28 @@ import type {
   AmbassadorTask,
   AnalyticsReport,
   AnalyticsSummary,
+  AnalyzeVideoResponse,
   AudienceGeography,
   AwardPoints200,
   AwardPointsBody,
   BestPostTimes,
   BrandDeal,
+  BrandOverlayConfig,
+  BulkScheduleRequest,
+  BulkScheduleResponse,
   BulkUploadBody,
   BulkUploadResult,
+  CalendarEntry,
   Campaign,
   CheckChatModeration200,
+  Clip,
+  ClipAccount,
+  ClipJob,
+  ClipPerformanceLog,
+  ClipPerformanceSummary,
+  ClipSchedule,
+  CollabRequest,
+  CollabResponse,
   CompleteAmbassadorTask200,
   CompleteAmbassadorTaskBody,
   CreateAffiliateBody,
@@ -45,7 +58,11 @@ import type {
   CreateAmbassadorBody,
   CreateAmbassadorTaskBody,
   CreateBrandDealBody,
+  CreateBrandOverlayConfigRequest,
   CreateCampaignBody,
+  CreateClipAccountRequest,
+  CreateClipRequest,
+  CreateClipScheduleRequest,
   CreateGamificationConfigBody,
   CreateInvoiceBody,
   CreateLiveClipBody,
@@ -55,17 +72,23 @@ import type {
   CreatePostBody,
   CreatePromoCampaignBody,
   CreatePromoLinkBody,
+  CreateSourceVideoRequest,
   DashboardSummary,
+  DistributeVideoRequest,
+  DistributeVideoResponse,
   DripScheduleResult,
   GamificationConfig,
+  GenerateCaptionResponse,
   GenerateCaptionsBody,
   GenerateCaptionsResponse,
+  GenerateClipCaptionBody,
   GenerateOutreach200,
   GenerateOutreachBody,
   GeneratePaymentLinkBody,
   GenerateReportBody,
   GetAudienceGeographyParams,
   GetBestPostTimesParams,
+  GetClipScheduleCalendarParams,
   GetGamificationConfigs200,
   GetPostPerformanceParams,
   GetPromoQrCodeParams,
@@ -80,6 +103,10 @@ import type {
   ListAffiliateCommissionsParams,
   ListAmbassadorsParams,
   ListBrandDealsParams,
+  ListBrandOverlayConfigsParams,
+  ListClipPerformanceParams,
+  ListClipSchedulesParams,
+  ListClipsParams,
   ListInvoicesParams,
   ListMicroInfluencersParams,
   ListNotificationEventsParams,
@@ -94,6 +121,7 @@ import type {
   LiveRevenueEvent,
   LiveSession,
   LogBroadcastBody,
+  LogClipPerformanceRequest,
   MicroInfluencer,
   ModerateLiveChatMessageBody,
   PaymentLinkResponse,
@@ -116,9 +144,12 @@ import type {
   RevenueWaterfall,
   ReviewVerificationBody,
   SendLiveReminders200,
+  SourceVideo,
   SubmitPurchaseVerification201,
   SubmitVerificationBody,
   TierInfo,
+  UpdateClipRequest,
+  UpdateClipScheduleRequest,
   UpdateLivePlatformConfigBody,
   UpdateLiveSessionBody,
   UpdateModerationRuleBody,
@@ -8154,6 +8185,2085 @@ export function useListNotificationEvents<TData = Awaited<ReturnType<typeof list
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListNotificationEventsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClipAccountsUrl = () => {
+
+
+
+
+  return `/api/clip-accounts`
+}
+
+/**
+ * @summary List all clip accounts for the user
+ */
+export const listClipAccounts = async ( options?: RequestInit): Promise<ClipAccount[]> => {
+
+  return customFetch<ClipAccount[]>(getListClipAccountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClipAccountsQueryKey = () => {
+    return [
+    `/api/clip-accounts`
+    ] as const;
+    }
+
+
+export const getListClipAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listClipAccounts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClipAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClipAccountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClipAccounts>>> = ({ signal }) => listClipAccounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClipAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClipAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listClipAccounts>>>
+export type ListClipAccountsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all clip accounts for the user
+ */
+
+export function useListClipAccounts<TData = Awaited<ReturnType<typeof listClipAccounts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClipAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClipAccountsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateClipAccountUrl = () => {
+
+
+
+
+  return `/api/clip-accounts`
+}
+
+/**
+ * @summary Create a new clip account
+ */
+export const createClipAccount = async (createClipAccountRequest: CreateClipAccountRequest, options?: RequestInit): Promise<ClipAccount> => {
+
+  return customFetch<ClipAccount>(getCreateClipAccountUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createClipAccountRequest)
+  }
+);}
+
+
+
+
+export const getCreateClipAccountMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClipAccount>>, TError,{data: BodyType<CreateClipAccountRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClipAccount>>, TError,{data: BodyType<CreateClipAccountRequest>}, TContext> => {
+
+const mutationKey = ['createClipAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClipAccount>>, {data: BodyType<CreateClipAccountRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createClipAccount(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClipAccountMutationResult = NonNullable<Awaited<ReturnType<typeof createClipAccount>>>
+    export type CreateClipAccountMutationBody = BodyType<CreateClipAccountRequest>
+    export type CreateClipAccountMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new clip account
+ */
+export const useCreateClipAccount = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClipAccount>>, TError,{data: BodyType<CreateClipAccountRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClipAccount>>,
+        TError,
+        {data: BodyType<CreateClipAccountRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateClipAccountMutationOptions(options));
+    }
+
+export const getUpdateClipAccountUrl = (id: number,) => {
+
+
+
+
+  return `/api/clip-accounts/${id}`
+}
+
+/**
+ * @summary Update a clip account
+ */
+export const updateClipAccount = async (id: number,
+    createClipAccountRequest: CreateClipAccountRequest, options?: RequestInit): Promise<ClipAccount> => {
+
+  return customFetch<ClipAccount>(getUpdateClipAccountUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createClipAccountRequest)
+  }
+);}
+
+
+
+
+export const getUpdateClipAccountMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClipAccount>>, TError,{id: number;data: BodyType<CreateClipAccountRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateClipAccount>>, TError,{id: number;data: BodyType<CreateClipAccountRequest>}, TContext> => {
+
+const mutationKey = ['updateClipAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateClipAccount>>, {id: number;data: BodyType<CreateClipAccountRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateClipAccount(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateClipAccountMutationResult = NonNullable<Awaited<ReturnType<typeof updateClipAccount>>>
+    export type UpdateClipAccountMutationBody = BodyType<CreateClipAccountRequest>
+    export type UpdateClipAccountMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a clip account
+ */
+export const useUpdateClipAccount = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClipAccount>>, TError,{id: number;data: BodyType<CreateClipAccountRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateClipAccount>>,
+        TError,
+        {id: number;data: BodyType<CreateClipAccountRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateClipAccountMutationOptions(options));
+    }
+
+export const getDeleteClipAccountUrl = (id: number,) => {
+
+
+
+
+  return `/api/clip-accounts/${id}`
+}
+
+/**
+ * @summary Delete a clip account
+ */
+export const deleteClipAccount = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteClipAccountUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteClipAccountMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteClipAccount>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteClipAccount>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteClipAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteClipAccount>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteClipAccount(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteClipAccountMutationResult = NonNullable<Awaited<ReturnType<typeof deleteClipAccount>>>
+
+    export type DeleteClipAccountMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a clip account
+ */
+export const useDeleteClipAccount = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteClipAccount>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteClipAccount>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteClipAccountMutationOptions(options));
+    }
+
+export const getListSourceVideosUrl = () => {
+
+
+
+
+  return `/api/source-videos`
+}
+
+/**
+ * @summary List source videos
+ */
+export const listSourceVideos = async ( options?: RequestInit): Promise<SourceVideo[]> => {
+
+  return customFetch<SourceVideo[]>(getListSourceVideosUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSourceVideosQueryKey = () => {
+    return [
+    `/api/source-videos`
+    ] as const;
+    }
+
+
+export const getListSourceVideosQueryOptions = <TData = Awaited<ReturnType<typeof listSourceVideos>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSourceVideos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSourceVideosQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSourceVideos>>> = ({ signal }) => listSourceVideos({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSourceVideos>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSourceVideosQueryResult = NonNullable<Awaited<ReturnType<typeof listSourceVideos>>>
+export type ListSourceVideosQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List source videos
+ */
+
+export function useListSourceVideos<TData = Awaited<ReturnType<typeof listSourceVideos>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSourceVideos>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSourceVideosQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateSourceVideoUrl = () => {
+
+
+
+
+  return `/api/source-videos`
+}
+
+/**
+ * @summary Add a source video
+ */
+export const createSourceVideo = async (createSourceVideoRequest: CreateSourceVideoRequest, options?: RequestInit): Promise<SourceVideo> => {
+
+  return customFetch<SourceVideo>(getCreateSourceVideoUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createSourceVideoRequest)
+  }
+);}
+
+
+
+
+export const getCreateSourceVideoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSourceVideo>>, TError,{data: BodyType<CreateSourceVideoRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSourceVideo>>, TError,{data: BodyType<CreateSourceVideoRequest>}, TContext> => {
+
+const mutationKey = ['createSourceVideo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSourceVideo>>, {data: BodyType<CreateSourceVideoRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSourceVideo(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSourceVideoMutationResult = NonNullable<Awaited<ReturnType<typeof createSourceVideo>>>
+    export type CreateSourceVideoMutationBody = BodyType<CreateSourceVideoRequest>
+    export type CreateSourceVideoMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Add a source video
+ */
+export const useCreateSourceVideo = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSourceVideo>>, TError,{data: BodyType<CreateSourceVideoRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSourceVideo>>,
+        TError,
+        {data: BodyType<CreateSourceVideoRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateSourceVideoMutationOptions(options));
+    }
+
+export const getGetSourceVideoUrl = (id: number,) => {
+
+
+
+
+  return `/api/source-videos/${id}`
+}
+
+/**
+ * @summary Get a source video by ID
+ */
+export const getSourceVideo = async (id: number, options?: RequestInit): Promise<SourceVideo> => {
+
+  return customFetch<SourceVideo>(getGetSourceVideoUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetSourceVideoQueryKey = (id: number,) => {
+    return [
+    `/api/source-videos/${id}`
+    ] as const;
+    }
+
+
+export const getGetSourceVideoQueryOptions = <TData = Awaited<ReturnType<typeof getSourceVideo>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSourceVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetSourceVideoQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSourceVideo>>> = ({ signal }) => getSourceVideo(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSourceVideo>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetSourceVideoQueryResult = NonNullable<Awaited<ReturnType<typeof getSourceVideo>>>
+export type GetSourceVideoQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a source video by ID
+ */
+
+export function useGetSourceVideo<TData = Awaited<ReturnType<typeof getSourceVideo>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSourceVideo>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetSourceVideoQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAnalyzeSourceVideoUrl = (id: number,) => {
+
+
+
+
+  return `/api/source-videos/${id}/analyze`
+}
+
+/**
+ * @summary Run AI moment detection on a source video
+ */
+export const analyzeSourceVideo = async (id: number, options?: RequestInit): Promise<AnalyzeVideoResponse> => {
+
+  return customFetch<AnalyzeVideoResponse>(getAnalyzeSourceVideoUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAnalyzeSourceVideoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeSourceVideo>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeSourceVideo>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['analyzeSourceVideo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeSourceVideo>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  analyzeSourceVideo(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeSourceVideoMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeSourceVideo>>>
+
+    export type AnalyzeSourceVideoMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Run AI moment detection on a source video
+ */
+export const useAnalyzeSourceVideo = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeSourceVideo>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeSourceVideo>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getAnalyzeSourceVideoMutationOptions(options));
+    }
+
+export const getDistributeSourceVideoUrl = (id: number,) => {
+
+
+
+
+  return `/api/source-videos/${id}/distribute`
+}
+
+/**
+ * @summary Distribute source video across accounts with content differentiation
+ */
+export const distributeSourceVideo = async (id: number,
+    distributeVideoRequest: DistributeVideoRequest, options?: RequestInit): Promise<DistributeVideoResponse> => {
+
+  return customFetch<DistributeVideoResponse>(getDistributeSourceVideoUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(distributeVideoRequest)
+  }
+);}
+
+
+
+
+export const getDistributeSourceVideoMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof distributeSourceVideo>>, TError,{id: number;data: BodyType<DistributeVideoRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof distributeSourceVideo>>, TError,{id: number;data: BodyType<DistributeVideoRequest>}, TContext> => {
+
+const mutationKey = ['distributeSourceVideo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof distributeSourceVideo>>, {id: number;data: BodyType<DistributeVideoRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  distributeSourceVideo(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DistributeSourceVideoMutationResult = NonNullable<Awaited<ReturnType<typeof distributeSourceVideo>>>
+    export type DistributeSourceVideoMutationBody = BodyType<DistributeVideoRequest>
+    export type DistributeSourceVideoMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Distribute source video across accounts with content differentiation
+ */
+export const useDistributeSourceVideo = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof distributeSourceVideo>>, TError,{id: number;data: BodyType<DistributeVideoRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof distributeSourceVideo>>,
+        TError,
+        {id: number;data: BodyType<DistributeVideoRequest>},
+        TContext
+      > => {
+      return useMutation(getDistributeSourceVideoMutationOptions(options));
+    }
+
+export const getListClipJobsUrl = () => {
+
+
+
+
+  return `/api/clip-jobs`
+}
+
+/**
+ * @summary List AI clip analysis jobs
+ */
+export const listClipJobs = async ( options?: RequestInit): Promise<ClipJob[]> => {
+
+  return customFetch<ClipJob[]>(getListClipJobsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClipJobsQueryKey = () => {
+    return [
+    `/api/clip-jobs`
+    ] as const;
+    }
+
+
+export const getListClipJobsQueryOptions = <TData = Awaited<ReturnType<typeof listClipJobs>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClipJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClipJobsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClipJobs>>> = ({ signal }) => listClipJobs({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClipJobs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClipJobsQueryResult = NonNullable<Awaited<ReturnType<typeof listClipJobs>>>
+export type ListClipJobsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List AI clip analysis jobs
+ */
+
+export function useListClipJobs<TData = Awaited<ReturnType<typeof listClipJobs>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClipJobs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClipJobsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetClipJobUrl = (id: number,) => {
+
+
+
+
+  return `/api/clip-jobs/${id}`
+}
+
+/**
+ * @summary Get a clip job by ID
+ */
+export const getClipJob = async (id: number, options?: RequestInit): Promise<ClipJob> => {
+
+  return customFetch<ClipJob>(getGetClipJobUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClipJobQueryKey = (id: number,) => {
+    return [
+    `/api/clip-jobs/${id}`
+    ] as const;
+    }
+
+
+export const getGetClipJobQueryOptions = <TData = Awaited<ReturnType<typeof getClipJob>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClipJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClipJobQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClipJob>>> = ({ signal }) => getClipJob(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClipJob>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClipJobQueryResult = NonNullable<Awaited<ReturnType<typeof getClipJob>>>
+export type GetClipJobQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get a clip job by ID
+ */
+
+export function useGetClipJob<TData = Awaited<ReturnType<typeof getClipJob>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClipJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClipJobQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListClipsUrl = (params?: ListClipsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/clips?${stringifiedParams}` : `/api/clips`
+}
+
+/**
+ * @summary List clips with optional filters
+ */
+export const listClips = async (params?: ListClipsParams, options?: RequestInit): Promise<Clip[]> => {
+
+  return customFetch<Clip[]>(getListClipsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClipsQueryKey = (params?: ListClipsParams,) => {
+    return [
+    `/api/clips`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListClipsQueryOptions = <TData = Awaited<ReturnType<typeof listClips>>, TError = ErrorType<unknown>>(params?: ListClipsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClips>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClipsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClips>>> = ({ signal }) => listClips(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClips>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClipsQueryResult = NonNullable<Awaited<ReturnType<typeof listClips>>>
+export type ListClipsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List clips with optional filters
+ */
+
+export function useListClips<TData = Awaited<ReturnType<typeof listClips>>, TError = ErrorType<unknown>>(
+ params?: ListClipsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClips>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClipsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateClipUrl = () => {
+
+
+
+
+  return `/api/clips`
+}
+
+/**
+ * @summary Create a clip manually
+ */
+export const createClip = async (createClipRequest: CreateClipRequest, options?: RequestInit): Promise<Clip> => {
+
+  return customFetch<Clip>(getCreateClipUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createClipRequest)
+  }
+);}
+
+
+
+
+export const getCreateClipMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClip>>, TError,{data: BodyType<CreateClipRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClip>>, TError,{data: BodyType<CreateClipRequest>}, TContext> => {
+
+const mutationKey = ['createClip'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClip>>, {data: BodyType<CreateClipRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createClip(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClipMutationResult = NonNullable<Awaited<ReturnType<typeof createClip>>>
+    export type CreateClipMutationBody = BodyType<CreateClipRequest>
+    export type CreateClipMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a clip manually
+ */
+export const useCreateClip = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClip>>, TError,{data: BodyType<CreateClipRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClip>>,
+        TError,
+        {data: BodyType<CreateClipRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateClipMutationOptions(options));
+    }
+
+export const getUpdateClipUrl = (id: number,) => {
+
+
+
+
+  return `/api/clips/${id}`
+}
+
+/**
+ * @summary Update a clip
+ */
+export const updateClip = async (id: number,
+    updateClipRequest: UpdateClipRequest, options?: RequestInit): Promise<Clip> => {
+
+  return customFetch<Clip>(getUpdateClipUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateClipRequest)
+  }
+);}
+
+
+
+
+export const getUpdateClipMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClip>>, TError,{id: number;data: BodyType<UpdateClipRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateClip>>, TError,{id: number;data: BodyType<UpdateClipRequest>}, TContext> => {
+
+const mutationKey = ['updateClip'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateClip>>, {id: number;data: BodyType<UpdateClipRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateClip(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateClipMutationResult = NonNullable<Awaited<ReturnType<typeof updateClip>>>
+    export type UpdateClipMutationBody = BodyType<UpdateClipRequest>
+    export type UpdateClipMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a clip
+ */
+export const useUpdateClip = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClip>>, TError,{id: number;data: BodyType<UpdateClipRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateClip>>,
+        TError,
+        {id: number;data: BodyType<UpdateClipRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateClipMutationOptions(options));
+    }
+
+export const getGenerateClipCaptionUrl = (id: number,) => {
+
+
+
+
+  return `/api/clips/${id}/generate-caption`
+}
+
+/**
+ * @summary Generate AI captions in multiple tones for a clip
+ */
+export const generateClipCaption = async (id: number,
+    generateClipCaptionBody?: GenerateClipCaptionBody, options?: RequestInit): Promise<GenerateCaptionResponse> => {
+
+  return customFetch<GenerateCaptionResponse>(getGenerateClipCaptionUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(generateClipCaptionBody)
+  }
+);}
+
+
+
+
+export const getGenerateClipCaptionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateClipCaption>>, TError,{id: number;data?: BodyType<GenerateClipCaptionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateClipCaption>>, TError,{id: number;data?: BodyType<GenerateClipCaptionBody>}, TContext> => {
+
+const mutationKey = ['generateClipCaption'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateClipCaption>>, {id: number;data?: BodyType<GenerateClipCaptionBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  generateClipCaption(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateClipCaptionMutationResult = NonNullable<Awaited<ReturnType<typeof generateClipCaption>>>
+    export type GenerateClipCaptionMutationBody = BodyType<GenerateClipCaptionBody> | undefined
+    export type GenerateClipCaptionMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate AI captions in multiple tones for a clip
+ */
+export const useGenerateClipCaption = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateClipCaption>>, TError,{id: number;data?: BodyType<GenerateClipCaptionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateClipCaption>>,
+        TError,
+        {id: number;data?: BodyType<GenerateClipCaptionBody>},
+        TContext
+      > => {
+      return useMutation(getGenerateClipCaptionMutationOptions(options));
+    }
+
+export const getEnableClipCollabUrl = (id: number,) => {
+
+
+
+
+  return `/api/clips/${id}/collab`
+}
+
+/**
+ * @summary Enable collab mode — queue the clip from a second account simultaneously
+ */
+export const enableClipCollab = async (id: number,
+    collabRequest: CollabRequest, options?: RequestInit): Promise<CollabResponse> => {
+
+  return customFetch<CollabResponse>(getEnableClipCollabUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(collabRequest)
+  }
+);}
+
+
+
+
+export const getEnableClipCollabMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableClipCollab>>, TError,{id: number;data: BodyType<CollabRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof enableClipCollab>>, TError,{id: number;data: BodyType<CollabRequest>}, TContext> => {
+
+const mutationKey = ['enableClipCollab'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof enableClipCollab>>, {id: number;data: BodyType<CollabRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  enableClipCollab(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EnableClipCollabMutationResult = NonNullable<Awaited<ReturnType<typeof enableClipCollab>>>
+    export type EnableClipCollabMutationBody = BodyType<CollabRequest>
+    export type EnableClipCollabMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Enable collab mode — queue the clip from a second account simultaneously
+ */
+export const useEnableClipCollab = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof enableClipCollab>>, TError,{id: number;data: BodyType<CollabRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof enableClipCollab>>,
+        TError,
+        {id: number;data: BodyType<CollabRequest>},
+        TContext
+      > => {
+      return useMutation(getEnableClipCollabMutationOptions(options));
+    }
+
+export const getListClipSchedulesUrl = (params?: ListClipSchedulesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/clip-schedules?${stringifiedParams}` : `/api/clip-schedules`
+}
+
+/**
+ * @summary List clip schedules
+ */
+export const listClipSchedules = async (params?: ListClipSchedulesParams, options?: RequestInit): Promise<ClipSchedule[]> => {
+
+  return customFetch<ClipSchedule[]>(getListClipSchedulesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClipSchedulesQueryKey = (params?: ListClipSchedulesParams,) => {
+    return [
+    `/api/clip-schedules`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListClipSchedulesQueryOptions = <TData = Awaited<ReturnType<typeof listClipSchedules>>, TError = ErrorType<unknown>>(params?: ListClipSchedulesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClipSchedules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClipSchedulesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClipSchedules>>> = ({ signal }) => listClipSchedules(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClipSchedules>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClipSchedulesQueryResult = NonNullable<Awaited<ReturnType<typeof listClipSchedules>>>
+export type ListClipSchedulesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List clip schedules
+ */
+
+export function useListClipSchedules<TData = Awaited<ReturnType<typeof listClipSchedules>>, TError = ErrorType<unknown>>(
+ params?: ListClipSchedulesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClipSchedules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClipSchedulesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateClipScheduleUrl = () => {
+
+
+
+
+  return `/api/clip-schedules`
+}
+
+/**
+ * @summary Schedule a clip
+ */
+export const createClipSchedule = async (createClipScheduleRequest: CreateClipScheduleRequest, options?: RequestInit): Promise<ClipSchedule> => {
+
+  return customFetch<ClipSchedule>(getCreateClipScheduleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createClipScheduleRequest)
+  }
+);}
+
+
+
+
+export const getCreateClipScheduleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClipSchedule>>, TError,{data: BodyType<CreateClipScheduleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createClipSchedule>>, TError,{data: BodyType<CreateClipScheduleRequest>}, TContext> => {
+
+const mutationKey = ['createClipSchedule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createClipSchedule>>, {data: BodyType<CreateClipScheduleRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createClipSchedule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateClipScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof createClipSchedule>>>
+    export type CreateClipScheduleMutationBody = BodyType<CreateClipScheduleRequest>
+    export type CreateClipScheduleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Schedule a clip
+ */
+export const useCreateClipSchedule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createClipSchedule>>, TError,{data: BodyType<CreateClipScheduleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createClipSchedule>>,
+        TError,
+        {data: BodyType<CreateClipScheduleRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateClipScheduleMutationOptions(options));
+    }
+
+export const getGetClipScheduleCalendarUrl = (params?: GetClipScheduleCalendarParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/clip-schedules/calendar?${stringifiedParams}` : `/api/clip-schedules/calendar`
+}
+
+/**
+ * @summary Get 30-day clip scheduling calendar
+ */
+export const getClipScheduleCalendar = async (params?: GetClipScheduleCalendarParams, options?: RequestInit): Promise<CalendarEntry[]> => {
+
+  return customFetch<CalendarEntry[]>(getGetClipScheduleCalendarUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClipScheduleCalendarQueryKey = (params?: GetClipScheduleCalendarParams,) => {
+    return [
+    `/api/clip-schedules/calendar`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetClipScheduleCalendarQueryOptions = <TData = Awaited<ReturnType<typeof getClipScheduleCalendar>>, TError = ErrorType<unknown>>(params?: GetClipScheduleCalendarParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClipScheduleCalendar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClipScheduleCalendarQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClipScheduleCalendar>>> = ({ signal }) => getClipScheduleCalendar(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClipScheduleCalendar>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClipScheduleCalendarQueryResult = NonNullable<Awaited<ReturnType<typeof getClipScheduleCalendar>>>
+export type GetClipScheduleCalendarQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get 30-day clip scheduling calendar
+ */
+
+export function useGetClipScheduleCalendar<TData = Awaited<ReturnType<typeof getClipScheduleCalendar>>, TError = ErrorType<unknown>>(
+ params?: GetClipScheduleCalendarParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClipScheduleCalendar>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClipScheduleCalendarQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getBulkCreateClipSchedulesUrl = () => {
+
+
+
+
+  return `/api/clip-schedules/bulk`
+}
+
+/**
+ * @summary Bulk schedule clips across accounts
+ */
+export const bulkCreateClipSchedules = async (bulkScheduleRequest: BulkScheduleRequest, options?: RequestInit): Promise<BulkScheduleResponse> => {
+
+  return customFetch<BulkScheduleResponse>(getBulkCreateClipSchedulesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkScheduleRequest)
+  }
+);}
+
+
+
+
+export const getBulkCreateClipSchedulesMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCreateClipSchedules>>, TError,{data: BodyType<BulkScheduleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof bulkCreateClipSchedules>>, TError,{data: BodyType<BulkScheduleRequest>}, TContext> => {
+
+const mutationKey = ['bulkCreateClipSchedules'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof bulkCreateClipSchedules>>, {data: BodyType<BulkScheduleRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  bulkCreateClipSchedules(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BulkCreateClipSchedulesMutationResult = NonNullable<Awaited<ReturnType<typeof bulkCreateClipSchedules>>>
+    export type BulkCreateClipSchedulesMutationBody = BodyType<BulkScheduleRequest>
+    export type BulkCreateClipSchedulesMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Bulk schedule clips across accounts
+ */
+export const useBulkCreateClipSchedules = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof bulkCreateClipSchedules>>, TError,{data: BodyType<BulkScheduleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof bulkCreateClipSchedules>>,
+        TError,
+        {data: BodyType<BulkScheduleRequest>},
+        TContext
+      > => {
+      return useMutation(getBulkCreateClipSchedulesMutationOptions(options));
+    }
+
+export const getUpdateClipScheduleUrl = (id: number,) => {
+
+
+
+
+  return `/api/clip-schedules/${id}`
+}
+
+/**
+ * @summary Update a clip schedule
+ */
+export const updateClipSchedule = async (id: number,
+    updateClipScheduleRequest: UpdateClipScheduleRequest, options?: RequestInit): Promise<ClipSchedule> => {
+
+  return customFetch<ClipSchedule>(getUpdateClipScheduleUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateClipScheduleRequest)
+  }
+);}
+
+
+
+
+export const getUpdateClipScheduleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClipSchedule>>, TError,{id: number;data: BodyType<UpdateClipScheduleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateClipSchedule>>, TError,{id: number;data: BodyType<UpdateClipScheduleRequest>}, TContext> => {
+
+const mutationKey = ['updateClipSchedule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateClipSchedule>>, {id: number;data: BodyType<UpdateClipScheduleRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateClipSchedule(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateClipScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof updateClipSchedule>>>
+    export type UpdateClipScheduleMutationBody = BodyType<UpdateClipScheduleRequest>
+    export type UpdateClipScheduleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a clip schedule
+ */
+export const useUpdateClipSchedule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateClipSchedule>>, TError,{id: number;data: BodyType<UpdateClipScheduleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateClipSchedule>>,
+        TError,
+        {id: number;data: BodyType<UpdateClipScheduleRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateClipScheduleMutationOptions(options));
+    }
+
+export const getDeleteClipScheduleUrl = (id: number,) => {
+
+
+
+
+  return `/api/clip-schedules/${id}`
+}
+
+/**
+ * @summary Delete a clip schedule
+ */
+export const deleteClipSchedule = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteClipScheduleUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteClipScheduleMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteClipSchedule>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteClipSchedule>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteClipSchedule'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteClipSchedule>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteClipSchedule(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteClipScheduleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteClipSchedule>>>
+
+    export type DeleteClipScheduleMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete a clip schedule
+ */
+export const useDeleteClipSchedule = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteClipSchedule>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteClipSchedule>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteClipScheduleMutationOptions(options));
+    }
+
+export const getListBrandOverlayConfigsUrl = (params?: ListBrandOverlayConfigsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/brand-overlay-configs?${stringifiedParams}` : `/api/brand-overlay-configs`
+}
+
+/**
+ * @summary List brand overlay configs
+ */
+export const listBrandOverlayConfigs = async (params?: ListBrandOverlayConfigsParams, options?: RequestInit): Promise<BrandOverlayConfig[]> => {
+
+  return customFetch<BrandOverlayConfig[]>(getListBrandOverlayConfigsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBrandOverlayConfigsQueryKey = (params?: ListBrandOverlayConfigsParams,) => {
+    return [
+    `/api/brand-overlay-configs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBrandOverlayConfigsQueryOptions = <TData = Awaited<ReturnType<typeof listBrandOverlayConfigs>>, TError = ErrorType<unknown>>(params?: ListBrandOverlayConfigsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBrandOverlayConfigs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBrandOverlayConfigsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBrandOverlayConfigs>>> = ({ signal }) => listBrandOverlayConfigs(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBrandOverlayConfigs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBrandOverlayConfigsQueryResult = NonNullable<Awaited<ReturnType<typeof listBrandOverlayConfigs>>>
+export type ListBrandOverlayConfigsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List brand overlay configs
+ */
+
+export function useListBrandOverlayConfigs<TData = Awaited<ReturnType<typeof listBrandOverlayConfigs>>, TError = ErrorType<unknown>>(
+ params?: ListBrandOverlayConfigsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBrandOverlayConfigs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBrandOverlayConfigsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBrandOverlayConfigUrl = () => {
+
+
+
+
+  return `/api/brand-overlay-configs`
+}
+
+/**
+ * @summary Create a brand overlay config
+ */
+export const createBrandOverlayConfig = async (createBrandOverlayConfigRequest: CreateBrandOverlayConfigRequest, options?: RequestInit): Promise<BrandOverlayConfig> => {
+
+  return customFetch<BrandOverlayConfig>(getCreateBrandOverlayConfigUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createBrandOverlayConfigRequest)
+  }
+);}
+
+
+
+
+export const getCreateBrandOverlayConfigMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBrandOverlayConfig>>, TError,{data: BodyType<CreateBrandOverlayConfigRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBrandOverlayConfig>>, TError,{data: BodyType<CreateBrandOverlayConfigRequest>}, TContext> => {
+
+const mutationKey = ['createBrandOverlayConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBrandOverlayConfig>>, {data: BodyType<CreateBrandOverlayConfigRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBrandOverlayConfig(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBrandOverlayConfigMutationResult = NonNullable<Awaited<ReturnType<typeof createBrandOverlayConfig>>>
+    export type CreateBrandOverlayConfigMutationBody = BodyType<CreateBrandOverlayConfigRequest>
+    export type CreateBrandOverlayConfigMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a brand overlay config
+ */
+export const useCreateBrandOverlayConfig = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBrandOverlayConfig>>, TError,{data: BodyType<CreateBrandOverlayConfigRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBrandOverlayConfig>>,
+        TError,
+        {data: BodyType<CreateBrandOverlayConfigRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateBrandOverlayConfigMutationOptions(options));
+    }
+
+export const getUpdateBrandOverlayConfigUrl = (id: number,) => {
+
+
+
+
+  return `/api/brand-overlay-configs/${id}`
+}
+
+/**
+ * @summary Update a brand overlay config
+ */
+export const updateBrandOverlayConfig = async (id: number,
+    createBrandOverlayConfigRequest: CreateBrandOverlayConfigRequest, options?: RequestInit): Promise<BrandOverlayConfig> => {
+
+  return customFetch<BrandOverlayConfig>(getUpdateBrandOverlayConfigUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createBrandOverlayConfigRequest)
+  }
+);}
+
+
+
+
+export const getUpdateBrandOverlayConfigMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBrandOverlayConfig>>, TError,{id: number;data: BodyType<CreateBrandOverlayConfigRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBrandOverlayConfig>>, TError,{id: number;data: BodyType<CreateBrandOverlayConfigRequest>}, TContext> => {
+
+const mutationKey = ['updateBrandOverlayConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBrandOverlayConfig>>, {id: number;data: BodyType<CreateBrandOverlayConfigRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateBrandOverlayConfig(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBrandOverlayConfigMutationResult = NonNullable<Awaited<ReturnType<typeof updateBrandOverlayConfig>>>
+    export type UpdateBrandOverlayConfigMutationBody = BodyType<CreateBrandOverlayConfigRequest>
+    export type UpdateBrandOverlayConfigMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update a brand overlay config
+ */
+export const useUpdateBrandOverlayConfig = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBrandOverlayConfig>>, TError,{id: number;data: BodyType<CreateBrandOverlayConfigRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBrandOverlayConfig>>,
+        TError,
+        {id: number;data: BodyType<CreateBrandOverlayConfigRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateBrandOverlayConfigMutationOptions(options));
+    }
+
+export const getListClipPerformanceUrl = (params?: ListClipPerformanceParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/clip-performance?${stringifiedParams}` : `/api/clip-performance`
+}
+
+/**
+ * @summary List clip performance logs
+ */
+export const listClipPerformance = async (params?: ListClipPerformanceParams, options?: RequestInit): Promise<ClipPerformanceLog[]> => {
+
+  return customFetch<ClipPerformanceLog[]>(getListClipPerformanceUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListClipPerformanceQueryKey = (params?: ListClipPerformanceParams,) => {
+    return [
+    `/api/clip-performance`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListClipPerformanceQueryOptions = <TData = Awaited<ReturnType<typeof listClipPerformance>>, TError = ErrorType<unknown>>(params?: ListClipPerformanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClipPerformance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListClipPerformanceQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listClipPerformance>>> = ({ signal }) => listClipPerformance(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listClipPerformance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListClipPerformanceQueryResult = NonNullable<Awaited<ReturnType<typeof listClipPerformance>>>
+export type ListClipPerformanceQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List clip performance logs
+ */
+
+export function useListClipPerformance<TData = Awaited<ReturnType<typeof listClipPerformance>>, TError = ErrorType<unknown>>(
+ params?: ListClipPerformanceParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listClipPerformance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListClipPerformanceQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getLogClipPerformanceUrl = () => {
+
+
+
+
+  return `/api/clip-performance`
+}
+
+/**
+ * @summary Log clip performance data
+ */
+export const logClipPerformance = async (logClipPerformanceRequest: LogClipPerformanceRequest, options?: RequestInit): Promise<ClipPerformanceLog> => {
+
+  return customFetch<ClipPerformanceLog>(getLogClipPerformanceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(logClipPerformanceRequest)
+  }
+);}
+
+
+
+
+export const getLogClipPerformanceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logClipPerformance>>, TError,{data: BodyType<LogClipPerformanceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof logClipPerformance>>, TError,{data: BodyType<LogClipPerformanceRequest>}, TContext> => {
+
+const mutationKey = ['logClipPerformance'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logClipPerformance>>, {data: BodyType<LogClipPerformanceRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  logClipPerformance(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogClipPerformanceMutationResult = NonNullable<Awaited<ReturnType<typeof logClipPerformance>>>
+    export type LogClipPerformanceMutationBody = BodyType<LogClipPerformanceRequest>
+    export type LogClipPerformanceMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Log clip performance data
+ */
+export const useLogClipPerformance = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logClipPerformance>>, TError,{data: BodyType<LogClipPerformanceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof logClipPerformance>>,
+        TError,
+        {data: BodyType<LogClipPerformanceRequest>},
+        TContext
+      > => {
+      return useMutation(getLogClipPerformanceMutationOptions(options));
+    }
+
+export const getGetClipPerformanceSummaryUrl = () => {
+
+
+
+
+  return `/api/clip-performance/summary`
+}
+
+/**
+ * @summary Get clip performance summary and top clips
+ */
+export const getClipPerformanceSummary = async ( options?: RequestInit): Promise<ClipPerformanceSummary> => {
+
+  return customFetch<ClipPerformanceSummary>(getGetClipPerformanceSummaryUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetClipPerformanceSummaryQueryKey = () => {
+    return [
+    `/api/clip-performance/summary`
+    ] as const;
+    }
+
+
+export const getGetClipPerformanceSummaryQueryOptions = <TData = Awaited<ReturnType<typeof getClipPerformanceSummary>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClipPerformanceSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetClipPerformanceSummaryQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getClipPerformanceSummary>>> = ({ signal }) => getClipPerformanceSummary({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getClipPerformanceSummary>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetClipPerformanceSummaryQueryResult = NonNullable<Awaited<ReturnType<typeof getClipPerformanceSummary>>>
+export type GetClipPerformanceSummaryQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get clip performance summary and top clips
+ */
+
+export function useGetClipPerformanceSummary<TData = Awaited<ReturnType<typeof getClipPerformanceSummary>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getClipPerformanceSummary>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetClipPerformanceSummaryQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

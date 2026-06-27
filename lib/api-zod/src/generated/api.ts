@@ -2674,3 +2674,753 @@ export const ListNotificationEventsResponseItem = zod.object({
 export const ListNotificationEventsResponse = zod.array(ListNotificationEventsResponseItem)
 
 
+/**
+ * @summary List all clip accounts for the user
+ */
+export const ListClipAccountsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "platform": zod.string(),
+  "handle": zod.string(),
+  "personaLabel": zod.string(),
+  "personaProfile": zod.record(zod.string(), zod.unknown()).optional(),
+  "color": zod.string(),
+  "queueCount": zod.number(),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListClipAccountsResponse = zod.array(ListClipAccountsResponseItem)
+
+
+/**
+ * @summary Create a new clip account
+ */
+export const CreateClipAccountBody = zod.object({
+  "name": zod.string(),
+  "platform": zod.string(),
+  "handle": zod.string(),
+  "personaLabel": zod.string().optional(),
+  "personaProfile": zod.record(zod.string(), zod.unknown()).optional(),
+  "color": zod.string().optional(),
+  "status": zod.string().optional()
+})
+
+export const CreateClipAccountResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "platform": zod.string(),
+  "handle": zod.string(),
+  "personaLabel": zod.string(),
+  "personaProfile": zod.record(zod.string(), zod.unknown()).optional(),
+  "color": zod.string(),
+  "queueCount": zod.number(),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Update a clip account
+ */
+export const UpdateClipAccountParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateClipAccountBody = zod.object({
+  "name": zod.string(),
+  "platform": zod.string(),
+  "handle": zod.string(),
+  "personaLabel": zod.string().optional(),
+  "personaProfile": zod.record(zod.string(), zod.unknown()).optional(),
+  "color": zod.string().optional(),
+  "status": zod.string().optional()
+})
+
+export const UpdateClipAccountResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "platform": zod.string(),
+  "handle": zod.string(),
+  "personaLabel": zod.string(),
+  "personaProfile": zod.record(zod.string(), zod.unknown()).optional(),
+  "color": zod.string(),
+  "queueCount": zod.number(),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Delete a clip account
+ */
+export const DeleteClipAccountParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteClipAccountResponse = zod.void()
+
+
+/**
+ * @summary List source videos
+ */
+export const ListSourceVideosResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "url": zod.string(),
+  "durationSeconds": zod.number().optional(),
+  "transcript": zod.string().optional(),
+  "analysisStatus": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const ListSourceVideosResponse = zod.array(ListSourceVideosResponseItem)
+
+
+/**
+ * @summary Add a source video
+ */
+export const CreateSourceVideoBody = zod.object({
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "url": zod.string(),
+  "durationSeconds": zod.number().optional(),
+  "transcript": zod.string().optional()
+})
+
+export const CreateSourceVideoResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "url": zod.string(),
+  "durationSeconds": zod.number().optional(),
+  "transcript": zod.string().optional(),
+  "analysisStatus": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a source video by ID
+ */
+export const GetSourceVideoParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSourceVideoResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "url": zod.string(),
+  "durationSeconds": zod.number().optional(),
+  "transcript": zod.string().optional(),
+  "analysisStatus": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Run AI moment detection on a source video
+ */
+export const AnalyzeSourceVideoParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AnalyzeSourceVideoResponse = zod.object({
+  "jobId": zod.number(),
+  "momentsDetected": zod.array(zod.object({
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "retentionScore": zod.number(),
+  "suggestedFormats": zod.array(zod.string()),
+  "suggestedCaption": zod.string()
+})),
+  "count": zod.number()
+})
+
+
+/**
+ * @summary Distribute source video across accounts with content differentiation
+ */
+export const DistributeSourceVideoParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DistributeSourceVideoBody = zod.object({
+  "accountIds": zod.array(zod.number()),
+  "jobId": zod.number().optional()
+})
+
+export const DistributeSourceVideoResponse = zod.object({
+  "message": zod.string(),
+  "distributed": zod.array(zod.object({
+  "accountId": zod.number().optional(),
+  "accountName": zod.string().optional(),
+  "clipId": zod.number().optional(),
+  "momentLabel": zod.string().optional(),
+  "format": zod.string().optional(),
+  "tone": zod.string().optional()
+}))
+})
+
+
+/**
+ * @summary List AI clip analysis jobs
+ */
+export const ListClipJobsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceVideoId": zod.number(),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed']),
+  "momentsDetected": zod.array(zod.object({
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "retentionScore": zod.number(),
+  "suggestedFormats": zod.array(zod.string()),
+  "suggestedCaption": zod.string()
+})),
+  "errorMessage": zod.string().optional(),
+  "completedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+export const ListClipJobsResponse = zod.array(ListClipJobsResponseItem)
+
+
+/**
+ * @summary Get a clip job by ID
+ */
+export const GetClipJobParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetClipJobResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceVideoId": zod.number(),
+  "status": zod.enum(['pending', 'running', 'completed', 'failed']),
+  "momentsDetected": zod.array(zod.object({
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "retentionScore": zod.number(),
+  "suggestedFormats": zod.array(zod.string()),
+  "suggestedCaption": zod.string()
+})),
+  "errorMessage": zod.string().optional(),
+  "completedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List clips with optional filters
+ */
+export const ListClipsQueryParams = zod.object({
+  "accountId": zod.coerce.number().optional(),
+  "sourceVideoId": zod.coerce.number().optional(),
+  "status": zod.coerce.string().optional()
+})
+
+export const ListClipsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceVideoId": zod.number(),
+  "accountId": zod.number().optional(),
+  "jobId": zod.number().optional(),
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "format": zod.enum(['9:16', '1:1', '16:9']),
+  "captionTone": zod.enum(['african_english', 'pidgin', 'yoruba', 'hausa']),
+  "captionText": zod.string().optional(),
+  "hashtags": zod.array(zod.string()),
+  "coverFrameTime": zod.number(),
+  "status": zod.enum(['draft', 'ready', 'scheduled', 'published', 'failed']),
+  "performanceScore": zod.string().optional(),
+  "collabEnabled": zod.boolean(),
+  "collabAccountId": zod.number().optional(),
+  "watermarkApplied": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListClipsResponse = zod.array(ListClipsResponseItem)
+
+
+/**
+ * @summary Create a clip manually
+ */
+export const CreateClipBody = zod.object({
+  "sourceVideoId": zod.number(),
+  "accountId": zod.number().optional(),
+  "jobId": zod.number().optional(),
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "format": zod.string().optional(),
+  "captionTone": zod.string().optional(),
+  "captionText": zod.string().optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "coverFrameTime": zod.number().optional()
+})
+
+export const CreateClipResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceVideoId": zod.number(),
+  "accountId": zod.number().optional(),
+  "jobId": zod.number().optional(),
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "format": zod.enum(['9:16', '1:1', '16:9']),
+  "captionTone": zod.enum(['african_english', 'pidgin', 'yoruba', 'hausa']),
+  "captionText": zod.string().optional(),
+  "hashtags": zod.array(zod.string()),
+  "coverFrameTime": zod.number(),
+  "status": zod.enum(['draft', 'ready', 'scheduled', 'published', 'failed']),
+  "performanceScore": zod.string().optional(),
+  "collabEnabled": zod.boolean(),
+  "collabAccountId": zod.number().optional(),
+  "watermarkApplied": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Update a clip
+ */
+export const UpdateClipParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateClipBody = zod.object({
+  "label": zod.string().optional(),
+  "format": zod.string().optional(),
+  "captionTone": zod.string().optional(),
+  "captionText": zod.string().optional(),
+  "hashtags": zod.array(zod.string()).optional(),
+  "status": zod.string().optional(),
+  "coverFrameTime": zod.number().optional(),
+  "collabEnabled": zod.boolean().optional(),
+  "collabAccountId": zod.number().optional(),
+  "watermarkApplied": zod.boolean().optional(),
+  "accountId": zod.number().optional()
+})
+
+export const UpdateClipResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceVideoId": zod.number(),
+  "accountId": zod.number().optional(),
+  "jobId": zod.number().optional(),
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "format": zod.enum(['9:16', '1:1', '16:9']),
+  "captionTone": zod.enum(['african_english', 'pidgin', 'yoruba', 'hausa']),
+  "captionText": zod.string().optional(),
+  "hashtags": zod.array(zod.string()),
+  "coverFrameTime": zod.number(),
+  "status": zod.enum(['draft', 'ready', 'scheduled', 'published', 'failed']),
+  "performanceScore": zod.string().optional(),
+  "collabEnabled": zod.boolean(),
+  "collabAccountId": zod.number().optional(),
+  "watermarkApplied": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Generate AI captions in multiple tones for a clip
+ */
+export const GenerateClipCaptionParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GenerateClipCaptionBody = zod.object({
+  "tones": zod.array(zod.string()).optional()
+})
+
+export const GenerateClipCaptionResponse = zod.object({
+  "clipId": zod.number(),
+  "captions": zod.record(zod.string(), zod.object({
+  "caption": zod.string(),
+  "hashtags": zod.array(zod.string()),
+  "cta": zod.string()
+}))
+})
+
+
+/**
+ * @summary Enable collab mode — queue the clip from a second account simultaneously
+ */
+export const EnableClipCollabParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const EnableClipCollabBody = zod.object({
+  "collabAccountId": zod.number(),
+  "scheduledAt": zod.coerce.date().optional()
+})
+
+export const EnableClipCollabResponse = zod.object({
+  "message": zod.string(),
+  "originalClipId": zod.number(),
+  "collabClipId": zod.number(),
+  "collabAccount": zod.string()
+})
+
+
+/**
+ * @summary List clip schedules
+ */
+export const ListClipSchedulesQueryParams = zod.object({
+  "accountId": zod.coerce.number().optional(),
+  "from": zod.date().optional(),
+  "to": zod.date().optional()
+})
+
+export const ListClipSchedulesResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.enum(['scheduled', 'posted', 'cancelled']),
+  "postedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+export const ListClipSchedulesResponse = zod.array(ListClipSchedulesResponseItem)
+
+
+/**
+ * @summary Schedule a clip
+ */
+export const CreateClipScheduleBody = zod.object({
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "scheduledAt": zod.coerce.date()
+})
+
+export const CreateClipScheduleResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.enum(['scheduled', 'posted', 'cancelled']),
+  "postedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get 30-day clip scheduling calendar
+ */
+export const GetClipScheduleCalendarQueryParams = zod.object({
+  "from": zod.date().optional()
+})
+
+export const GetClipScheduleCalendarResponseItem = zod.object({
+  "schedule": zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.enum(['scheduled', 'posted', 'cancelled']),
+  "postedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+}),
+  "clip": zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceVideoId": zod.number(),
+  "accountId": zod.number().optional(),
+  "jobId": zod.number().optional(),
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "format": zod.enum(['9:16', '1:1', '16:9']),
+  "captionTone": zod.enum(['african_english', 'pidgin', 'yoruba', 'hausa']),
+  "captionText": zod.string().optional(),
+  "hashtags": zod.array(zod.string()),
+  "coverFrameTime": zod.number(),
+  "status": zod.enum(['draft', 'ready', 'scheduled', 'published', 'failed']),
+  "performanceScore": zod.string().optional(),
+  "collabEnabled": zod.boolean(),
+  "collabAccountId": zod.number().optional(),
+  "watermarkApplied": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+}).optional(),
+  "account": zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string(),
+  "platform": zod.string(),
+  "handle": zod.string(),
+  "personaLabel": zod.string(),
+  "personaProfile": zod.record(zod.string(), zod.unknown()).optional(),
+  "color": zod.string(),
+  "queueCount": zod.number(),
+  "status": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+}).optional()
+})
+export const GetClipScheduleCalendarResponse = zod.array(GetClipScheduleCalendarResponseItem)
+
+
+/**
+ * @summary Bulk schedule clips across accounts
+ */
+export const BulkCreateClipSchedulesBody = zod.object({
+  "schedules": zod.array(zod.object({
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "scheduledAt": zod.coerce.date()
+}))
+})
+
+export const BulkCreateClipSchedulesResponse = zod.object({
+  "count": zod.number(),
+  "schedules": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.enum(['scheduled', 'posted', 'cancelled']),
+  "postedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Update a clip schedule
+ */
+export const UpdateClipScheduleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateClipScheduleBody = zod.object({
+  "scheduledAt": zod.coerce.date().optional(),
+  "status": zod.string().optional(),
+  "accountId": zod.number().optional()
+})
+
+export const UpdateClipScheduleResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "scheduledAt": zod.coerce.date(),
+  "status": zod.enum(['scheduled', 'posted', 'cancelled']),
+  "postedAt": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a clip schedule
+ */
+export const DeleteClipScheduleParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteClipScheduleResponse = zod.void()
+
+
+/**
+ * @summary List brand overlay configs
+ */
+export const ListBrandOverlayConfigsQueryParams = zod.object({
+  "accountId": zod.coerce.number().optional()
+})
+
+export const ListBrandOverlayConfigsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "accountId": zod.number(),
+  "watermarkUrl": zod.string().optional(),
+  "watermarkPosition": zod.string(),
+  "watermarkOpacity": zod.string(),
+  "introBumperUrl": zod.string().optional(),
+  "endCardTemplate": zod.string(),
+  "endCardText": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListBrandOverlayConfigsResponse = zod.array(ListBrandOverlayConfigsResponseItem)
+
+
+/**
+ * @summary Create a brand overlay config
+ */
+export const CreateBrandOverlayConfigBody = zod.object({
+  "accountId": zod.number(),
+  "watermarkUrl": zod.string().optional(),
+  "watermarkPosition": zod.string().optional(),
+  "watermarkOpacity": zod.number().optional(),
+  "introBumperUrl": zod.string().optional(),
+  "endCardTemplate": zod.string().optional(),
+  "endCardText": zod.string().optional()
+})
+
+export const CreateBrandOverlayConfigResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "accountId": zod.number(),
+  "watermarkUrl": zod.string().optional(),
+  "watermarkPosition": zod.string(),
+  "watermarkOpacity": zod.string(),
+  "introBumperUrl": zod.string().optional(),
+  "endCardTemplate": zod.string(),
+  "endCardText": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Update a brand overlay config
+ */
+export const UpdateBrandOverlayConfigParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateBrandOverlayConfigBody = zod.object({
+  "accountId": zod.number(),
+  "watermarkUrl": zod.string().optional(),
+  "watermarkPosition": zod.string().optional(),
+  "watermarkOpacity": zod.number().optional(),
+  "introBumperUrl": zod.string().optional(),
+  "endCardTemplate": zod.string().optional(),
+  "endCardText": zod.string().optional()
+})
+
+export const UpdateBrandOverlayConfigResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "accountId": zod.number(),
+  "watermarkUrl": zod.string().optional(),
+  "watermarkPosition": zod.string(),
+  "watermarkOpacity": zod.string(),
+  "introBumperUrl": zod.string().optional(),
+  "endCardTemplate": zod.string(),
+  "endCardText": zod.string().optional(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary List clip performance logs
+ */
+export const ListClipPerformanceQueryParams = zod.object({
+  "clipId": zod.coerce.number().optional(),
+  "accountId": zod.coerce.number().optional()
+})
+
+export const ListClipPerformanceResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "views": zod.number(),
+  "shares": zod.number(),
+  "comments": zod.number(),
+  "saves": zod.number(),
+  "watchTimeSeconds": zod.number(),
+  "source": zod.string(),
+  "recordedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})
+export const ListClipPerformanceResponse = zod.array(ListClipPerformanceResponseItem)
+
+
+/**
+ * @summary Log clip performance data
+ */
+export const LogClipPerformanceBody = zod.object({
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "views": zod.number().optional(),
+  "shares": zod.number().optional(),
+  "comments": zod.number().optional(),
+  "saves": zod.number().optional(),
+  "watchTimeSeconds": zod.number().optional(),
+  "source": zod.string().optional()
+})
+
+export const LogClipPerformanceResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "clipId": zod.number(),
+  "accountId": zod.number(),
+  "views": zod.number(),
+  "shares": zod.number(),
+  "comments": zod.number(),
+  "saves": zod.number(),
+  "watchTimeSeconds": zod.number(),
+  "source": zod.string(),
+  "recordedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get clip performance summary and top clips
+ */
+export const GetClipPerformanceSummaryResponse = zod.object({
+  "totals": zod.object({
+  "views": zod.number().optional(),
+  "shares": zod.number().optional(),
+  "saves": zod.number().optional(),
+  "comments": zod.number().optional(),
+  "watchTime": zod.number().optional()
+}),
+  "topClips": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "sourceVideoId": zod.number(),
+  "accountId": zod.number().optional(),
+  "jobId": zod.number().optional(),
+  "label": zod.string(),
+  "startSeconds": zod.number(),
+  "endSeconds": zod.number(),
+  "format": zod.enum(['9:16', '1:1', '16:9']),
+  "captionTone": zod.enum(['african_english', 'pidgin', 'yoruba', 'hausa']),
+  "captionText": zod.string().optional(),
+  "hashtags": zod.array(zod.string()),
+  "coverFrameTime": zod.number(),
+  "status": zod.enum(['draft', 'ready', 'scheduled', 'published', 'failed']),
+  "performanceScore": zod.string().optional(),
+  "collabEnabled": zod.boolean(),
+  "collabAccountId": zod.number().optional(),
+  "watermarkApplied": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date().optional()
+})),
+  "byFormat": zod.record(zod.string(), zod.object({
+  "count": zod.number().optional(),
+  "avgScore": zod.number().optional()
+})),
+  "totalClips": zod.number()
+})
+
+
