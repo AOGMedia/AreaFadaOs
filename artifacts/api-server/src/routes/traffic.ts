@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getAuth } from "@clerk/express";
 import { db } from "@workspace/db";
 import {
   trafficCampaignsTable,
@@ -52,7 +53,7 @@ const CURATED_HOOKS = [
 // ─── Traffic Campaigns ────────────────────────────────────────────────────────
 
 router.get("/traffic-campaigns", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const campaigns = await db.select().from(trafficCampaignsTable)
     .where(eq(trafficCampaignsTable.userId, user.id))
@@ -61,7 +62,7 @@ router.get("/traffic-campaigns", ...requireTraffic, async (req, res) => {
 });
 
 router.post("/traffic-campaigns", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { name, destinationUrl, budgetNgn, startDate, endDate, goal, targetRegion } = req.body;
   if (!name || !destinationUrl) { res.status(400).json({ error: "name and destinationUrl required" }); return; }
@@ -84,7 +85,7 @@ router.post("/traffic-campaigns", ...requireTraffic, async (req, res) => {
 });
 
 router.get("/traffic-campaigns/:id", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const [campaign] = await db.select().from(trafficCampaignsTable)
     .where(and(eq(trafficCampaignsTable.id, Number(req.params.id)), eq(trafficCampaignsTable.userId, user.id)));
@@ -95,7 +96,7 @@ router.get("/traffic-campaigns/:id", ...requireTraffic, async (req, res) => {
 });
 
 router.patch("/traffic-campaigns/:id", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { name, destinationUrl, budgetNgn, startDate, endDate, goal, targetRegion, status } = req.body;
   const [updated] = await db.update(trafficCampaignsTable)
@@ -117,7 +118,7 @@ router.patch("/traffic-campaigns/:id", ...requireTraffic, async (req, res) => {
 });
 
 router.delete("/traffic-campaigns/:id", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   await db.delete(campaignChannelConfigsTable)
     .where(and(eq(campaignChannelConfigsTable.campaignId, Number(req.params.id)), eq(campaignChannelConfigsTable.userId, user.id)));
@@ -129,7 +130,7 @@ router.delete("/traffic-campaigns/:id", ...requireTraffic, async (req, res) => {
 // ─── Channel configs ──────────────────────────────────────────────────────────
 
 router.get("/traffic-campaigns/:id/channels", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const channels = await db.select().from(campaignChannelConfigsTable)
     .where(and(eq(campaignChannelConfigsTable.campaignId, Number(req.params.id)), eq(campaignChannelConfigsTable.userId, user.id)));
@@ -137,7 +138,7 @@ router.get("/traffic-campaigns/:id/channels", ...requireTraffic, async (req, res
 });
 
 router.patch("/traffic-campaigns/:id/channels/:channelId", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { enabled, budgetAllocationNgn, settings, status } = req.body;
   const [updated] = await db.update(campaignChannelConfigsTable)
@@ -167,7 +168,7 @@ router.get("/traffic/meta-audience-presets", ...requireTraffic, async (_req, res
 // ─── Influencer activation for a campaign ────────────────────────────────────
 
 router.get("/traffic-campaigns/:id/influencer-activations", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   // Return influencers from micro-influencer directory with activation settings from channel config
   const influencers = await db.select().from(microInfluencersTable)
@@ -193,7 +194,7 @@ router.get("/traffic-campaigns/:id/influencer-activations", ...requireTraffic, a
 });
 
 router.post("/traffic-campaigns/:id/influencer-activations/:influencerId", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { action } = req.body; // send_brief | mark_active | mark_completed
   const influencerId = Number(req.params.influencerId);
@@ -223,7 +224,7 @@ router.post("/traffic-campaigns/:id/influencer-activations/:influencerId", ...re
 // ─── Traffic events ───────────────────────────────────────────────────────────
 
 router.post("/traffic-campaigns/:id/events", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { channel, eventType, trackedLinkSlug, referrer, region, metadata } = req.body;
   const [event] = await db.insert(trafficEventsTable).values({
@@ -254,7 +255,7 @@ router.post("/traffic-campaigns/:id/events", ...requireTraffic, async (req, res)
 // ─── Growth Snapshots ─────────────────────────────────────────────────────────
 
 router.get("/growth-snapshots", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { platformAccountId } = req.query;
   const conditions = [eq(growthSnapshotsTable.userId, user.id)];
@@ -267,7 +268,7 @@ router.get("/growth-snapshots", ...requireTraffic, async (req, res) => {
 });
 
 router.post("/growth-snapshots", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { platformAccountId, platform, handle, followerCount, followerGrowthRate, reachCount, reachGrowthRate, engagementVelocity, healthScore, alertThresholdRate, alertEnabled } = req.body;
   if (!platformAccountId || !platform || !handle) { res.status(400).json({ error: "platformAccountId, platform and handle required" }); return; }
@@ -289,7 +290,7 @@ router.post("/growth-snapshots", ...requireTraffic, async (req, res) => {
 });
 
 router.patch("/growth-snapshots/:id/alert", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { alertEnabled, alertThresholdRate } = req.body;
   const [updated] = await db.update(growthSnapshotsTable)
@@ -306,7 +307,7 @@ router.patch("/growth-snapshots/:id/alert", ...requireTraffic, async (req, res) 
 // ─── Hook Library ─────────────────────────────────────────────────────────────
 
 router.get("/hook-library", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { platform, niche, format, q } = req.query;
   // Seed curated hooks if empty
@@ -334,7 +335,7 @@ router.get("/hook-library", ...requireTraffic, async (req, res) => {
 });
 
 router.post("/hook-library", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { title, hookText, platform, niche, format, tags } = req.body;
   if (!title || !hookText) { res.status(400).json({ error: "title and hookText required" }); return; }
@@ -372,7 +373,7 @@ router.post("/hook-library/:id/use", ...requireTraffic, async (req, res) => {
 // ─── SEO Content Jobs ─────────────────────────────────────────────────────────
 
 router.get("/seo-content-jobs", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const pieces = await db.select().from(seoContentPiecesTable)
     .where(eq(seoContentPiecesTable.userId, user.id))
@@ -382,7 +383,7 @@ router.get("/seo-content-jobs", ...requireTraffic, async (req, res) => {
 });
 
 router.post("/seo-content-jobs", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const { topic, contentType, targetKeywords, region } = req.body;
   if (!topic) { res.status(400).json({ error: "topic required" }); return; }
@@ -435,7 +436,7 @@ router.post("/seo-content-jobs", ...requireTraffic, async (req, res) => {
 });
 
 router.post("/seo-content-jobs/:id/publish-to-calendar", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   const [piece] = await db.select().from(seoContentPiecesTable)
     .where(and(eq(seoContentPiecesTable.id, Number(req.params.id)), eq(seoContentPiecesTable.userId, user.id)));
@@ -444,8 +445,8 @@ router.post("/seo-content-jobs/:id/publish-to-calendar", ...requireTraffic, asyn
   const { scheduledAt, platform } = req.body;
   const [post] = await db.insert(postsTable).values({
     userId: user.id,
-    platform: platform ?? "instagram",
-    content: `${piece.title ?? piece.topic}\n\n${(piece.body ?? "").substring(0, 2000)}`,
+    platforms: [platform ?? "instagram"],
+    caption: `${piece.title ?? piece.topic}\n\n${(piece.body ?? "").substring(0, 2000)}`.substring(0, 2200),
     status: "draft",
     scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
   }).returning();
@@ -458,7 +459,7 @@ router.post("/seo-content-jobs/:id/publish-to-calendar", ...requireTraffic, asyn
 // ─── Content velocity recommender ─────────────────────────────────────────────
 
 router.get("/traffic/content-velocity", ...requireTraffic, async (req, res) => {
-  const user = await getDbUser(req.auth!.userId);
+  const user = await getDbUser(getAuth(req).userId!);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
   // Analyse last 30 days of posts
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -471,7 +472,9 @@ router.get("/traffic/content-velocity", ...requireTraffic, async (req, res) => {
 
   const byPlatform: Record<string, number> = {};
   for (const p of recentPosts) {
-    byPlatform[p.platform] = (byPlatform[p.platform] ?? 0) + 1;
+    for (const plat of (p.platforms ?? [])) {
+      byPlatform[plat] = (byPlatform[plat] ?? 0) + 1;
+    }
   }
   const totalPosts = recentPosts.length;
   const postsPerWeek = Math.round((totalPosts / 30) * 7 * 10) / 10;

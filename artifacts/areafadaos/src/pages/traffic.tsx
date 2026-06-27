@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Layout } from "@/components/layout";
+import { AppShell } from "@/components/AppShell";
+import { TierGuard } from "@/components/TierGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+
+async function apiFetch(method: string, url: string, body?: unknown): Promise<Response> {
+  return fetch(url, {
+    method,
+    credentials: "include",
+    headers: body !== undefined ? { "Content-Type": "application/json" } : {},
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -33,7 +42,7 @@ interface HookEntry {
 }
 interface SeoJob {
   id: number; topic: string; contentType: string; targetKeywords: string[];
-  region: string; title?: string; body?: string; status: string; publishedToCalendar: boolean;
+  region: string; title?: string; body?: string; metaDescription?: string; status: string; publishedToCalendar: boolean;
 }
 interface GrowthSnapshot {
   id: number; platform: string; handle: string; followerCount: number;
@@ -79,7 +88,7 @@ function CampaignDialog({ open, onClose, onCreated }: { open: boolean; onClose: 
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `${BASE}/api/traffic-campaigns`, form);
+      const res = await apiFetch("POST", `${BASE}/api/traffic-campaigns`, form);
       return res.json();
     },
     onSuccess: (campaign) => { onCreated(campaign); onClose(); toast({ title: "Campaign created!" }); },
@@ -152,7 +161,7 @@ function CampaignDetail({ campaign, onStatusChange }: { campaign: TrafficCampaig
 
   const { mutate: toggleChannel, isPending: toggling } = useMutation({
     mutationFn: async ({ channelId, enabled }: { channelId: number; enabled: boolean }) => {
-      const res = await apiRequest("PATCH", `${BASE}/api/traffic-campaigns/${campaign.id}/channels/${channelId}`, { enabled, status: enabled ? "active" : "idle" });
+      const res = await apiFetch("PATCH", `${BASE}/api/traffic-campaigns/${campaign.id}/channels/${channelId}`, { enabled, status: enabled ? "active" : "idle" });
       return res.json();
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["traffic-campaign-detail", campaign.id] }); toast({ title: "Channel updated" }); },
@@ -161,7 +170,7 @@ function CampaignDetail({ campaign, onStatusChange }: { campaign: TrafficCampaig
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: async (status: string) => {
-      const res = await apiRequest("PATCH", `${BASE}/api/traffic-campaigns/${campaign.id}`, { status });
+      const res = await apiFetch("PATCH", `${BASE}/api/traffic-campaigns/${campaign.id}`, { status });
       return res.json();
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["traffic-campaigns"] }); onStatusChange(); },
@@ -255,7 +264,7 @@ function MetaAdsPanel({ campaignId, channels }: { campaignId: number; channels: 
   const { mutate: applyPreset, isPending } = useMutation({
     mutationFn: async (presetId: string) => {
       if (!metaChannel) return;
-      const res = await apiRequest("PATCH", `${BASE}/api/traffic-campaigns/${campaignId}/channels/${metaChannel.id}`, {
+      const res = await apiFetch("PATCH", `${BASE}/api/traffic-campaigns/${campaignId}/channels/${metaChannel.id}`, {
         settings: { ...(metaChannel.settings ?? {}), audiencePreset: presetId },
       });
       return res.json();
@@ -312,18 +321,18 @@ function HookLibrary() {
   const filtered = q ? hooks.filter(h => h.title.toLowerCase().includes(q.toLowerCase()) || h.hookText.toLowerCase().includes(q.toLowerCase())) : hooks;
 
   const { mutate: like } = useMutation({
-    mutationFn: async (id: number) => { await apiRequest("POST", `${BASE}/api/hook-library/${id}/like`, {}); },
+    mutationFn: async (id: number) => { await apiFetch("POST", `${BASE}/api/hook-library/${id}/like`, {}); },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["hook-library"] }),
   });
 
   const { mutate: useHook } = useMutation({
-    mutationFn: async (id: number) => { await apiRequest("POST", `${BASE}/api/hook-library/${id}/use`, {}); },
+    mutationFn: async (id: number) => { await apiFetch("POST", `${BASE}/api/hook-library/${id}/use`, {}); },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["hook-library"] }); toast({ title: "Hook applied to draft!" }); },
   });
 
   const { mutate: addHook, isPending: adding } = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `${BASE}/api/hook-library`, newHook);
+      const res = await apiFetch("POST", `${BASE}/api/hook-library`, newHook);
       return res.json();
     },
     onSuccess: () => {
@@ -491,7 +500,7 @@ function SeoEngine() {
 
   const { mutate: generate, isPending } = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `${BASE}/api/seo-content-jobs`, {
+      const res = await apiFetch("POST", `${BASE}/api/seo-content-jobs`, {
         topic, contentType, region,
         targetKeywords: keywords.split(",").map(k => k.trim()).filter(Boolean),
       });
@@ -503,7 +512,7 @@ function SeoEngine() {
 
   const { mutate: publish } = useMutation({
     mutationFn: async (jobId: number) => {
-      const res = await apiRequest("POST", `${BASE}/api/seo-content-jobs/${jobId}/publish-to-calendar`, { platform: "instagram" });
+      const res = await apiFetch("POST", `${BASE}/api/seo-content-jobs/${jobId}/publish-to-calendar`, { platform: "instagram" });
       return res.json();
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["seo-content-jobs"] }); toast({ title: "Published to content calendar!" }); },
@@ -700,7 +709,7 @@ function GrowthDashboard() {
 
   const { mutate: addSnapshot, isPending: adding } = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `${BASE}/api/growth-snapshots`, {
+      const res = await apiFetch("POST", `${BASE}/api/growth-snapshots`, {
         ...form,
         platformAccountId: Number(form.platformAccountId) || 1,
         followerCount: Number(form.followerCount),
@@ -715,7 +724,7 @@ function GrowthDashboard() {
 
   const { mutate: toggleAlert } = useMutation({
     mutationFn: async ({ id, enabled }: { id: number; enabled: boolean }) => {
-      await apiRequest("PATCH", `${BASE}/api/growth-snapshots/${id}/alert`, { alertEnabled: enabled });
+      await apiFetch("PATCH", `${BASE}/api/growth-snapshots/${id}/alert`, { alertEnabled: enabled });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["growth-snapshots"] }),
     onError: () => toast({ title: "Failed to update alert", variant: "destructive" }),
@@ -846,7 +855,7 @@ export function TrafficPage() {
 
   const { mutate: deleteCampaign } = useMutation({
     mutationFn: async (id: number) => {
-      await apiRequest("DELETE", `${BASE}/api/traffic-campaigns/${id}`, undefined);
+      await apiFetch("DELETE", `${BASE}/api/traffic-campaigns/${id}`, undefined);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["traffic-campaigns"] });
@@ -857,7 +866,8 @@ export function TrafficPage() {
   });
 
   return (
-    <Layout>
+    <AppShell>
+      <TierGuard moduleKey="trafficTools" requiredTier="brand">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold">Traffic Generator & Engine</h1>
@@ -962,6 +972,7 @@ export function TrafficPage() {
           onCreated={(c) => { setSelectedCampaign(c); qc.invalidateQueries({ queryKey: ["traffic-campaigns"] }); }}
         />
       </div>
-    </Layout>
+      </TierGuard>
+    </AppShell>
   );
 }

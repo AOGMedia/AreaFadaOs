@@ -4020,3 +4020,619 @@ export const ReviewApprovalRequestResponse = zod.object({
 })
 
 
+/**
+ * @summary List traffic campaigns for current user
+ */
+export const ListTrafficCampaignsResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "name": zod.string().optional(),
+  "destinationUrl": zod.string().optional(),
+  "budgetNgn": zod.string().optional(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "goal": zod.string().optional(),
+  "targetRegion": zod.string().optional(),
+  "totalVisits": zod.number().optional(),
+  "totalConversions": zod.number().optional(),
+  "roiPercent": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListTrafficCampaignsResponse = zod.array(ListTrafficCampaignsResponseItem)
+
+
+/**
+ * @summary Create a new traffic campaign
+ */
+export const CreateTrafficCampaignBody = zod.object({
+  "name": zod.string(),
+  "destinationUrl": zod.string(),
+  "budgetNgn": zod.string().optional(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "goal": zod.enum(['visits', 'leads', 'sales', 'downloads']).optional(),
+  "targetRegion": zod.string().optional()
+})
+
+export const CreateTrafficCampaignResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "name": zod.string().optional(),
+  "destinationUrl": zod.string().optional(),
+  "budgetNgn": zod.string().optional(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "goal": zod.string().optional(),
+  "targetRegion": zod.string().optional(),
+  "totalVisits": zod.number().optional(),
+  "totalConversions": zod.number().optional(),
+  "roiPercent": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Get a traffic campaign with its channel configs
+ */
+export const GetTrafficCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetTrafficCampaignResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "name": zod.string().optional(),
+  "destinationUrl": zod.string().optional(),
+  "budgetNgn": zod.string().optional(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "goal": zod.string().optional(),
+  "targetRegion": zod.string().optional(),
+  "totalVisits": zod.number().optional(),
+  "totalConversions": zod.number().optional(),
+  "roiPercent": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).and(zod.object({
+  "channels": zod.array(zod.object({
+  "id": zod.number().optional(),
+  "campaignId": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "channel": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "budgetAllocationNgn": zod.string().optional(),
+  "visits": zod.number().optional(),
+  "clicks": zod.number().optional(),
+  "costPerVisit": zod.string().nullish(),
+  "status": zod.string().optional(),
+  "settings": zod.record(zod.string(), zod.unknown()).optional(),
+  "activatedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})).optional()
+}))
+
+
+/**
+ * @summary Update a traffic campaign
+ */
+export const UpdateTrafficCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateTrafficCampaignBody = zod.object({
+  "name": zod.string().optional(),
+  "destinationUrl": zod.string().optional(),
+  "budgetNgn": zod.string().optional(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "goal": zod.string().optional(),
+  "targetRegion": zod.string().optional(),
+  "status": zod.enum(['draft', 'active', 'paused', 'completed']).optional()
+})
+
+export const UpdateTrafficCampaignResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "name": zod.string().optional(),
+  "destinationUrl": zod.string().optional(),
+  "budgetNgn": zod.string().optional(),
+  "startDate": zod.coerce.date().nullish(),
+  "endDate": zod.coerce.date().nullish(),
+  "status": zod.string().optional(),
+  "goal": zod.string().optional(),
+  "targetRegion": zod.string().optional(),
+  "totalVisits": zod.number().optional(),
+  "totalConversions": zod.number().optional(),
+  "roiPercent": zod.string().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Delete a traffic campaign
+ */
+export const DeleteTrafficCampaignParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteTrafficCampaignResponse = zod.void()
+
+
+/**
+ * @summary List channel configs for a campaign
+ */
+export const ListCampaignChannelsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListCampaignChannelsResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "campaignId": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "channel": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "budgetAllocationNgn": zod.string().optional(),
+  "visits": zod.number().optional(),
+  "clicks": zod.number().optional(),
+  "costPerVisit": zod.string().nullish(),
+  "status": zod.string().optional(),
+  "settings": zod.record(zod.string(), zod.unknown()).optional(),
+  "activatedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListCampaignChannelsResponse = zod.array(ListCampaignChannelsResponseItem)
+
+
+/**
+ * @summary Update a campaign channel config
+ */
+export const UpdateCampaignChannelParams = zod.object({
+  "id": zod.coerce.number(),
+  "channelId": zod.coerce.number()
+})
+
+export const UpdateCampaignChannelBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "budgetAllocationNgn": zod.string().optional(),
+  "settings": zod.record(zod.string(), zod.unknown()).optional(),
+  "status": zod.string().optional()
+})
+
+export const UpdateCampaignChannelResponse = zod.object({
+  "id": zod.number().optional(),
+  "campaignId": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "channel": zod.string().optional(),
+  "enabled": zod.boolean().optional(),
+  "budgetAllocationNgn": zod.string().optional(),
+  "visits": zod.number().optional(),
+  "clicks": zod.number().optional(),
+  "costPerVisit": zod.string().nullish(),
+  "status": zod.string().optional(),
+  "settings": zod.record(zod.string(), zod.unknown()).optional(),
+  "activatedAt": zod.coerce.date().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary List Africa-specific Meta Ads audience presets
+ */
+export const ListMetaAudiencePresetsResponseItem = zod.object({
+  "id": zod.string().optional(),
+  "label": zod.string().optional(),
+  "country": zod.string().optional(),
+  "ageMin": zod.number().optional(),
+  "ageMax": zod.number().optional(),
+  "interests": zod.array(zod.string()).optional()
+})
+export const ListMetaAudiencePresetsResponse = zod.array(ListMetaAudiencePresetsResponseItem)
+
+
+/**
+ * @summary List micro-influencers with activation status for a campaign
+ */
+export const ListInfluencerActivationsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListInfluencerActivationsResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "handle": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "niche": zod.string().optional(),
+  "followerCount": zod.number().optional(),
+  "activationStatus": zod.string().optional(),
+  "briefSent": zod.boolean().optional(),
+  "visitsAttributed": zod.number().optional()
+})
+export const ListInfluencerActivationsResponse = zod.array(ListInfluencerActivationsResponseItem)
+
+
+/**
+ * @summary Send brief or update activation status for an influencer
+ */
+export const UpdateInfluencerActivationParams = zod.object({
+  "id": zod.coerce.number(),
+  "influencerId": zod.coerce.number()
+})
+
+export const UpdateInfluencerActivationBody = zod.object({
+  "action": zod.enum(['send_brief', 'mark_active', 'mark_completed']).optional()
+})
+
+export const UpdateInfluencerActivationResponse = zod.object({
+  "influencerId": zod.number().optional(),
+  "status": zod.string().optional(),
+  "briefSent": zod.boolean().optional(),
+  "visitsAttributed": zod.number().optional()
+})
+
+
+/**
+ * @summary Record a traffic event (click, visit, lead, conversion)
+ */
+export const RecordTrafficEventParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RecordTrafficEventBody = zod.object({
+  "channel": zod.string().optional(),
+  "eventType": zod.enum(['click', 'visit', 'lead', 'conversion']).optional(),
+  "trackedLinkSlug": zod.string().nullish(),
+  "referrer": zod.string().nullish(),
+  "region": zod.string().nullish(),
+  "metadata": zod.record(zod.string(), zod.unknown()).optional()
+})
+
+export const RecordTrafficEventResponse = zod.object({
+  "id": zod.number().optional(),
+  "campaignId": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "channel": zod.string().optional(),
+  "eventType": zod.string().optional(),
+  "trackedLinkSlug": zod.string().nullish(),
+  "referrer": zod.string().nullish(),
+  "region": zod.string().nullish(),
+  "occurredAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary List growth snapshots for current user
+ */
+export const ListGrowthSnapshotsQueryParams = zod.object({
+  "platformAccountId": zod.coerce.number().optional()
+})
+
+export const ListGrowthSnapshotsResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "platformAccountId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "followerCount": zod.number().optional(),
+  "followerGrowthRate": zod.string().optional(),
+  "reachCount": zod.number().optional(),
+  "reachGrowthRate": zod.string().optional(),
+  "engagementVelocity": zod.string().optional(),
+  "healthScore": zod.number().optional(),
+  "alertThresholdRate": zod.string().nullish(),
+  "alertEnabled": zod.boolean().optional(),
+  "snapshotDate": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date().optional()
+})
+export const ListGrowthSnapshotsResponse = zod.array(ListGrowthSnapshotsResponseItem)
+
+
+/**
+ * @summary Log a new growth snapshot
+ */
+export const CreateGrowthSnapshotBody = zod.object({
+  "platformAccountId": zod.number(),
+  "platform": zod.string(),
+  "handle": zod.string(),
+  "followerCount": zod.number().optional(),
+  "followerGrowthRate": zod.string().optional(),
+  "reachCount": zod.number().optional(),
+  "reachGrowthRate": zod.string().optional(),
+  "engagementVelocity": zod.string().optional(),
+  "healthScore": zod.number().optional(),
+  "alertThresholdRate": zod.string().optional(),
+  "alertEnabled": zod.boolean().optional()
+})
+
+export const CreateGrowthSnapshotResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "platformAccountId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "followerCount": zod.number().optional(),
+  "followerGrowthRate": zod.string().optional(),
+  "reachCount": zod.number().optional(),
+  "reachGrowthRate": zod.string().optional(),
+  "engagementVelocity": zod.string().optional(),
+  "healthScore": zod.number().optional(),
+  "alertThresholdRate": zod.string().nullish(),
+  "alertEnabled": zod.boolean().optional(),
+  "snapshotDate": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Configure growth rate alert for a snapshot
+ */
+export const UpdateGrowthSnapshotAlertParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateGrowthSnapshotAlertBody = zod.object({
+  "alertEnabled": zod.boolean().optional(),
+  "alertThresholdRate": zod.string().optional()
+})
+
+export const UpdateGrowthSnapshotAlertResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "platformAccountId": zod.number().optional(),
+  "platform": zod.string().optional(),
+  "handle": zod.string().optional(),
+  "followerCount": zod.number().optional(),
+  "followerGrowthRate": zod.string().optional(),
+  "reachCount": zod.number().optional(),
+  "reachGrowthRate": zod.string().optional(),
+  "engagementVelocity": zod.string().optional(),
+  "healthScore": zod.number().optional(),
+  "alertThresholdRate": zod.string().nullish(),
+  "alertEnabled": zod.boolean().optional(),
+  "snapshotDate": zod.coerce.date().optional(),
+  "createdAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Browse viral hook library
+ */
+export const ListHookLibraryQueryParams = zod.object({
+  "platform": zod.coerce.string().optional(),
+  "niche": zod.coerce.string().optional(),
+  "format": zod.coerce.string().optional(),
+  "q": zod.coerce.string().optional()
+})
+
+export const ListHookLibraryResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().nullish(),
+  "title": zod.string().optional(),
+  "hookText": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "niche": zod.string().optional(),
+  "format": zod.string().optional(),
+  "useCount": zod.number().optional(),
+  "likeCount": zod.number().optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "curated": zod.boolean().optional(),
+  "weekNumber": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListHookLibraryResponse = zod.array(ListHookLibraryResponseItem)
+
+
+/**
+ * @summary Add a hook to the library
+ */
+export const CreateHookEntryBody = zod.object({
+  "title": zod.string(),
+  "hookText": zod.string(),
+  "platform": zod.string().optional(),
+  "niche": zod.string().optional(),
+  "format": zod.string().optional(),
+  "tags": zod.array(zod.string()).optional()
+})
+
+export const CreateHookEntryResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().nullish(),
+  "title": zod.string().optional(),
+  "hookText": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "niche": zod.string().optional(),
+  "format": zod.string().optional(),
+  "useCount": zod.number().optional(),
+  "likeCount": zod.number().optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "curated": zod.boolean().optional(),
+  "weekNumber": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Like a hook entry
+ */
+export const LikeHookEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const LikeHookEntryResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().nullish(),
+  "title": zod.string().optional(),
+  "hookText": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "niche": zod.string().optional(),
+  "format": zod.string().optional(),
+  "useCount": zod.number().optional(),
+  "likeCount": zod.number().optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "curated": zod.boolean().optional(),
+  "weekNumber": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Record usage of a hook entry
+ */
+export const UseHookEntryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UseHookEntryResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().nullish(),
+  "title": zod.string().optional(),
+  "hookText": zod.string().optional(),
+  "platform": zod.string().optional(),
+  "niche": zod.string().optional(),
+  "format": zod.string().optional(),
+  "useCount": zod.number().optional(),
+  "likeCount": zod.number().optional(),
+  "tags": zod.array(zod.string()).optional(),
+  "curated": zod.boolean().optional(),
+  "weekNumber": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary List SEO content generation jobs
+ */
+export const ListSeoContentJobsResponseItem = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "topic": zod.string().optional(),
+  "contentType": zod.string().optional(),
+  "targetKeywords": zod.array(zod.string()).optional(),
+  "region": zod.string().optional(),
+  "title": zod.string().nullish(),
+  "body": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "status": zod.string().optional(),
+  "publishedToCalendar": zod.boolean().optional(),
+  "scheduledPostId": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+export const ListSeoContentJobsResponse = zod.array(ListSeoContentJobsResponseItem)
+
+
+/**
+ * @summary Generate SEO-optimised content for an African search topic
+ */
+export const CreateSeoContentJobBody = zod.object({
+  "topic": zod.string(),
+  "contentType": zod.enum(['blog', 'youtube_description', 'thread']).optional(),
+  "targetKeywords": zod.array(zod.string()).optional(),
+  "region": zod.string().optional()
+})
+
+export const CreateSeoContentJobResponse = zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "topic": zod.string().optional(),
+  "contentType": zod.string().optional(),
+  "targetKeywords": zod.array(zod.string()).optional(),
+  "region": zod.string().optional(),
+  "title": zod.string().nullish(),
+  "body": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "status": zod.string().optional(),
+  "publishedToCalendar": zod.boolean().optional(),
+  "scheduledPostId": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+})
+
+
+/**
+ * @summary Publish generated SEO content to the content calendar
+ */
+export const PublishSeoContentToCalendarParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PublishSeoContentToCalendarBody = zod.object({
+  "scheduledAt": zod.coerce.date().nullish(),
+  "platform": zod.string().optional()
+})
+
+export const PublishSeoContentToCalendarResponse = zod.object({
+  "post": zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "campaignId": zod.number().nullish(),
+  "caption": zod.string(),
+  "mediaUrls": zod.array(zod.string()),
+  "platforms": zod.array(zod.enum(['instagram', 'tiktok', 'x', 'youtube', 'facebook', 'threads'])),
+  "status": zod.enum(['draft', 'scheduled', 'published', 'failed']),
+  "scheduledAt": zod.coerce.date().nullish(),
+  "publishedAt": zod.coerce.date().nullish(),
+  "tone": zod.string().nullish(),
+  "hashtags": zod.array(zod.string()),
+  "platformVariants": zod.object({
+
+}).passthrough().nullish(),
+  "engagementScore": zod.number(),
+  "isRecycled": zod.boolean(),
+  "originalPostId": zod.number().nullish(),
+  "version": zod.number(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).optional(),
+  "piece": zod.object({
+  "id": zod.number().optional(),
+  "userId": zod.number().optional(),
+  "topic": zod.string().optional(),
+  "contentType": zod.string().optional(),
+  "targetKeywords": zod.array(zod.string()).optional(),
+  "region": zod.string().optional(),
+  "title": zod.string().nullish(),
+  "body": zod.string().nullish(),
+  "metaDescription": zod.string().nullish(),
+  "status": zod.string().optional(),
+  "publishedToCalendar": zod.boolean().optional(),
+  "scheduledPostId": zod.number().nullish(),
+  "createdAt": zod.coerce.date().optional(),
+  "updatedAt": zod.coerce.date().optional()
+}).optional()
+})
+
+
+/**
+ * @summary Get AI-driven content velocity recommendations per platform
+ */
+export const GetContentVelocityRecommendationsResponse = zod.object({
+  "analysedPeriodDays": zod.number().optional(),
+  "totalPostsAnalysed": zod.number().optional(),
+  "overallPostsPerWeek": zod.number().optional(),
+  "recommendations": zod.array(zod.object({
+  "platform": zod.string().optional(),
+  "currentPostsPerWeek": zod.number().optional(),
+  "recommendedPostsPerWeek": zod.number().optional(),
+  "contentMix": zod.object({
+  "educational": zod.number().optional(),
+  "entertainment": zod.number().optional(),
+  "promotional": zod.number().optional()
+}).optional(),
+  "insight": zod.string().optional()
+})).optional(),
+  "generatedAt": zod.coerce.date().optional()
+})
+
+

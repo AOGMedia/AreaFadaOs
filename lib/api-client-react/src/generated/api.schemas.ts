@@ -1723,6 +1723,270 @@ export interface ApprovalRequest {
   draft?: PostDraft;
 }
 
+export interface TrafficCampaign {
+  id?: number;
+  userId?: number;
+  name?: string;
+  destinationUrl?: string;
+  budgetNgn?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  status?: string;
+  goal?: string;
+  targetRegion?: string;
+  totalVisits?: number;
+  totalConversions?: number;
+  roiPercent?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type CampaignChannelSettings = { [key: string]: unknown };
+
+export interface CampaignChannel {
+  id?: number;
+  campaignId?: number;
+  userId?: number;
+  channel?: string;
+  enabled?: boolean;
+  budgetAllocationNgn?: string;
+  visits?: number;
+  clicks?: number;
+  costPerVisit?: string | null;
+  status?: string;
+  settings?: CampaignChannelSettings;
+  activatedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type TrafficCampaignDetail = TrafficCampaign & {
+  channels?: CampaignChannel[];
+};
+
+export type CreateTrafficCampaignBodyGoal = typeof CreateTrafficCampaignBodyGoal[keyof typeof CreateTrafficCampaignBodyGoal];
+
+
+export const CreateTrafficCampaignBodyGoal = {
+  visits: 'visits',
+  leads: 'leads',
+  sales: 'sales',
+  downloads: 'downloads',
+} as const;
+
+export interface CreateTrafficCampaignBody {
+  name: string;
+  destinationUrl: string;
+  budgetNgn?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  goal?: CreateTrafficCampaignBodyGoal;
+  targetRegion?: string;
+}
+
+export type UpdateTrafficCampaignBodyStatus = typeof UpdateTrafficCampaignBodyStatus[keyof typeof UpdateTrafficCampaignBodyStatus];
+
+
+export const UpdateTrafficCampaignBodyStatus = {
+  draft: 'draft',
+  active: 'active',
+  paused: 'paused',
+  completed: 'completed',
+} as const;
+
+export interface UpdateTrafficCampaignBody {
+  name?: string;
+  destinationUrl?: string;
+  budgetNgn?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  goal?: string;
+  targetRegion?: string;
+  status?: UpdateTrafficCampaignBodyStatus;
+}
+
+export type UpdateCampaignChannelBodySettings = { [key: string]: unknown };
+
+export interface UpdateCampaignChannelBody {
+  enabled?: boolean;
+  budgetAllocationNgn?: string;
+  settings?: UpdateCampaignChannelBodySettings;
+  status?: string;
+}
+
+export interface MetaAudiencePreset {
+  id?: string;
+  label?: string;
+  country?: string;
+  ageMin?: number;
+  ageMax?: number;
+  interests?: string[];
+}
+
+export interface InfluencerActivation {
+  id?: number;
+  handle?: string;
+  platform?: string;
+  niche?: string;
+  followerCount?: number;
+  activationStatus?: string;
+  briefSent?: boolean;
+  visitsAttributed?: number;
+}
+
+export interface InfluencerActivationRecord {
+  influencerId?: number;
+  status?: string;
+  briefSent?: boolean;
+  visitsAttributed?: number;
+}
+
+export type CreateTrafficEventBodyEventType = typeof CreateTrafficEventBodyEventType[keyof typeof CreateTrafficEventBodyEventType];
+
+
+export const CreateTrafficEventBodyEventType = {
+  click: 'click',
+  visit: 'visit',
+  lead: 'lead',
+  conversion: 'conversion',
+} as const;
+
+export type CreateTrafficEventBodyMetadata = { [key: string]: unknown };
+
+export interface CreateTrafficEventBody {
+  channel?: string;
+  eventType?: CreateTrafficEventBodyEventType;
+  trackedLinkSlug?: string | null;
+  referrer?: string | null;
+  region?: string | null;
+  metadata?: CreateTrafficEventBodyMetadata;
+}
+
+export interface TrafficEvent {
+  id?: number;
+  campaignId?: number;
+  userId?: number;
+  channel?: string;
+  eventType?: string;
+  trackedLinkSlug?: string | null;
+  referrer?: string | null;
+  region?: string | null;
+  occurredAt?: string;
+}
+
+export interface GrowthSnapshot {
+  id?: number;
+  userId?: number;
+  platformAccountId?: number;
+  platform?: string;
+  handle?: string;
+  followerCount?: number;
+  followerGrowthRate?: string;
+  reachCount?: number;
+  reachGrowthRate?: string;
+  engagementVelocity?: string;
+  healthScore?: number;
+  alertThresholdRate?: string | null;
+  alertEnabled?: boolean;
+  snapshotDate?: string;
+  createdAt?: string;
+}
+
+export interface CreateGrowthSnapshotBody {
+  platformAccountId: number;
+  platform: string;
+  handle: string;
+  followerCount?: number;
+  followerGrowthRate?: string;
+  reachCount?: number;
+  reachGrowthRate?: string;
+  engagementVelocity?: string;
+  healthScore?: number;
+  alertThresholdRate?: string;
+  alertEnabled?: boolean;
+}
+
+export interface HookEntry {
+  id?: number;
+  userId?: number | null;
+  title?: string;
+  hookText?: string;
+  platform?: string;
+  niche?: string;
+  format?: string;
+  useCount?: number;
+  likeCount?: number;
+  tags?: string[];
+  curated?: boolean;
+  weekNumber?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateHookEntryBody {
+  title: string;
+  hookText: string;
+  platform?: string;
+  niche?: string;
+  format?: string;
+  tags?: string[];
+}
+
+export interface SeoContentPiece {
+  id?: number;
+  userId?: number;
+  topic?: string;
+  contentType?: string;
+  targetKeywords?: string[];
+  region?: string;
+  title?: string | null;
+  body?: string | null;
+  metaDescription?: string | null;
+  status?: string;
+  publishedToCalendar?: boolean;
+  scheduledPostId?: number | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type CreateSeoContentJobBodyContentType = typeof CreateSeoContentJobBodyContentType[keyof typeof CreateSeoContentJobBodyContentType];
+
+
+export const CreateSeoContentJobBodyContentType = {
+  blog: 'blog',
+  youtube_description: 'youtube_description',
+  thread: 'thread',
+} as const;
+
+export interface CreateSeoContentJobBody {
+  topic: string;
+  contentType?: CreateSeoContentJobBodyContentType;
+  targetKeywords?: string[];
+  region?: string;
+}
+
+export type ContentVelocityReportRecommendationsItemContentMix = {
+  educational?: number;
+  entertainment?: number;
+  promotional?: number;
+};
+
+export type ContentVelocityReportRecommendationsItem = {
+  platform?: string;
+  currentPostsPerWeek?: number;
+  recommendedPostsPerWeek?: number;
+  contentMix?: ContentVelocityReportRecommendationsItemContentMix;
+  insight?: string;
+};
+
+export interface ContentVelocityReport {
+  analysedPeriodDays?: number;
+  totalPostsAnalysed?: number;
+  overallPostsPerWeek?: number;
+  recommendations?: ContentVelocityReportRecommendationsItem[];
+  generatedAt?: string;
+}
+
 export type ListPostsParams = {
 status?: ListPostsStatus;
 campaignId?: number;
@@ -2090,5 +2354,44 @@ export const ReviewApprovalRequestBodyStatus = {
 export type ReviewApprovalRequestBody = {
   status: ReviewApprovalRequestBodyStatus;
   reviewNote?: string;
+};
+
+export type UpdateInfluencerActivationBodyAction = typeof UpdateInfluencerActivationBodyAction[keyof typeof UpdateInfluencerActivationBodyAction];
+
+
+export const UpdateInfluencerActivationBodyAction = {
+  send_brief: 'send_brief',
+  mark_active: 'mark_active',
+  mark_completed: 'mark_completed',
+} as const;
+
+export type UpdateInfluencerActivationBody = {
+  action?: UpdateInfluencerActivationBodyAction;
+};
+
+export type ListGrowthSnapshotsParams = {
+platformAccountId?: number;
+};
+
+export type UpdateGrowthSnapshotAlertBody = {
+  alertEnabled?: boolean;
+  alertThresholdRate?: string;
+};
+
+export type ListHookLibraryParams = {
+platform?: string;
+niche?: string;
+format?: string;
+q?: string;
+};
+
+export type PublishSeoContentToCalendarBody = {
+  scheduledAt?: string | null;
+  platform?: string;
+};
+
+export type PublishSeoContentToCalendar200 = {
+  post?: Post;
+  piece?: SeoContentPiece;
 };
 

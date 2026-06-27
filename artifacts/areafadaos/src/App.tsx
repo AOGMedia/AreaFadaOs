@@ -20,6 +20,7 @@ import { LiveVideoPage } from "@/pages/live-video";
 import { LiveSessionSignupPage } from "@/pages/live-session-signup";
 import { ClipEnginePage } from "@/pages/clip-engine";
 import { AutoPostPage } from "@/pages/auto-post";
+import { TrafficPage } from "@/pages/traffic";
 import { createModulePage } from "@/pages/module-placeholder";
 
 const clerkPubKey = publishableKeyFromHost(
@@ -91,13 +92,6 @@ const clerkAppearance = {
 };
 
 
-const TrafficPage = createModulePage({
-  title: "Traffic Engine",
-  description: "Drive real traffic to your content and products through smart link tools, UTM tracking, and geo-targeted campaigns.",
-  icon: "🌍",
-  moduleKey: "trafficTools",
-  requiredTier: "brand",
-});
 
 
 const FanHubPage = createModulePage({

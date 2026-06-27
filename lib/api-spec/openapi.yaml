@@ -32,6 +32,8 @@ tags:
     description: Live Video & Real-Time Engagement — sessions, broadcast setup, chat moderation, fan reminders, revenue tracking, post-live clip generator
   - name: autoPost
     description: Intelligent Auto-Post Engine — multi-platform composer, AI caption variants, hashtag engine, posting time optimizer, account groups, approval workflow, compliance checker, publish job tracker
+  - name: traffic
+    description: Traffic Generator & Traffic Engine — campaign management, multi-channel activation, Meta Ads Africa presets, WhatsApp blasts, influencer activation, growth snapshots, viral hook library, SEO content engine, content velocity recommender
 
 paths:
   /healthz:
@@ -3315,6 +3317,483 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApprovalRequest"
 
+  # ─── Traffic Generator & Traffic Engine ──────────────────────────────────────
+
+  /traffic-campaigns:
+    get:
+      operationId: listTrafficCampaigns
+      tags: [traffic]
+      summary: List traffic campaigns for current user
+      responses:
+        "200":
+          description: List of traffic campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrafficCampaign"
+    post:
+      operationId: createTrafficCampaign
+      tags: [traffic]
+      summary: Create a new traffic campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrafficCampaignBody"
+      responses:
+        "201":
+          description: Created traffic campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficCampaign"
+
+  /traffic-campaigns/{id}:
+    get:
+      operationId: getTrafficCampaign
+      tags: [traffic]
+      summary: Get a traffic campaign with its channel configs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Traffic campaign with channels
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficCampaignDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateTrafficCampaign
+      tags: [traffic]
+      summary: Update a traffic campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTrafficCampaignBody"
+      responses:
+        "200":
+          description: Updated traffic campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficCampaign"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteTrafficCampaign
+      tags: [traffic]
+      summary: Delete a traffic campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /traffic-campaigns/{id}/channels:
+    get:
+      operationId: listCampaignChannels
+      tags: [traffic]
+      summary: List channel configs for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of channel configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CampaignChannel"
+
+  /traffic-campaigns/{id}/channels/{channelId}:
+    patch:
+      operationId: updateCampaignChannel
+      tags: [traffic]
+      summary: Update a campaign channel config
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCampaignChannelBody"
+      responses:
+        "200":
+          description: Updated channel config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignChannel"
+        "404":
+          description: Not found
+
+  /traffic/meta-audience-presets:
+    get:
+      operationId: listMetaAudiencePresets
+      tags: [traffic]
+      summary: List Africa-specific Meta Ads audience presets
+      responses:
+        "200":
+          description: List of presets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MetaAudiencePreset"
+
+  /traffic-campaigns/{id}/influencer-activations:
+    get:
+      operationId: listInfluencerActivations
+      tags: [traffic]
+      summary: List micro-influencers with activation status for a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Influencers with activation status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InfluencerActivation"
+
+  /traffic-campaigns/{id}/influencer-activations/{influencerId}:
+    post:
+      operationId: updateInfluencerActivation
+      tags: [traffic]
+      summary: Send brief or update activation status for an influencer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: influencerId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [send_brief, mark_active, mark_completed]
+      responses:
+        "200":
+          description: Updated activation record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InfluencerActivationRecord"
+
+  /traffic-campaigns/{id}/events:
+    post:
+      operationId: recordTrafficEvent
+      tags: [traffic]
+      summary: Record a traffic event (click, visit, lead, conversion)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrafficEventBody"
+      responses:
+        "201":
+          description: Recorded event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrafficEvent"
+
+  /growth-snapshots:
+    get:
+      operationId: listGrowthSnapshots
+      tags: [traffic]
+      summary: List growth snapshots for current user
+      parameters:
+        - name: platformAccountId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of growth snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GrowthSnapshot"
+    post:
+      operationId: createGrowthSnapshot
+      tags: [traffic]
+      summary: Log a new growth snapshot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGrowthSnapshotBody"
+      responses:
+        "201":
+          description: Created snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrowthSnapshot"
+
+  /growth-snapshots/{id}/alert:
+    patch:
+      operationId: updateGrowthSnapshotAlert
+      tags: [traffic]
+      summary: Configure growth rate alert for a snapshot
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                alertEnabled:
+                  type: boolean
+                alertThresholdRate:
+                  type: string
+      responses:
+        "200":
+          description: Updated snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrowthSnapshot"
+
+  /hook-library:
+    get:
+      operationId: listHookLibrary
+      tags: [traffic]
+      summary: Browse viral hook library
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+        - name: niche
+          in: query
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of hook entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HookEntry"
+    post:
+      operationId: createHookEntry
+      tags: [traffic]
+      summary: Add a hook to the library
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHookEntryBody"
+      responses:
+        "201":
+          description: Created hook entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HookEntry"
+
+  /hook-library/{id}/like:
+    post:
+      operationId: likeHookEntry
+      tags: [traffic]
+      summary: Like a hook entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated hook entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HookEntry"
+
+  /hook-library/{id}/use:
+    post:
+      operationId: useHookEntry
+      tags: [traffic]
+      summary: Record usage of a hook entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated hook entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HookEntry"
+
+  /seo-content-jobs:
+    get:
+      operationId: listSeoContentJobs
+      tags: [traffic]
+      summary: List SEO content generation jobs
+      responses:
+        "200":
+          description: List of SEO content pieces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SeoContentPiece"
+    post:
+      operationId: createSeoContentJob
+      tags: [traffic]
+      summary: Generate SEO-optimised content for an African search topic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSeoContentJobBody"
+      responses:
+        "201":
+          description: SEO content job started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeoContentPiece"
+
+  /seo-content-jobs/{id}/publish-to-calendar:
+    post:
+      operationId: publishSeoContentToCalendar
+      tags: [traffic]
+      summary: Publish generated SEO content to the content calendar
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scheduledAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                platform:
+                  type: string
+      responses:
+        "200":
+          description: Published to calendar
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  post:
+                    $ref: "#/components/schemas/Post"
+                  piece:
+                    $ref: "#/components/schemas/SeoContentPiece"
+
+  /traffic/content-velocity:
+    get:
+      operationId: getContentVelocityRecommendations
+      tags: [traffic]
+      summary: Get AI-driven content velocity recommendations per platform
+      responses:
+        "200":
+          description: Content velocity analysis and recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentVelocityReport"
+
 components:
   schemas:
     HealthStatus:
@@ -6238,3 +6717,463 @@ components:
           format: date-time
         draft:
           $ref: "#/components/schemas/PostDraft"
+
+    TrafficCampaign:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        destinationUrl:
+          type: string
+        budgetNgn:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+        goal:
+          type: string
+        targetRegion:
+          type: string
+        totalVisits:
+          type: integer
+        totalConversions:
+          type: integer
+        roiPercent:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    TrafficCampaignDetail:
+      allOf:
+        - $ref: "#/components/schemas/TrafficCampaign"
+        - type: object
+          properties:
+            channels:
+              type: array
+              items:
+                $ref: "#/components/schemas/CampaignChannel"
+
+    CreateTrafficCampaignBody:
+      type: object
+      required: [name, destinationUrl]
+      properties:
+        name:
+          type: string
+        destinationUrl:
+          type: string
+        budgetNgn:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        goal:
+          type: string
+          enum: [visits, leads, sales, downloads]
+        targetRegion:
+          type: string
+
+    UpdateTrafficCampaignBody:
+      type: object
+      properties:
+        name:
+          type: string
+        destinationUrl:
+          type: string
+        budgetNgn:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        goal:
+          type: string
+        targetRegion:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, paused, completed]
+
+    CampaignChannel:
+      type: object
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        channel:
+          type: string
+        enabled:
+          type: boolean
+        budgetAllocationNgn:
+          type: string
+        visits:
+          type: integer
+        clicks:
+          type: integer
+        costPerVisit:
+          type: string
+          nullable: true
+        status:
+          type: string
+        settings:
+          type: object
+          additionalProperties: true
+        activatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateCampaignChannelBody:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        budgetAllocationNgn:
+          type: string
+        settings:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+
+    MetaAudiencePreset:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        country:
+          type: string
+        ageMin:
+          type: integer
+        ageMax:
+          type: integer
+        interests:
+          type: array
+          items:
+            type: string
+
+    InfluencerActivation:
+      type: object
+      properties:
+        id:
+          type: integer
+        handle:
+          type: string
+        platform:
+          type: string
+        niche:
+          type: string
+        followerCount:
+          type: integer
+        activationStatus:
+          type: string
+        briefSent:
+          type: boolean
+        visitsAttributed:
+          type: integer
+
+    InfluencerActivationRecord:
+      type: object
+      properties:
+        influencerId:
+          type: integer
+        status:
+          type: string
+        briefSent:
+          type: boolean
+        visitsAttributed:
+          type: integer
+
+    CreateTrafficEventBody:
+      type: object
+      properties:
+        channel:
+          type: string
+        eventType:
+          type: string
+          enum: [click, visit, lead, conversion]
+        trackedLinkSlug:
+          type: string
+          nullable: true
+        referrer:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+
+    TrafficEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        campaignId:
+          type: integer
+        userId:
+          type: integer
+        channel:
+          type: string
+        eventType:
+          type: string
+        trackedLinkSlug:
+          type: string
+          nullable: true
+        referrer:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        occurredAt:
+          type: string
+          format: date-time
+
+    GrowthSnapshot:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        platformAccountId:
+          type: integer
+        platform:
+          type: string
+        handle:
+          type: string
+        followerCount:
+          type: integer
+        followerGrowthRate:
+          type: string
+        reachCount:
+          type: integer
+        reachGrowthRate:
+          type: string
+        engagementVelocity:
+          type: string
+        healthScore:
+          type: integer
+        alertThresholdRate:
+          type: string
+          nullable: true
+        alertEnabled:
+          type: boolean
+        snapshotDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateGrowthSnapshotBody:
+      type: object
+      required: [platformAccountId, platform, handle]
+      properties:
+        platformAccountId:
+          type: integer
+        platform:
+          type: string
+        handle:
+          type: string
+        followerCount:
+          type: integer
+        followerGrowthRate:
+          type: string
+        reachCount:
+          type: integer
+        reachGrowthRate:
+          type: string
+        engagementVelocity:
+          type: string
+        healthScore:
+          type: integer
+        alertThresholdRate:
+          type: string
+        alertEnabled:
+          type: boolean
+
+    HookEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        hookText:
+          type: string
+        platform:
+          type: string
+        niche:
+          type: string
+        format:
+          type: string
+        useCount:
+          type: integer
+        likeCount:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        curated:
+          type: boolean
+        weekNumber:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateHookEntryBody:
+      type: object
+      required: [title, hookText]
+      properties:
+        title:
+          type: string
+        hookText:
+          type: string
+        platform:
+          type: string
+        niche:
+          type: string
+        format:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    SeoContentPiece:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        topic:
+          type: string
+        contentType:
+          type: string
+        targetKeywords:
+          type: array
+          items:
+            type: string
+        region:
+          type: string
+        title:
+          type: string
+          nullable: true
+        body:
+          type: string
+          nullable: true
+        metaDescription:
+          type: string
+          nullable: true
+        status:
+          type: string
+        publishedToCalendar:
+          type: boolean
+        scheduledPostId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateSeoContentJobBody:
+      type: object
+      required: [topic]
+      properties:
+        topic:
+          type: string
+        contentType:
+          type: string
+          enum: [blog, youtube_description, thread]
+        targetKeywords:
+          type: array
+          items:
+            type: string
+        region:
+          type: string
+
+    ContentVelocityReport:
+      type: object
+      properties:
+        analysedPeriodDays:
+          type: integer
+        totalPostsAnalysed:
+          type: integer
+        overallPostsPerWeek:
+          type: number
+        recommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              platform:
+                type: string
+              currentPostsPerWeek:
+                type: number
+              recommendedPostsPerWeek:
+                type: number
+              contentMix:
+                type: object
+                properties:
+                  educational:
+                    type: integer
+                  entertainment:
+                    type: integer
+                  promotional:
+                    type: integer
+              insight:
+                type: string
+        generatedAt:
+          type: string
+          format: date-time
