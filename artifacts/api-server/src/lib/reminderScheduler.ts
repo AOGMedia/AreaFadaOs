@@ -1,6 +1,7 @@
 import { db } from "@workspace/db";
 import { invoicesTable, paymentRemindersTable, analyticsSnapshots, weeklyDigests, usersTable, publishJobsTable } from "@workspace/db";
 import { eq, and, gte, lte, lt, sql, desc } from "drizzle-orm";
+import { Resend } from "resend";
 import { logger } from "./logger";
 import { runDailyIngestion } from "./platformDataFetcher.js";
 import { executePublishJob } from "./platformPublisher.js";
@@ -158,14 +159,32 @@ Action items: Post 999 content 8-10am WAT weekdays. Engage comments within 1hr.
 
 Keep grinding, Fada 🤘`;
 
-    // Stub: Resend email delivery
     const userRow = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
     const email = userRow[0]?.email;
+    let emailSent = false;
+
     if (email) {
-      // TODO: Replace with Resend SDK call when RESEND_API_KEY is configured
-      // const resend = new Resend(process.env.RESEND_API_KEY);
-      // await resend.emails.send({ from: "digest@areafada.com", to: email, subject: "Your weekly performance digest", text: narrative });
-      logger.info({ userId, email, weekEnd: weekEnd.toISOString() }, "[DIGEST EMAIL STUB] Weekly digest ready — Resend delivery pending API key configuration");
+      if (process.env.RESEND_API_KEY) {
+        try {
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          const { error } = await resend.emails.send({
+            from: "AreaFada OS <digest@areafada.com>",
+            to: email,
+            subject: `Your weekly performance digest — w/e ${weekEnd.toLocaleDateString("en-GB")}`,
+            text: narrative,
+          });
+          if (error) {
+            logger.warn({ error, userId, email, weekEnd: weekEnd.toISOString() }, "Resend delivery failed for weekly digest");
+          } else {
+            emailSent = true;
+            logger.info({ userId, email, weekEnd: weekEnd.toISOString() }, "Weekly digest email sent via Resend");
+          }
+        } catch (err) {
+          logger.warn({ err, userId, email }, "Exception sending weekly digest email via Resend");
+        }
+      } else {
+        logger.info({ userId, email, weekEnd: weekEnd.toISOString() }, "[DIGEST EMAIL STUB] set RESEND_API_KEY to enable real delivery");
+      }
     }
 
     await db.insert(weeklyDigests).values({
@@ -178,7 +197,7 @@ Keep grinding, Fada 🤘`;
       totalEngagements: Math.round(totalReach * avgEng / 100),
       avgEngagementRate: String(avgEng.toFixed(2)),
       followersGained: topPlatform?.followerGrowth ?? 0,
-      emailSent: false,
+      emailSent,
       whatsappLogged: true,
     });
 
