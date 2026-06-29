@@ -40,18 +40,18 @@ const TIER_FEATURES: Record<string, { name: string; price: number | null; featur
       scheduling: true, monetization: false, analytics: false,
       ambassadorCrm: false, bookPromo: false, liveVideo: false,
       clipEngine: false, autoPost: false, trafficTools: false,
-      fanHub: false, campaignIntelligence: false,
+      fanHub: false, campaignIntelligence: false, customerSupport: false,
     },
   },
   creator: {
     name: "Creator",
     price: 49,
-    features: ["Multi-platform scheduling", "Monetization dashboard", "Basic analytics", "AI captions", "Paystack invoicing"],
+    features: ["Multi-platform scheduling", "Monetization dashboard", "Basic analytics", "AI captions", "Paystack invoicing", "Unified support inbox"],
     modules: {
       scheduling: true, monetization: true, analytics: true,
       ambassadorCrm: false, bookPromo: true, liveVideo: false,
       clipEngine: false, autoPost: true, trafficTools: false,
-      fanHub: false, campaignIntelligence: false,
+      fanHub: false, campaignIntelligence: false, customerSupport: true,
     },
   },
   brand: {
@@ -62,7 +62,7 @@ const TIER_FEATURES: Record<string, { name: string; price: number | null; featur
       scheduling: true, monetization: true, analytics: true,
       ambassadorCrm: false, bookPromo: true, liveVideo: true,
       clipEngine: true, autoPost: true, trafficTools: true,
-      fanHub: false, campaignIntelligence: false,
+      fanHub: false, campaignIntelligence: false, customerSupport: true,
     },
   },
   agency: {
@@ -73,7 +73,7 @@ const TIER_FEATURES: Record<string, { name: string; price: number | null; featur
       scheduling: true, monetization: true, analytics: true,
       ambassadorCrm: true, bookPromo: true, liveVideo: true,
       clipEngine: true, autoPost: true, trafficTools: true,
-      fanHub: true, campaignIntelligence: false,
+      fanHub: true, campaignIntelligence: false, customerSupport: true,
     },
   },
   enterprise: {
@@ -84,7 +84,7 @@ const TIER_FEATURES: Record<string, { name: string; price: number | null; featur
       scheduling: true, monetization: true, analytics: true,
       ambassadorCrm: true, bookPromo: true, liveVideo: true,
       clipEngine: true, autoPost: true, trafficTools: true,
-      fanHub: true, campaignIntelligence: true,
+      fanHub: true, campaignIntelligence: true, customerSupport: true,
     },
   },
 };

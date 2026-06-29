@@ -21,6 +21,7 @@ import {
   Globe,
   Shield,
   SlidersHorizontal,
+  MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Clip Engine", path: "/clip-engine", icon: <Scissors className="w-4 h-4" />, moduleKey: "clipEngine", requiredTier: "brand" },
   { label: "Auto-Post", path: "/auto-post", icon: <Send className="w-4 h-4" />, moduleKey: "autoPost", requiredTier: "brand" },
   { label: "Traffic Engine", path: "/traffic", icon: <TrendingUp className="w-4 h-4" />, moduleKey: "trafficTools", requiredTier: "brand" },
+  { label: "Support Inbox", path: "/support", icon: <MessageSquare className="w-4 h-4" />, moduleKey: "customerSupport", requiredTier: "creator" },
   { label: "Ambassadors", path: "/ambassadors", icon: <Users className="w-4 h-4" />, moduleKey: "ambassadorCrm", requiredTier: "agency" },
   { label: "Fan Hub", path: "/fan-hub", icon: <Star className="w-4 h-4" />, moduleKey: "fanHub", requiredTier: "agency" },
   { label: "Intelligence", path: "/intelligence", icon: <BarChart3 className="w-4 h-4" />, moduleKey: "campaignIntelligence", requiredTier: "enterprise" },

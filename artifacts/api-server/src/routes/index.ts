@@ -19,6 +19,7 @@ import settingsRouter from "./settings";
 import webhookClerkRouter from "./webhook-clerk";
 import webhookResendRouter from "./webhook-resend";
 import adminRouter from "./admin";
+import supportRouter from "./support";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(campaignIntelligenceRouter);
 router.use(mediaPartnersRouter);
 router.use(oauthRouter);
 router.use(settingsRouter);
+router.use(supportRouter);
 
 export default router;

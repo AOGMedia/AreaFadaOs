@@ -12,3 +12,4 @@ export * from "./fan-hub";
 export * from "./campaign-intelligence";
 export * from "./media-partners";
 export * from "./app-settings";
+export * from "./support";
