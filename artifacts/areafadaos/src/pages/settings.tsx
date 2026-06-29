@@ -591,7 +591,7 @@ export function SettingsPage() {
     <AppShell title="Settings">
       <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-8">
         {/* ─── Live Viewer API Keys ─── */}
-        <div>
+        <div id="live-viewer-api-keys">
           <div className="flex items-center gap-2 mb-1">
             <Radio className="w-5 h-5 text-red-500" />
             <h1 className="text-xl font-bold tracking-tight">Live Viewer API Keys</h1>

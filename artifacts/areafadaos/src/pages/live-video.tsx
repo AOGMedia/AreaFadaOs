@@ -18,7 +18,7 @@ import {
   Radio, Calendar, Settings, MessageSquare, Bell, Scissors, DollarSign, Copy,
   Plus, Play, Square, Zap, CheckCircle, Clock, Users, Eye, TrendingUp,
   Pin, Ban, HelpCircle, Trash2, Send, RefreshCw, ShieldCheck, AlertCircle,
-  Wifi, WifiOff, MonitorPlay, StopCircle,
+  Wifi, WifiOff, MonitorPlay, StopCircle, Youtube, ExternalLink,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
@@ -337,6 +337,13 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
     refetchInterval: session.status === "live" ? 15000 : false,
   });
 
+  const { data: preLiveApiStatus } = useQuery<ViewerCountData>({
+    queryKey: ["live-viewer-api-status", session.id],
+    queryFn: () => apiFetch(`/live-sessions/${session.id}/viewer-count`),
+    enabled: session.status !== "live" && session.status !== "ended",
+    staleTime: 60000,
+  });
+
   const updateConfig = useMutation({
     mutationFn: ({ platform, body }: { platform: string; body: object }) =>
       apiFetch(`/live-sessions/${session.id}/platform-configs/${platform}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
@@ -516,6 +523,39 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                 </p>
               </div>
             </div>
+
+            {/* ─── Viewer count API status chips ─── */}
+            {preLiveApiStatus && (
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground font-medium mr-0.5">Viewer count API:</span>
+                <a
+                  href={`${import.meta.env.BASE_URL}settings#live-viewer-api-keys`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-opacity hover:opacity-75 ${
+                    preLiveApiStatus.apiKeysConfigured.youtube
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}
+                  title={preLiveApiStatus.apiKeysConfigured.youtube ? "YouTube Data API connected — counts will be real-time" : "YouTube API key not set — will show last-known count. Click to configure."}
+                >
+                  <Youtube className="w-3 h-3" />
+                  YouTube {preLiveApiStatus.apiKeysConfigured.youtube ? "✓" : "✗"}
+                  {!preLiveApiStatus.apiKeysConfigured.youtube && <ExternalLink className="w-2.5 h-2.5 ml-0.5 opacity-60" />}
+                </a>
+                <a
+                  href={`${import.meta.env.BASE_URL}settings#live-viewer-api-keys`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-opacity hover:opacity-75 ${
+                    preLiveApiStatus.apiKeysConfigured.instagram
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                  }`}
+                  title={preLiveApiStatus.apiKeysConfigured.instagram ? "Instagram Graph API connected — counts will be real-time" : "Instagram access token not set — will show last-known count. Click to configure."}
+                >
+                  <span className="text-[10px] leading-none">📸</span>
+                  Instagram {preLiveApiStatus.apiKeysConfigured.instagram ? "✓" : "✗"}
+                  {!preLiveApiStatus.apiKeysConfigured.instagram && <ExternalLink className="w-2.5 h-2.5 ml-0.5 opacity-60" />}
+                </a>
+              </div>
+            )}
 
             {/* Broadcast trigger: Restream (env-based) or OBS WebSocket */}
             <div className="mt-3 space-y-2 border border-gray-200 rounded-lg p-3 bg-white/60">
