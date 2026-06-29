@@ -24,25 +24,33 @@ pnpm --filter api-server smoke:email
 
 ## Run 1 — Baseline (2026-06-29)  ← DNS not yet configured
 
-### DNS Pre-check Results
-
-Run:
-```
-CLERK_CNAME_HOST_1=clerk.areafada.com   CLERK_CNAME_TARGET_1=<from-publishing-panel> \
-CLERK_CNAME_HOST_2=accounts.areafada.com CLERK_CNAME_TARGET_2=<from-publishing-panel> \
-pnpm --filter api-server check:dns
-```
+### DNS Pre-check Results (`pnpm --filter api-server check:dns`)
 
 | Check | Status | Notes |
 |-------|--------|-------|
-| Clerk CNAME 1 (`clerk.areafada.com`) | ❌ FAIL | CNAME not found in DNS — record not yet added |
-| Clerk CNAME 2 (`accounts.areafada.com`) | ❌ FAIL | CNAME not found in DNS — record not yet added |
+| Clerk CNAME 1 (`clerk.areafada.com`) | ❌ FAIL | Hostnames not supplied — copy from Replit Publishing → Domains → areafada.com → Manage |
+| Clerk CNAME 2 (`accounts.areafada.com`) | ❌ FAIL | Hostnames not supplied — copy from Replit Publishing → Domains → areafada.com → Manage |
 | Resend SPF (`include:_spf.resend.com`) | ❌ FAIL | Existing SPF: `v=spf1 include:spf.efwd.registrar-servers.com ~all` — missing `include:_spf.resend.com` |
 | Resend DKIM CNAME (`resend._domainkey.areafada.com`) | ❌ FAIL | CNAME not found — not yet added from Resend dashboard |
 | DMARC TXT (`_dmarc.areafada.com`) | ❌ FAIL | No DMARC record found |
-| `RESEND_FROM_EMAIL` env var | ✅ FIXED | Updated to `AreaFada OS <no-reply@areafada.com>` (was `onboarding@resend.dev`) |
+| `RESEND_FROM_EMAIL` env var | ✅ PASS | Set to `AreaFada OS <no-reply@areafada.com>` |
 
-**`check:dns` summary**: 6 checks — 5 failed, 1 passed (env var)
+**`check:dns` summary**: 5 failed, 1 passed
+
+### Smoke Test Results (`pnpm --filter api-server smoke:email`)
+
+Run date: 2026-06-29
+
+| Step | Status | Notes |
+|------|--------|-------|
+| DB query (clipSchedulesTable) | ✅ PASS | Found user id=1, email=demo-free@areafadaos.app; 0 schedules in next 30 days |
+| `buildClipScheduleEmailPayload()` | ✅ PASS | HTML includes "AreaFada OS" branding and empty-state copy |
+| CSV attachment | ✅ PASS | 1 header row, 0 data rows (correct for empty schedule) |
+| Subject | ✅ PASS | `AreaFada OS — Clip Schedule (2026-06-29 to 2026-07-29)` |
+| From address | ✅ PASS | `AreaFada OS <no-reply@areafada.com>` |
+| Resend API send | ❌ FAIL | `validation_error: The areafada.com domain is not verified. Please, add and verify your domain on https://resend.com/domains` |
+
+**Conclusion**: Email pipeline (DB → builder → payload) is fully operational. The only blocker is domain verification in the Resend dashboard. Once verified with correct DNS records, the smoke test will pass.
 
 ### Required DNS changes (to apply at domain registrar)
 
@@ -61,61 +69,41 @@ pnpm --filter api-server check:dns
 4. **Add Clerk CNAME records (both)**  
    Source: Replit → Publishing → Domains → areafada.com → Manage → "Authentication DNS setup required"
 
-### Clerk Verification-Email Test (Baseline)
+Full step-by-step: `artifacts/api-server/scripts/DNS-SETUP.md`
 
-A real Clerk invitation was sent via `pnpm --filter api-server test:clerk-email`
-to confirm the Clerk Backend API path is exercised and operational.
+### Resend Transactional-Email Test (Baseline — pre-DNS)
 
-| Field | Value |
-|-------|-------|
-| Run date | 2026-06-29 |
-| Test address | `areafada-deliverability-test-1782738579@yopmail.com` |
-| Clerk invitation ID | `inv_3FoPj8mmvPCTJn85L1SoAWur1GJ` |
-| Clerk API response | ✅ HTTP 200 — `status: pending` |
-| Expected from address before DNS fix | `noreply@clerk.com` (Clerk's own domain — "via clerk.com" in Gmail) |
-| Expected from address after DNS fix | `*@areafada.com` (no "via clerk.com") |
+*Cannot complete — Resend rejects send because areafada.com is not yet verified in the dashboard.*
 
-> **Note:** At baseline the invitation email is sent through Clerk's own domain because  
-> the areafada.com CNAME records are not yet in place. After DNS propagates, Clerk  
-> routes verification emails through @areafada.com automatically.
-
-### mail-tester.com Score (Baseline — pre-DNS)
-
-*Not yet captured — requires mail-tester.com one-shot address.*  
-*Expected outcome before DNS fix: score ≈ 3–5/10 (SPF/DKIM/DMARC fail, "via clerk.com" shown)*
-
-Expected once DNS is fully configured:
+Expected once DNS + domain verification is done:
 
 | Check | Expected |
 |-------|----------|
 | SPF | pass |
 | DKIM | pass |
 | DMARC | pass |
-| From address | `*@areafada.com` |
-| Score | ≥ 9/10 |
-
-### Gmail Header Check (Baseline — pre-DNS)
-
-*Not yet captured — requires DNS records to be in place first.*
-
-Expected outcome after DNS is fixed:
-
-| Header field | Expected |
-|--------------|----------|
-| `mailed-by` | `areafada.com` |
-| `signed-by` | `areafada.com` |
-| "via clerk.com" line | absent |
-| Landed in | Inbox (not Spam) |
+| From address | `AreaFada OS <no-reply@areafada.com>` |
+| Resend message ID | non-null |
+| Inbox placement | Inbox (not Spam) |
+| Score (mail-tester.com) | ≥ 9/10 |
 
 ---
 
 ## Run 2 — Post-DNS (fill in after DNS propagates)
 
-*Complete this section after applying all four DNS changes above.*
+*Complete this section after applying all four DNS changes above and verifying areafada.com in the Resend dashboard.*
 
 ### DNS Pre-check Results
 
 Run date: _not yet run_
+
+```bash
+CLERK_CNAME_HOST_1=clerk.areafada.com \
+CLERK_CNAME_TARGET_1=<target-from-publishing-panel> \
+CLERK_CNAME_HOST_2=accounts.areafada.com \
+CLERK_CNAME_TARGET_2=<target-from-publishing-panel> \
+pnpm --filter api-server check:dns
+```
 
 | Check | Status | Notes |
 |-------|--------|-------|
@@ -124,9 +112,31 @@ Run date: _not yet run_
 | Resend SPF | ⬜ PENDING | |
 | Resend DKIM | ⬜ PENDING | |
 | DMARC | ⬜ PENDING | |
-| `RESEND_FROM_EMAIL` | ✅ Already set to `no-reply@areafada.com` | |
+| `RESEND_FROM_EMAIL` | ✅ Already set to `AreaFada OS <no-reply@areafada.com>` | |
+
+### Smoke Test (Resend Transactional Email)
+
+```bash
+SMOKE_RECIPIENT=<address@mail-tester.com> pnpm --filter api-server smoke:email
+```
+
+| Field | Value |
+|-------|-------|
+| Run date | ⬜ PENDING |
+| Test address (mail-tester.com) | ⬜ PENDING |
+| Resend message ID | ⬜ PENDING |
+| mail-tester.com score | ⬜ PENDING / 10 |
+| SPF result | ⬜ PENDING |
+| DKIM result | ⬜ PENDING |
+| DMARC result | ⬜ PENDING |
+| From address | ⬜ PENDING (`AreaFada OS <no-reply@areafada.com>`) |
+| Landed in Inbox | ⬜ PENDING |
 
 ### Clerk Verification-Email Test
+
+```bash
+TEST_EMAIL=<address@mail-tester.com> pnpm --filter api-server test:clerk-email
+```
 
 | Field | Value |
 |-------|-------|
@@ -141,20 +151,6 @@ Run date: _not yet run_
 | Gmail `mailed-by` | ⬜ PENDING |
 | Gmail `signed-by` | ⬜ PENDING |
 | "via clerk.com" in Gmail | ⬜ PENDING (must be absent) |
-| Landed in Inbox | ⬜ PENDING |
-
-### Resend Transactional-Email Test
-
-| Field | Value |
-|-------|-------|
-| Run date | ⬜ PENDING |
-| Test address (mail-tester.com) | ⬜ PENDING |
-| Resend message ID | ⬜ PENDING |
-| mail-tester.com score | ⬜ PENDING / 10 |
-| SPF result | ⬜ PENDING |
-| DKIM result | ⬜ PENDING |
-| DMARC result | ⬜ PENDING |
-| From address | ⬜ PENDING (`no-reply@areafada.com`) |
 | Landed in Inbox | ⬜ PENDING |
 
 ### MXToolbox Spot Checks
@@ -173,4 +169,4 @@ Fill in Run 2 and sign off once all rows above show ✅ PASS.
 
 | Sign-off | Date | Notes |
 |----------|------|-------|
-| ⬜ Pending | | Apply DNS changes → wait 48 h propagation → re-run scripts → fill in Run 2 |
+| ⬜ Pending | | Apply DNS changes → verify areafada.com in Resend dashboard → wait up to 48 h → re-run `check:dns` and `smoke:email` → fill in Run 2 |
