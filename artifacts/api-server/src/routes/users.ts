@@ -97,6 +97,34 @@ function resolveInitialTier(email?: string): string {
   return "creator";
 }
 
+/**
+ * Fetch the primary email address for a Clerk user via the Clerk Backend API.
+ * Returns undefined if CLERK_SECRET_KEY is not set or the request fails.
+ * Used as a fallback when the JWT session claims do not include the email claim.
+ */
+async function fetchEmailFromClerk(clerkId: string): Promise<string | undefined> {
+  const secretKey = process.env.CLERK_SECRET_KEY;
+  if (!secretKey) return undefined;
+
+  try {
+    const resp = await fetch(`https://api.clerk.com/v1/users/${clerkId}`, {
+      headers: { Authorization: `Bearer ${secretKey}` },
+    });
+    if (!resp.ok) return undefined;
+
+    const data = (await resp.json()) as Record<string, any>;
+    const primaryEmailId = data.primary_email_address_id as string | undefined;
+    const emailAddresses = (data.email_addresses ?? []) as Array<{
+      id: string;
+      email_address: string;
+    }>;
+    const primary = emailAddresses.find((e) => e.id === primaryEmailId);
+    return primary?.email_address?.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
 async function getOrCreateUser(clerkId: string, email?: string, name?: string) {
   const existing = await db.select().from(usersTable).where(eq(usersTable.clerkId, clerkId)).limit(1);
   if (existing.length > 0) return existing[0];
@@ -114,15 +142,18 @@ router.get("/users/me", requireAuth, async (req: any, res): Promise<void> => {
   try {
     let user = await getOrCreateUser(req.clerkUserId, req.clerkEmail);
 
-    // If the row was created with a placeholder email (no real email was
-    // available at insert time) but we now have the real email from the
-    // session claims, update the stored email so enterprise checks work.
-    if (req.clerkEmail && user.email.endsWith("@areafadaos.app")) {
-      const [healed] = await db.update(usersTable)
-        .set({ email: req.clerkEmail, updatedAt: new Date() })
-        .where(eq(usersTable.clerkId, req.clerkUserId))
-        .returning();
-      user = healed;
+    // If the stored email is a placeholder, try to get the real email.
+    // First attempt: use the email from JWT session claims (req.clerkEmail).
+    // Fallback: call the Clerk Backend API when JWT claims don't include email.
+    if (user.email.endsWith("@areafadaos.app")) {
+      const realEmail = req.clerkEmail ?? await fetchEmailFromClerk(req.clerkUserId);
+      if (realEmail) {
+        const [healed] = await db.update(usersTable)
+          .set({ email: realEmail, updatedAt: new Date() })
+          .where(eq(usersTable.clerkId, req.clerkUserId))
+          .returning();
+        user = healed;
+      }
     }
 
     if (ENTERPRISE_EMAILS.has(user.email.toLowerCase()) && user.tier !== "enterprise") {
@@ -186,13 +217,16 @@ router.get("/users/me/tier", requireAuth, async (req: any, res): Promise<void> =
   try {
     let user = await getOrCreateUser(req.clerkUserId, req.clerkEmail);
 
-    // Same placeholder-email heal as in /users/me
-    if (req.clerkEmail && user.email.endsWith("@areafadaos.app")) {
-      const [healed] = await db.update(usersTable)
-        .set({ email: req.clerkEmail, updatedAt: new Date() })
-        .where(eq(usersTable.clerkId, req.clerkUserId))
-        .returning();
-      user = healed;
+    // Same placeholder-email heal as in /users/me (JWT claim + Clerk API fallback)
+    if (user.email.endsWith("@areafadaos.app")) {
+      const realEmail = req.clerkEmail ?? await fetchEmailFromClerk(req.clerkUserId);
+      if (realEmail) {
+        const [healed] = await db.update(usersTable)
+          .set({ email: realEmail, updatedAt: new Date() })
+          .where(eq(usersTable.clerkId, req.clerkUserId))
+          .returning();
+        user = healed;
+      }
     }
 
     if (ENTERPRISE_EMAILS.has(user.email.toLowerCase()) && user.tier !== "enterprise") {

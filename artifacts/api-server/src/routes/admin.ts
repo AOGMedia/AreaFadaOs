@@ -8,6 +8,54 @@ const router = Router();
 
 const VALID_TIERS = new Set(["free", "creator", "brand", "agency", "enterprise"]);
 
+/**
+ * PATCH /api/admin/promote
+ * One-off bootstrap endpoint to force-upgrade any account by email.
+ * Protected by x-admin-secret header checked against ADMIN_SECRET env var.
+ * Returns 501 if ADMIN_SECRET is not configured.
+ *
+ * curl -X PATCH https://<host>/api/admin/promote \
+ *   -H "Content-Type: application/json" \
+ *   -H "x-admin-secret: <ADMIN_SECRET>" \
+ *   -d '{"email":"osejialexander77@gmail.com","tier":"enterprise"}'
+ */
+router.patch("/admin/promote", async (req, res): Promise<void> => {
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (!adminSecret) {
+    res.status(501).json({ error: "ADMIN_SECRET not configured — endpoint disabled" });
+    return;
+  }
+
+  const providedSecret = req.headers["x-admin-secret"];
+  if (!providedSecret || providedSecret !== adminSecret) {
+    res.status(401).json({ error: "Invalid admin secret" });
+    return;
+  }
+
+  const { email, tier } = req.body as { email?: string; tier?: string };
+  if (!email || !tier || !VALID_TIERS.has(tier)) {
+    res.status(400).json({ error: "email and valid tier required", validTiers: [...VALID_TIERS] });
+    return;
+  }
+
+  try {
+    const [updated] = await db
+      .update(usersTable)
+      .set({ tier, updatedAt: new Date() })
+      .where(eq(usersTable.email, email.toLowerCase()))
+      .returning({ id: usersTable.id, email: usersTable.email, tier: usersTable.tier });
+
+    if (!updated) {
+      res.status(404).json({ error: `No user found with email: ${email}` });
+      return;
+    }
+
+    res.json({ promoted: updated });
+  } catch (err) {
+    res.status(500).json({ error: "Promote failed" });
+  }
+});
+
 router.get(
   "/admin/users",
   requireTier("enterprise"),
