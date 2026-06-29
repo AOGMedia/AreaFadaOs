@@ -20,6 +20,7 @@ import {
   Send,
   Globe,
   Shield,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +52,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Intelligence", path: "/intelligence", icon: <BarChart3 className="w-4 h-4" />, moduleKey: "campaignIntelligence", requiredTier: "enterprise" },
   { label: "Media Partners", path: "/media-partners", icon: <Globe className="w-4 h-4" />, moduleKey: "ambassadorCrm", requiredTier: "agency" },
   { label: "Admin", path: "/admin", icon: <Shield className="w-4 h-4" />, moduleKey: null, requiredTier: "enterprise", enterpriseOnly: true },
+  { label: "Settings", path: "/settings", icon: <SlidersHorizontal className="w-4 h-4" />, moduleKey: null },
 ];
 
 const TIER_BADGE: Record<string, string> = {

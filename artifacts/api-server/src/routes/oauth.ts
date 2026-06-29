@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { encryptToken } from "../lib/tokenEncryption.js";
 import { fetchFollowerCount } from "../lib/platformPublisher.js";
+import { getDbUserCredentials } from "./settings.js";
 
 const router = Router();
 
@@ -25,7 +26,7 @@ async function getDbUser(clerkId: string) {
   return user ?? null;
 }
 
-// ─── requireAuth middleware (copied pattern from users.ts) ────────────────────
+// ─── requireAuth middleware ────────────────────────────────────────────────────
 
 const requireAuth = (req: any, res: any, next: any) => {
   const auth = getAuth(req);
@@ -36,12 +37,33 @@ const requireAuth = (req: any, res: any, next: any) => {
   next();
 };
 
+// ─── Credential resolution: DB first, env var fallback ───────────────────────
+
+async function resolveCredential(userId: number, platform: string, envKey: string): Promise<string> {
+  const { appId, appSecret } = await getDbUserCredentials(userId, platform);
+
+  if (envKey.toLowerCase().includes("secret") || envKey.toLowerCase().includes("client_secret")) {
+    return appSecret ?? process.env[envKey] ?? "";
+  }
+  return appId ?? process.env[envKey] ?? "";
+}
+
+async function getPlatformCreds(userId: number, platform: string) {
+  const { appId, appSecret } = await getDbUserCredentials(userId, platform);
+  return {
+    appId: appId ?? null,
+    appSecret: appSecret ?? null,
+  };
+}
+
 // ─── Platform OAuth configs ───────────────────────────────────────────────────
 
-function xAuthUrl(state: string, codeChallenge: string, redirectUri: string): string {
+async function xAuthUrl(userId: number, state: string, codeChallenge: string, redirectUri: string): Promise<string> {
+  const creds = await getPlatformCreds(userId, "x");
+  const clientId = creds.appId ?? process.env.X_CLIENT_ID ?? "";
   const params = new URLSearchParams({
     response_type: "code",
-    client_id: process.env.X_CLIENT_ID ?? "",
+    client_id: clientId,
     redirect_uri: redirectUri,
     scope: "tweet.read tweet.write users.read offline.access",
     state,
@@ -51,12 +73,11 @@ function xAuthUrl(state: string, codeChallenge: string, redirectUri: string): st
   return `https://twitter.com/i/oauth2/authorize?${params}`;
 }
 
-function instagramAuthUrl(state: string, redirectUri: string): string {
-  // Instagram Graph API publishing requires Facebook Login — NOT the Basic Display API.
-  // The app must be a Facebook App with "Instagram Graph API" added as a product.
-  // Scopes: instagram_basic to read account info, instagram_content_publish to post.
+async function instagramAuthUrl(userId: number, state: string, redirectUri: string): Promise<string> {
+  const creds = await getPlatformCreds(userId, "instagram");
+  const clientId = creds.appId ?? process.env.INSTAGRAM_APP_ID ?? "";
   const params = new URLSearchParams({
-    client_id: process.env.INSTAGRAM_APP_ID ?? "",
+    client_id: clientId,
     redirect_uri: redirectUri,
     scope: "instagram_basic,instagram_content_publish,pages_read_engagement",
     response_type: "code",
@@ -65,9 +86,11 @@ function instagramAuthUrl(state: string, redirectUri: string): string {
   return `https://www.facebook.com/v18.0/dialog/oauth?${params}`;
 }
 
-function facebookAuthUrl(state: string, redirectUri: string): string {
+async function facebookAuthUrl(userId: number, state: string, redirectUri: string): Promise<string> {
+  const creds = await getPlatformCreds(userId, "facebook");
+  const clientId = creds.appId ?? process.env.FACEBOOK_APP_ID ?? "";
   const params = new URLSearchParams({
-    client_id: process.env.FACEBOOK_APP_ID ?? "",
+    client_id: clientId,
     redirect_uri: redirectUri,
     scope: "pages_manage_posts,pages_read_engagement,publish_to_groups",
     response_type: "code",
@@ -76,9 +99,11 @@ function facebookAuthUrl(state: string, redirectUri: string): string {
   return `https://www.facebook.com/v18.0/dialog/oauth?${params}`;
 }
 
-function tiktokAuthUrl(state: string, redirectUri: string): string {
+async function tiktokAuthUrl(userId: number, state: string, redirectUri: string): Promise<string> {
+  const creds = await getPlatformCreds(userId, "tiktok");
+  const clientKey = creds.appId ?? process.env.TIKTOK_CLIENT_KEY ?? "";
   const params = new URLSearchParams({
-    client_key: process.env.TIKTOK_CLIENT_KEY ?? "",
+    client_key: clientKey,
     redirect_uri: redirectUri,
     scope: "user.info.basic,video.upload,video.publish",
     response_type: "code",
@@ -100,13 +125,25 @@ router.get("/oauth/:platform/start", requireAuth, async (req: any, res): Promise
   const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
+  const creds = await getPlatformCreds(user.id, platform);
+
+  const envIdKey = platform === "x" ? "X_CLIENT_ID" : platform === "tiktok" ? "TIKTOK_CLIENT_KEY" : platform === "instagram" ? "INSTAGRAM_APP_ID" : "FACEBOOK_APP_ID";
+  const envSecretKey = platform === "x" ? "X_CLIENT_SECRET" : platform === "tiktok" ? "TIKTOK_CLIENT_SECRET" : platform === "instagram" ? "INSTAGRAM_APP_SECRET" : "FACEBOOK_APP_SECRET";
+
+  const resolvedId = creds.appId ?? process.env[envIdKey] ?? "";
+  const resolvedSecret = creds.appSecret ?? process.env[envSecretKey] ?? "";
+
+  if (!resolvedId || !resolvedSecret) {
+    const settingsBase = `${process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ""}/areafadaos`;
+    res.redirect(`${settingsBase}/settings?oauth_error=missing_credentials&platform=${platform}`);
+    return;
+  }
+
   const state = randomBytes(24).toString("hex");
-  // Store userId|platform|codeVerifier in state-blob (split on first ":")
   const codeVerifier = randomBytes(32).toString("hex");
   const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
   const stateBlob = `${user.id}:${codeVerifier}:${state}`;
 
-  // Upsert a placeholder row to store the state for the callback
   const [existing] = await db.select({ id: platformAccountsTable.id })
     .from(platformAccountsTable)
     .where(and(eq(platformAccountsTable.userId, user.id), eq(platformAccountsTable.platform, platform)));
@@ -129,10 +166,10 @@ router.get("/oauth/:platform/start", requireAuth, async (req: any, res): Promise
   let authUrl: string;
 
   switch (platform) {
-    case "x": authUrl = xAuthUrl(state, codeChallenge, redirect); break;
-    case "instagram": authUrl = instagramAuthUrl(state, redirect); break;
-    case "facebook": authUrl = facebookAuthUrl(state, redirect); break;
-    case "tiktok": authUrl = tiktokAuthUrl(state, redirect); break;
+    case "x": authUrl = await xAuthUrl(user.id, state, codeChallenge, redirect); break;
+    case "instagram": authUrl = await instagramAuthUrl(user.id, state, redirect); break;
+    case "facebook": authUrl = await facebookAuthUrl(user.id, state, redirect); break;
+    case "tiktok": authUrl = await tiktokAuthUrl(user.id, state, redirect); break;
     default: res.status(400).json({ error: "Unknown platform" }); return;
   }
 
@@ -156,9 +193,6 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
     return;
   }
 
-  // Find the account row whose state blob contains this exact state token.
-  // The state blob is stored as "userId:codeVerifier:state" so we match by the
-  // suffix to correctly identify which user+platform row to use.
   const allForPlatform = await db.select().from(platformAccountsTable)
     .where(eq(platformAccountsTable.platform, platform));
 
@@ -174,7 +208,7 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
   }
 
   const [userId, codeVerifier] = account.oauthState!.split(":");
-
+  const numericUserId = Number(userId);
   const redirect = callbackUrl(platform);
 
   try {
@@ -188,18 +222,22 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
 
     switch (platform) {
       case "x": {
+        const xCreds = await getPlatformCreds(numericUserId, "x");
+        const clientId = xCreds.appId ?? process.env.X_CLIENT_ID ?? "";
+        const clientSecret = xCreds.appSecret ?? process.env.X_CLIENT_SECRET ?? "";
+
         const body = new URLSearchParams({
           code,
           grant_type: "authorization_code",
           redirect_uri: redirect,
           code_verifier: codeVerifier,
-          client_id: process.env.X_CLIENT_ID ?? "",
+          client_id: clientId,
         });
         const tokenRes = await fetch("https://api.twitter.com/2/oauth2/token", {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Basic ${Buffer.from(`${process.env.X_CLIENT_ID}:${process.env.X_CLIENT_SECRET}`).toString("base64")}`,
+            "Authorization": `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
           },
           body: body.toString(),
         });
@@ -221,10 +259,13 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
       }
 
       case "instagram": {
-        // Step 1: Exchange code for a short-lived user access token via Facebook Login
+        const igCreds = await getPlatformCreds(numericUserId, "instagram");
+        const igAppId = igCreds.appId ?? process.env.INSTAGRAM_APP_ID ?? "";
+        const igAppSecret = igCreds.appSecret ?? process.env.INSTAGRAM_APP_SECRET ?? "";
+
         const igParams = new URLSearchParams({
-          client_id: process.env.INSTAGRAM_APP_ID ?? "",
-          client_secret: process.env.INSTAGRAM_APP_SECRET ?? "",
+          client_id: igAppId,
+          client_secret: igAppSecret,
           redirect_uri: redirect,
           code,
         });
@@ -233,7 +274,6 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
         if (!igTokenRes.ok) throw new Error(igTokenData.error?.message ?? "Instagram token exchange failed");
         const userToken = igTokenData.access_token;
 
-        // Step 2: Enumerate Pages; find the first one with an Instagram Business Account
         const pagesRes = await fetch(
           `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${userToken}`
         );
@@ -245,11 +285,9 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
           );
         }
 
-        // Use the Page access token (long-lived) and IG Business Account ID for publishing
         accessToken = igPage.access_token;
         platformUserId = igPage.instagram_business_account.id;
 
-        // Step 3: Fetch the IG username and follower count
         const igMeRes = await fetch(
           `https://graph.facebook.com/v18.0/${platformUserId}?fields=username,followers_count&access_token=${accessToken}`
         );
@@ -259,10 +297,13 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
       }
 
       case "facebook": {
-        // Step 1: Exchange code for user access token
+        const fbCreds = await getPlatformCreds(numericUserId, "facebook");
+        const fbAppId = fbCreds.appId ?? process.env.FACEBOOK_APP_ID ?? "";
+        const fbAppSecret = fbCreds.appSecret ?? process.env.FACEBOOK_APP_SECRET ?? "";
+
         const fbParams = new URLSearchParams({
-          client_id: process.env.FACEBOOK_APP_ID ?? "",
-          client_secret: process.env.FACEBOOK_APP_SECRET ?? "",
+          client_id: fbAppId,
+          client_secret: fbAppSecret,
           redirect_uri: redirect,
           code,
         });
@@ -271,7 +312,6 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
         if (!fbTokenRes.ok) throw new Error(fbTokenData.error?.message ?? "Facebook token exchange failed");
         const fbUserToken = fbTokenData.access_token;
 
-        // Step 2: Get managed Pages — publishing requires Page access tokens, not user tokens
         const fbPagesRes = await fetch(
           `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token&access_token=${fbUserToken}`
         );
@@ -281,7 +321,6 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
           throw new Error("No Facebook Pages found. Create or connect a Facebook Page to use for publishing.");
         }
 
-        // Use first managed Page (page access token + page ID for publishing)
         const page = pages[0];
         accessToken = page.access_token;
         platformUserId = page.id;
@@ -291,9 +330,13 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
       }
 
       case "tiktok": {
+        const ttCreds = await getPlatformCreds(numericUserId, "tiktok");
+        const ttClientKey = ttCreds.appId ?? process.env.TIKTOK_CLIENT_KEY ?? "";
+        const ttClientSecret = ttCreds.appSecret ?? process.env.TIKTOK_CLIENT_SECRET ?? "";
+
         const body = new URLSearchParams({
-          client_key: process.env.TIKTOK_CLIENT_KEY ?? "",
-          client_secret: process.env.TIKTOK_CLIENT_SECRET ?? "",
+          client_key: ttClientKey,
+          client_secret: ttClientSecret,
           code,
           grant_type: "authorization_code",
           redirect_uri: redirect,
@@ -325,7 +368,6 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
         throw new Error(`Unsupported platform: ${platform}`);
     }
 
-    // Fetch live follower count
     const followerCount = await fetchFollowerCount(platform, accessToken, platformUserId);
 
     await db.update(platformAccountsTable).set({
@@ -343,7 +385,7 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
       errorCode: null,
       updatedAt: new Date(),
     }).where(and(
-      eq(platformAccountsTable.userId, Number(userId)),
+      eq(platformAccountsTable.userId, numericUserId),
       eq(platformAccountsTable.platform, platform)
     ));
 
@@ -355,7 +397,7 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
       oauthState: null,
       updatedAt: new Date(),
     }).where(and(
-      eq(platformAccountsTable.userId, Number(userId)),
+      eq(platformAccountsTable.userId, numericUserId),
       eq(platformAccountsTable.platform, platform)
     ));
     res.redirect(`${frontendBase}/scheduling?oauth_error=${encodeURIComponent(err.message)}&platform=${platform}`);

@@ -15,6 +15,7 @@ import fanHubRouter from "./fan-hub";
 import campaignIntelligenceRouter from "./campaign-intelligence";
 import mediaPartnersRouter from "./media-partners";
 import oauthRouter from "./oauth";
+import settingsRouter from "./settings";
 import webhookClerkRouter from "./webhook-clerk";
 import adminRouter from "./admin";
 
@@ -38,5 +39,6 @@ router.use(fanHubRouter);
 router.use(campaignIntelligenceRouter);
 router.use(mediaPartnersRouter);
 router.use(oauthRouter);
+router.use(settingsRouter);
 
 export default router;
