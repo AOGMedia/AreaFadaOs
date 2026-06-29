@@ -350,6 +350,7 @@ export async function executePublishJob(jobId: number): Promise<void> {
     await db.update(publishJobsTable).set({
       status: "published",
       publishedAt: new Date(),
+      platformPostId: result.platformPostId ?? null,
       errorMessage: null,
       errorCode: null,
       updatedAt: new Date(),

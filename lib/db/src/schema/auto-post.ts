@@ -33,6 +33,8 @@ export const publishJobsTable = pgTable("publish_jobs", {
   attemptCount: integer("attempt_count").notNull().default(0),
   maxAttempts: integer("max_attempts").notNull().default(3),
   errorMessage: text("error_message"),
+  errorCode: text("error_code"),
+  platformPostId: text("platform_post_id"),
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),

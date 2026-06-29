@@ -3,10 +3,16 @@ import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:
 function getKey(): Buffer {
   const raw = process.env.TOKEN_ENCRYPTION_KEY ?? "";
   if (raw.length === 64) return Buffer.from(raw, "hex");
-  if (!raw && process.env.NODE_ENV === "production") {
-    console.warn("[tokenEncryption] TOKEN_ENCRYPTION_KEY not set — using insecure default. Set this env var immediately.");
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "TOKEN_ENCRYPTION_KEY must be set in production. " +
+      "Generate one with: openssl rand -hex 32"
+    );
   }
-  return createHash("sha256").update(raw || "areafada-default-dev-encryption-key").digest();
+
+  // Development only — deterministic key derived from a dev constant
+  return createHash("sha256").update("areafada-dev-only-key").digest();
 }
 
 export function encryptToken(plaintext: string): string {
