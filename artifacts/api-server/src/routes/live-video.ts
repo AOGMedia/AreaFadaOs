@@ -983,11 +983,17 @@ async function triggerObsStartStream(obsWsUrl: string, obsWsPassword?: string): 
 // YouTube keys are 4–5 dash-separated alphanumeric groups (e.g. xxxx-xxxx-xxxx-xxxx-xxxx)
 // Facebook/Instagram keys are long alphanumeric strings (typically 30-80 chars)
 // X/Twitter keys are alphanumeric (typically 20-40 chars)
+const PLACEHOLDER_KEY_RE_VALIDATE = /^(INSTAGRAM|YOUTUBE|FACEBOOK|X|TIKTOK)-[A-Z0-9]{6}$/i;
+
 function validateStreamKeyFormat(platform: string, key: string): { valid: boolean; message: string } {
   if (!key || key.trim().length === 0) {
     return { valid: false, message: "Stream key is empty" };
   }
   const k = key.trim();
+  // Reject auto-generated placeholder keys — they are never real broadcast keys
+  if (PLACEHOLDER_KEY_RE_VALIDATE.test(k)) {
+    return { valid: false, message: `This looks like an auto-generated placeholder key. Please paste your real ${platform} stream key from the platform dashboard.` };
+  }
   switch (platform) {
     case "youtube": {
       // YouTube stream keys: 4-5 groups of alphanumeric separated by dashes, e.g. abcd-efgh-ijkl-mnop or abcd-efgh-ijkl-mnop-qrst
@@ -1213,6 +1219,23 @@ router.post("/live-sessions/:id/go-live", ...requireLive, async (req: any, res):
         error: "Cannot go live: no platform stream keys have been validated. Run POST /live-sessions/:id/validate-stream-keys first to confirm stream connectivity, then retry go-live.",
         currentStatuses: configs.map(c => ({ platform: c.platform, status: c.status })),
         hint: "Platforms with status 'ready' do not satisfy this gate — run validate-stream-keys to promote them to 'validated'.",
+      });
+      return;
+    }
+
+    // ── Server-side precondition: reject placeholder/empty stream keys ─────────
+    // Auto-generated keys (e.g. INSTAGRAM-ABC123) and demo keys (DEMO-IG-*) are
+    // never real broadcast keys. Block go-live if any validated config still has one.
+    const PLACEHOLDER_KEY_RE = /^(INSTAGRAM|YOUTUBE|FACEBOOK|X|TIKTOK)-[A-Z0-9]{6}$/i;
+    const configsWithPlaceholderKeys = configs.filter(c => {
+      const key = (c.streamKey ?? "").trim();
+      return !key || key.startsWith("DEMO-") || PLACEHOLDER_KEY_RE.test(key);
+    });
+    if (configsWithPlaceholderKeys.length > 0) {
+      res.status(422).json({
+        error: "Cannot go live: one or more platforms still have auto-generated placeholder stream keys. Open the Broadcast tab, paste the real stream key from each platform's dashboard, then re-validate before going live.",
+        platforms: configsWithPlaceholderKeys.map(c => c.platform),
+        hint: "Get your stream key from: YouTube Studio → Go Live, Meta Live Producer (Instagram/Facebook), or X Broadcast.",
       });
       return;
     }

@@ -304,11 +304,22 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   ended:     { label: "Ended",     cls: "bg-gray-100 text-gray-500" },
 };
 
+const PLACEHOLDER_KEY_PATTERN = /^(INSTAGRAM|YOUTUBE|FACEBOOK|X|TIKTOK)-[A-Z0-9]{6}$/i;
+
+function isPlaceholderKey(key: string | null | undefined): boolean {
+  if (!key || key.trim() === "") return true;
+  const k = key.trim();
+  if (k.startsWith("DEMO-")) return true;
+  if (PLACEHOLDER_KEY_PATTERN.test(k)) return true;
+  return false;
+}
+
 function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSessionUpdate: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [showOBSGuide, setShowOBSGuide] = useState(false);
   const [showStreamKeys, setShowStreamKeys] = useState<Record<string, boolean>>({});
+  const [editableStreamKeys, setEditableStreamKeys] = useState<Record<string, string>>({});
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [goLiveResult, setGoLiveResult] = useState<GoLiveResult | null>(null);
   const [obsWebSocketUrl, setObsWebSocketUrl] = useState("");
@@ -390,6 +401,13 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
   const isLive = session.status === "live";
   const isArmed = session.status === "armed";
   const isEnded = session.status === "ended";
+
+  const platformsWithMissingKeys = platforms.filter(p => {
+    const cfg = configByPlatform[p];
+    const displayedKey = editableStreamKeys[p] ?? cfg?.streamKey ?? "";
+    return isPlaceholderKey(displayedKey);
+  });
+  const hasMissingKeys = platformsWithMissingKeys.length > 0;
 
   return (
     <div className="space-y-4">
@@ -529,15 +547,36 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
               </div>
             </div>
 
+            {hasMissingKeys && (
+              <div className="mt-3 rounded-lg p-3 text-xs bg-red-50 border border-red-200 text-red-800">
+                <div className="flex items-start gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold mb-0.5">Real stream keys required before going live</p>
+                    <p className="text-red-700 mb-1">The following platforms still have auto-generated placeholder keys. Paste your real stream keys from each platform's dashboard into the fields below, then validate.</p>
+                    <ul className="space-y-0.5">
+                      {platformsWithMissingKeys.map(p => (
+                        <li key={p} className="flex items-center gap-1">
+                          <span>{PLATFORM_ICONS[p]}</span>
+                          <span className="capitalize font-medium">{PLATFORM_LABELS[p] ?? p}</span>
+                          <span className="text-red-600">— stream key not set</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 mt-3">
-              <Button size="sm" variant="outline" onClick={() => validateKeys.mutate()} disabled={validateKeys.isPending || configs.length === 0}>
+              <Button size="sm" variant="outline" onClick={() => validateKeys.mutate()} disabled={validateKeys.isPending || configs.length === 0 || hasMissingKeys}>
                 <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />{validateKeys.isPending ? "Validating…" : "Validate Keys"}
               </Button>
               <Button
                 size="sm"
                 className="bg-red-600 hover:bg-red-700 text-white"
                 onClick={() => goLive.mutate()}
-                disabled={goLive.isPending || !allValidated}
+                disabled={goLive.isPending || !allValidated || hasMissingKeys}
               >
                 <MonitorPlay className="w-3.5 h-3.5 mr-1.5" />{goLive.isPending ? "Going Live…" : "🔴 Go Live"}
               </Button>
@@ -694,6 +733,14 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                   </div>
                 )}
 
+                {/* Inline warning when key is still a placeholder */}
+                {isPlaceholderKey(editableStreamKeys[platform] ?? cfg?.streamKey) && (
+                  <div className="text-xs rounded px-2 py-1 mb-2 bg-amber-50 border border-amber-200 text-amber-800 flex items-start gap-1.5">
+                    <AlertCircle className="w-3 h-3 shrink-0 mt-0.5" />
+                    <span>Paste your real stream key from {PLATFORM_LABELS[platform] ?? platform} before validating.</span>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <div>
                     <Label className="text-xs text-muted-foreground">RTMP Endpoint</Label>
@@ -712,8 +759,21 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                       </button>
                     </div>
                     <div className="flex gap-1">
-                      <Input value={cfg?.streamKey ?? ""} readOnly className="text-xs font-mono bg-muted" type={showKey ? "text" : "password"} />
-                      <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => { navigator.clipboard.writeText(cfg?.streamKey ?? ""); toast({ title: "Copied!" }); }}>
+                      <Input
+                        value={editableStreamKeys[platform] ?? cfg?.streamKey ?? ""}
+                        onChange={e => setEditableStreamKeys(s => ({ ...s, [platform]: e.target.value }))}
+                        onBlur={e => {
+                          const newKey = e.target.value.trim();
+                          const currentKey = cfg?.streamKey ?? "";
+                          if (newKey !== currentKey && newKey !== "") {
+                            updateConfig.mutate({ platform, body: { streamKey: newKey, status: "pending" } });
+                          }
+                        }}
+                        placeholder="Paste stream key from platform dashboard…"
+                        className={`text-xs font-mono ${isPlaceholderKey(editableStreamKeys[platform] ?? cfg?.streamKey) ? "border-amber-300 bg-amber-50/40" : ""}`}
+                        type={showKey ? "text" : "password"}
+                      />
+                      <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => { navigator.clipboard.writeText(editableStreamKeys[platform] ?? cfg?.streamKey ?? ""); toast({ title: "Copied!" }); }}>
                         <Copy className="w-3.5 h-3.5" />
                       </Button>
                     </div>
