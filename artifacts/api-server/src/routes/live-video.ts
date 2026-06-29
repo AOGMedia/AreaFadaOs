@@ -1273,9 +1273,11 @@ router.post("/live-sessions/:id/go-live", ...requireLive, async (req: any, res):
     //   2. Update the broadcast title so platforms show the correct session name
     //   3. Return the single Restream RTMP endpoint + stream key for OBS
     // Restream starts the fan-out automatically when OBS pushes to the RTMP endpoint.
+    type RestreamChannelGoLive = { id: number; displayName: string; enabled: boolean; type: { id: number; name: string } };
     let restreamResult: {
       connected: boolean; message: string;
       obsServer?: string; obsStreamKey?: string;
+      channels?: Array<{ id: number; displayName: string; enabled: boolean; platform: string }>;
     } = { connected: false, message: "Restream not configured — push directly to each platform using the RTMP endpoints below (set RESTREAM_API_KEY to enable single-feed multi-streaming, or enter your key in Settings)" };
 
     const dbKeysForGoLive = await getDbUserLiveApiKeys(user.id);
@@ -1310,7 +1312,35 @@ router.post("/live-sessions/:id/go-live", ...requireLive, async (req: any, res):
         return;
       }
 
-      // Step 2: Update broadcast title on Restream
+      // Step 2: Fetch destination channels list (same call as validate-stream-keys — no extra API cost)
+      const RESTREAM_PLATFORM_MAP_GOLIVE: Record<string, string> = {
+        youtube: "youtube", "youtube live": "youtube",
+        instagram: "instagram", "instagram live": "instagram",
+        facebook: "facebook", "facebook live": "facebook",
+        x: "x", twitter: "x", periscope: "x",
+        tiktok: "tiktok", "tiktok live": "tiktok",
+      };
+      let goLiveChannels: Array<{ id: number; displayName: string; enabled: boolean; platform: string }> | undefined;
+      try {
+        const channelsRes = await fetch("https://api.restream.io/v2/channel", {
+          headers: { Authorization: `Bearer ${activeRestreamKeyGoLive}` },
+        });
+        if (channelsRes.ok) {
+          const rawChannels = (await channelsRes.json()) as RestreamChannelGoLive[];
+          goLiveChannels = rawChannels.map(ch => ({
+            id: ch.id,
+            displayName: ch.displayName,
+            enabled: ch.enabled,
+            platform: RESTREAM_PLATFORM_MAP_GOLIVE[ch.type?.name?.toLowerCase() ?? ""] ?? ch.type?.name?.toLowerCase() ?? "unknown",
+          }));
+        } else {
+          console.warn(`[go-live] Restream /v2/channel returned ${channelsRes.status} — channel list unavailable`);
+        }
+      } catch (chEx: any) {
+        console.warn("[go-live] Restream channel fetch failed:", chEx.message);
+      }
+
+      // Step 3: Update broadcast title on Restream
       try {
         const metaRes = await fetch("https://api.restream.io/v2/broadcast-meta", {
           method: "PATCH",
@@ -1333,6 +1363,7 @@ router.post("/live-sessions/:id/go-live", ...requireLive, async (req: any, res):
         message: "Restream connected — push your OBS stream to the Restream RTMP endpoint below. Restream will fan out to all configured destinations automatically.",
         obsServer: "rtmp://live.restream.io/live",
         obsStreamKey: restreamStreamKey,
+        ...(goLiveChannels ? { channels: goLiveChannels } : {}),
       };
     }
 

@@ -60,10 +60,14 @@ interface ValidationResult {
   results: Array<{ platform: string; configId: number; valid: boolean; message: string; newStatus: string }>;
 }
 
+interface RestreamChannel {
+  id: number; displayName: string; enabled: boolean; platform: string;
+}
+
 interface GoLiveResult {
   message: string; session: LiveSession;
   streamConfigs: Array<{ platform: string; rtmpEndpoint?: string; streamKey?: string; status: string; obsSetup: string; included: boolean }>;
-  restream: { connected: boolean; message: string; obsServer?: string; obsStreamKey?: string };
+  restream: { connected: boolean; message: string; obsServer?: string; obsStreamKey?: string; channels?: RestreamChannel[] };
   obsInstructions: {
     mode: "restream" | "direct_multi_rtmp";
     summary: string;
@@ -668,6 +672,26 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                     </>
                   )}
                 </div>
+                {goLiveResult.restream.connected && goLiveResult.restream.channels && goLiveResult.restream.channels.length > 0 && (
+                  <div className="mt-1.5 rounded-md border border-emerald-200 bg-emerald-50/60 px-2.5 py-2 space-y-1">
+                    <p className="text-[11px] font-semibold text-emerald-800 uppercase tracking-wide mb-1">Destination Channels</p>
+                    {goLiveResult.restream.channels.map(ch => (
+                      <div key={ch.id} className="flex items-center gap-2 text-xs">
+                        <span>{PLATFORM_ICONS[ch.platform] ?? "📡"}</span>
+                        <span className="flex-1 font-medium text-emerald-900 truncate">{ch.displayName}</span>
+                        {ch.enabled ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-semibold">
+                            <CheckCircle className="w-2.5 h-2.5" /> active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-semibold">
+                            <AlertCircle className="w-2.5 h-2.5" /> disabled
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {goLiveResult.restream.connected && goLiveResult.restream.obsServer && (
                   <div className="flex items-center gap-1.5 text-xs text-emerald-600">
                     <span className="font-medium shrink-0">OBS Server:</span>
