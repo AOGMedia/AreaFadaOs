@@ -1671,6 +1671,62 @@ router.get("/live-sessions/:id/viewer-count", ...requireLive, async (req: any, r
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to fetch viewer counts" }); }
 });
 
+// ─── GET /live-sessions/:id/restream-channels ────────────────────────────────
+// Returns a normalized Restream channel list for the session owner.
+// Designed for periodic polling while the session is live so the UI can surface
+// any destination that drops mid-broadcast without requiring a full page refresh.
+router.get("/live-sessions/:id/restream-channels", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const [session] = await db.select().from(liveSessionsTable)
+      .where(and(eq(liveSessionsTable.id, Number(req.params.id)), eq(liveSessionsTable.userId, user.id)));
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+
+    const dbKeys = await getDbUserLiveApiKeys(user.id);
+    const apiKey = process.env.RESTREAM_API_KEY || dbKeys.restreamApiKey;
+
+    if (!apiKey) {
+      res.json({ ok: false, configured: false, channels: [] });
+      return;
+    }
+
+    const response = await fetch("https://api.restream.io/v2/channel", {
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      res.json({ ok: false, configured: true, invalid: true, channels: [] });
+      return;
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      res.json({ ok: false, configured: true, error: `Restream returned ${response.status}: ${text}`, channels: [] });
+      return;
+    }
+
+    const data = await response.json() as unknown;
+    const raw = Array.isArray(data) ? data : ((data as any)?.items ?? []);
+    const channels = (raw as any[]).map((ch: any) => ({
+      id: ch.id ?? ch.channelId,
+      displayName: ch.displayName ?? ch.name ?? ch.platform ?? "Unknown",
+      platform: ch.type ?? ch.platform ?? "unknown",
+      active: ch.active ?? ch.enabled ?? ch.status === "active" ?? false,
+    }));
+
+    res.json({ ok: true, configured: true, channels });
+  } catch (err: any) {
+    if (err?.name === "TimeoutError" || err?.code === "ABORT_ERR") {
+      res.status(504).json({ ok: false, configured: true, error: "Request to Restream timed out." });
+    } else {
+      res.status(502).json({ ok: false, configured: true, error: err?.message ?? "Failed to reach Restream API." });
+    }
+  }
+});
+
 // GET /live-notification-events — delivery log for current user's sessions
 router.get("/live-notification-events", ...requireLive, async (req: any, res): Promise<void> => {
   try {

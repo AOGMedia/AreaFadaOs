@@ -360,6 +360,14 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
     staleTime: 120000,
   });
 
+  const { data: liveRestreamChannels } = useQuery<RestreamChannelsResult>({
+    queryKey: ["live-restream-channels", session.id],
+    queryFn: () => apiFetch(`/live-sessions/${session.id}/restream-channels`),
+    enabled: session.status === "live",
+    refetchInterval: session.status === "live" ? 30000 : false,
+    staleTime: 25000,
+  });
+
   const RESTREAM_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
   const { data: restreamKeyHealth } = useQuery<{ ok: boolean; expired: boolean; lastVerified: string; error: string | null } | null>({
@@ -485,6 +493,49 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                   >
                     Update key in Settings →
                   </a>
+                </div>
+              </div>
+            )}
+
+            {/* ─── Live Restream channel status (polls every 30 s) ─── */}
+            {liveRestreamChannels?.ok && liveRestreamChannels.channels.length > 0 && (
+              <div className="mb-2 space-y-1.5">
+                {liveRestreamChannels.channels.some(ch => !ch.active) && (
+                  <div className="flex items-start gap-2 rounded-lg border border-red-400 bg-red-50 px-3 py-2 text-xs text-red-900">
+                    <WifiOff className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-600" />
+                    <div className="flex-1">
+                      <span className="font-semibold">⚠ Destination dropped mid-stream.</span>{" "}
+                      <span>
+                        {liveRestreamChannels.channels.filter(ch => !ch.active).map(ch => ch.displayName).join(", ")}{" "}
+                        {liveRestreamChannels.channels.filter(ch => !ch.active).length === 1 ? "has" : "have"} gone offline.
+                      </span>{" "}
+                      <a
+                        href="https://restream.io/dashboard"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline font-semibold hover:text-red-700"
+                      >
+                        Fix in Restream dashboard →
+                      </a>
+                    </div>
+                  </div>
+                )}
+                <div className="rounded-md border border-gray-200 bg-white/60 px-2.5 py-2 space-y-1">
+                  <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Live Channel Status</p>
+                  {liveRestreamChannels.channels.map(ch => (
+                    <div key={ch.id} className="flex items-center gap-1.5 text-xs">
+                      {ch.active ? (
+                        <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0" />
+                      ) : (
+                        <AlertCircle className="w-3 h-3 text-red-500 shrink-0 animate-pulse" />
+                      )}
+                      <span className={ch.active ? "text-emerald-700" : "text-red-700 font-medium"}>
+                        {ch.displayName}
+                        <span className="ml-1 opacity-60 font-normal">({ch.platform})</span>
+                        {!ch.active && <span className="ml-1 text-red-600">— dropped</span>}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
