@@ -14,6 +14,13 @@ const requireAuth = (req: any, res: any, next: any) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
   req.clerkUserId = userId;
+
+  // Extract email from JWT session claims so routes can pass the real
+  // email address to getOrCreateUser on first login.
+  const claims = auth?.sessionClaims as Record<string, unknown> | null | undefined;
+  const rawEmail = claims?.email ?? claims?.primaryEmailAddress;
+  req.clerkEmail = typeof rawEmail === "string" && rawEmail ? rawEmail.toLowerCase() : undefined;
+
   next();
 };
 
@@ -105,7 +112,18 @@ async function getOrCreateUser(clerkId: string, email?: string, name?: string) {
 
 router.get("/users/me", requireAuth, async (req: any, res): Promise<void> => {
   try {
-    let user = await getOrCreateUser(req.clerkUserId);
+    let user = await getOrCreateUser(req.clerkUserId, req.clerkEmail);
+
+    // If the row was created with a placeholder email (no real email was
+    // available at insert time) but we now have the real email from the
+    // session claims, update the stored email so enterprise checks work.
+    if (req.clerkEmail && user.email.endsWith("@areafadaos.app")) {
+      const [healed] = await db.update(usersTable)
+        .set({ email: req.clerkEmail, updatedAt: new Date() })
+        .where(eq(usersTable.clerkId, req.clerkUserId))
+        .returning();
+      user = healed;
+    }
 
     if (ENTERPRISE_EMAILS.has(user.email.toLowerCase()) && user.tier !== "enterprise") {
       const [upgraded] = await db.update(usersTable)
@@ -166,7 +184,16 @@ router.patch("/users/me", requireAuth, async (req: any, res): Promise<void> => {
 
 router.get("/users/me/tier", requireAuth, async (req: any, res): Promise<void> => {
   try {
-    let user = await getOrCreateUser(req.clerkUserId);
+    let user = await getOrCreateUser(req.clerkUserId, req.clerkEmail);
+
+    // Same placeholder-email heal as in /users/me
+    if (req.clerkEmail && user.email.endsWith("@areafadaos.app")) {
+      const [healed] = await db.update(usersTable)
+        .set({ email: req.clerkEmail, updatedAt: new Date() })
+        .where(eq(usersTable.clerkId, req.clerkUserId))
+        .returning();
+      user = healed;
+    }
 
     if (ENTERPRISE_EMAILS.has(user.email.toLowerCase()) && user.tier !== "enterprise") {
       const [upgraded] = await db.update(usersTable)
