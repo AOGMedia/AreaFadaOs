@@ -11,7 +11,7 @@ process.env.RESEND_API_KEY = "test_key_clip_email";
 
 const capturedEmails: any[] = [];
 
-type SendBehavior = "success" | "network-error";
+type SendBehavior = "success" | "network-error" | "timeout";
 let sendBehavior: SendBehavior = "success";
 
 const resendStub = {
@@ -20,6 +20,10 @@ const resendStub = {
       send: async (payload: any) => {
         if (sendBehavior === "network-error") {
           throw Object.assign(new Error("connect ETIMEDOUT 1.2.3.4:443"), { code: "ETIMEDOUT" });
+        }
+        if (sendBehavior === "timeout") {
+          // Hang indefinitely so the AbortSignal timeout fires
+          await new Promise<never>(() => {});
         }
         capturedEmails.push(payload);
         return { data: { id: "msg_test_001" }, error: null };
@@ -279,6 +283,66 @@ describe("POST /clip-schedules/export-email — happy path (3 scheduled clips)",
 
     const sentTo: string[] = capturedEmails[0].to;
     assert.deepEqual(sentTo.sort(), ["a@test.com", "b@test.com"]);
+  });
+});
+
+describe("POST /clip-schedules/export-email — Resend AbortSignal timeout (RESEND_TIMEOUT_MS)", () => {
+  beforeEach(() => {
+    sendBehavior = "timeout";
+    // Use a very short timeout so tests don't hang
+    process.env.RESEND_TIMEOUT_MS = "50";
+    setResults([USER_ROW], [makeScheduleRow(0)]);
+  });
+
+  const afterEach = () => {
+    sendBehavior = "success";
+    delete process.env.RESEND_TIMEOUT_MS;
+  };
+
+  test("returns HTTP 503 when Resend hangs past the configured timeout", async () => {
+    const res = await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.equal(res.status, 503, `Expected 503, got ${res.status}: ${JSON.stringify(res.body)}`);
+  });
+
+  test("response includes retryable: true on timeout", async () => {
+    const res = await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.equal(res.body.retryable, true, `Expected retryable:true in body: ${JSON.stringify(res.body)}`);
+  });
+
+  test("response error message mentions the timeout duration", async () => {
+    const res = await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.ok(
+      typeof res.body.error === "string" && /timed out/i.test(res.body.error),
+      `Expected error to mention timeout: ${JSON.stringify(res.body)}`,
+    );
+  });
+
+  test("response detail contains the timeout error message", async () => {
+    const res = await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.ok(
+      typeof res.body.detail === "string" && res.body.detail.length > 0,
+      `Expected a non-empty detail string in body: ${JSON.stringify(res.body)}`,
+    );
+  });
+
+  test("no email is captured when Resend times out", async () => {
+    await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.equal(capturedEmails.length, 0, "No email should be captured when Resend times out");
   });
 });
 

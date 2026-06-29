@@ -981,26 +981,43 @@ router.post("/clip-schedules/export-email", ...requireClip, async (req: any, res
           "this is only permitted outside production. Run `pnpm --filter api-server check:dns` to validate DNS.",
         );
       }
+      const timeoutMs = parseInt(process.env.RESEND_TIMEOUT_MS ?? "10000", 10);
       let sendData: { id?: string } | null = null;
       let sendError: { message?: string } | null = null;
       try {
-        const { data, error } = await resend.emails.send({
+        const sendPromise = resend.emails.send({
           from: fromAddress,
           to: recipients,
           subject,
           html: htmlBody,
           attachments: [{ filename, content: csvBase64 }],
         });
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          AbortSignal.timeout(timeoutMs).addEventListener("abort", () =>
+            reject(Object.assign(new Error(`Resend timed out after ${timeoutMs}ms`), { name: "TimeoutError" })),
+          ),
+        );
+        const { data, error } = await Promise.race([sendPromise, timeoutPromise]);
         sendData = data;
         sendError = error;
       } catch (networkErr: unknown) {
+        const isTimeout = networkErr instanceof Error && networkErr.name === "TimeoutError";
         const msg = networkErr instanceof Error ? networkErr.message : String(networkErr);
-        console.error("[clip-export-email] Network error calling Resend:", msg);
-        res.status(503).json({
-          error: "Email delivery failed due to a network error. Please try again.",
-          retryable: true,
-          detail: msg,
-        });
+        if (isTimeout) {
+          console.error("[clip-export-email] Timeout calling Resend:", msg);
+          res.status(503).json({
+            error: `Email delivery timed out after ${timeoutMs}ms. Please try again.`,
+            retryable: true,
+            detail: msg,
+          });
+        } else {
+          console.error("[clip-export-email] Network error calling Resend:", msg);
+          res.status(503).json({
+            error: "Email delivery failed due to a network error. Please try again.",
+            retryable: true,
+            detail: msg,
+          });
+        }
         return;
       }
       if (sendError) {
