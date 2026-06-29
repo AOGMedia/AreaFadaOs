@@ -831,6 +831,7 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                           const currentKey = cfg?.streamKey ?? "";
                           if (newKey !== currentKey && newKey !== "") {
                             updateConfig.mutate({ platform, body: { streamKey: newKey, status: "pending" } });
+                            setValidationResults(null);
                           }
                         }}
                         placeholder="Paste stream key from platform dashboard…"
