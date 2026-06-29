@@ -2,3 +2,4 @@
 - [Clerk Auth Setup](clerk-auth-setup.md) — Clerk provisioned (not_configured→managed); canonical wiring patterns and pitfalls for this project.
 - [DB Schema](db-schema.md) — users, activity_log, posts, campaigns, platform_accounts, hashtag_cache; typed column casting gotcha; orval index.ts patch.
 - [Ambassador CRM](ambassador-crm.md) — 8 tables, 18 API routes, 6-tab frontend; requireTier("agency"); seed auto-fires when table empty in non-prod.
+- [AreaFada Revenue Mobile](areafada-revenue-mobile.md) — Expo mobile app: Clerk auth (email+Google), 4 tabs (Home, Deals, Invoices, Affiliates), DM Sans font, brand green tokens.

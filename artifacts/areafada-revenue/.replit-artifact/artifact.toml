@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/mobile/"
+title = "AreaFada Revenue"
+version = "1.0.0"
+id = "artifacts/areafada-revenue"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/mobile/" ]
+localPort = 19003
+
+[services.development]
+run = "pnpm --filter @workspace/areafada-revenue run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/areafada-revenue", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/areafada-revenue", "run", "serve" ]
+
+[services.env]
+PORT = "19003"
+BASE_PATH = "/mobile/"
