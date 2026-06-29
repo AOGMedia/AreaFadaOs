@@ -52,14 +52,17 @@ function xAuthUrl(state: string, codeChallenge: string, redirectUri: string): st
 }
 
 function instagramAuthUrl(state: string, redirectUri: string): string {
+  // Instagram Graph API publishing requires Facebook Login — NOT the Basic Display API.
+  // The app must be a Facebook App with "Instagram Graph API" added as a product.
+  // Scopes: instagram_basic to read account info, instagram_content_publish to post.
   const params = new URLSearchParams({
     client_id: process.env.INSTAGRAM_APP_ID ?? "",
     redirect_uri: redirectUri,
-    scope: "instagram_basic,instagram_content_publish,instagram_manage_insights",
+    scope: "instagram_basic,instagram_content_publish,pages_read_engagement",
     response_type: "code",
     state,
   });
-  return `https://api.instagram.com/oauth/authorize?${params}`;
+  return `https://www.facebook.com/v18.0/dialog/oauth?${params}`;
 }
 
 function facebookAuthUrl(state: string, redirectUri: string): string {
@@ -218,36 +221,37 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
       }
 
       case "instagram": {
-        const body = new URLSearchParams({
+        // Instagram Graph API uses Facebook Login — token exchange goes through graph.facebook.com
+        const params = new URLSearchParams({
           client_id: process.env.INSTAGRAM_APP_ID ?? "",
           client_secret: process.env.INSTAGRAM_APP_SECRET ?? "",
-          grant_type: "authorization_code",
           redirect_uri: redirect,
           code,
         });
-        const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: body.toString(),
-        });
+        const tokenRes = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${params}`);
         const tokenData = await tokenRes.json() as any;
-        if (!tokenRes.ok) throw new Error(tokenData.error_message ?? "Instagram token exchange failed");
+        if (!tokenRes.ok) throw new Error(tokenData.error?.message ?? "Instagram token exchange failed");
+        accessToken = tokenData.access_token;
+        expiresAt = tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000) : null;
 
-        // Exchange for long-lived token
-        const llParams = new URLSearchParams({
-          grant_type: "ig_exchange_token",
-          client_secret: process.env.INSTAGRAM_APP_SECRET ?? "",
-          access_token: tokenData.access_token,
-        });
-        const llRes = await fetch(`https://graph.instagram.com/access_token?${llParams}`);
-        const llData = await llRes.json() as any;
-        accessToken = llData.access_token ?? tokenData.access_token;
-        expiresAt = llData.expires_in ? new Date(Date.now() + llData.expires_in * 1000) : null;
-        platformUserId = String(tokenData.user_id);
+        // Resolve the connected Instagram Business Account ID
+        const igAccountRes = await fetch(
+          `https://graph.facebook.com/v18.0/me?fields=id,name,instagram_business_account&access_token=${accessToken}`
+        );
+        const igAccountData = await igAccountRes.json() as any;
+        const igUserId = igAccountData.instagram_business_account?.id ?? igAccountData.id ?? "";
+        platformUserId = igUserId;
 
-        const meRes = await fetch(`https://graph.instagram.com/v18.0/me?fields=id,username&access_token=${accessToken}`);
-        const meData = await meRes.json() as any;
-        handle = `@${meData.username ?? "unknown"}`;
+        // Fetch Instagram username from the IG Business Account
+        if (igAccountData.instagram_business_account?.id) {
+          const igMeRes = await fetch(
+            `https://graph.facebook.com/v18.0/${igUserId}?fields=username&access_token=${accessToken}`
+          );
+          const igMeData = await igMeRes.json() as any;
+          handle = `@${igMeData.username ?? "unknown"}`;
+        } else {
+          handle = igAccountData.name ?? "Instagram";
+        }
         break;
       }
 

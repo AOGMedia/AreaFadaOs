@@ -848,69 +848,34 @@ router.patch("/auto-post/approval-requests/:id", ...requirePost, async (req: any
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to update approval request" }); }
 });
 
-// ─── Background Auto-Retry Worker ─────────────────────────────────────────────
-// Processes pending publish jobs every 60 seconds.
-// Stubs actual platform push (marks as published).
-// On permanent failure (maxAttempts reached), logs a manager alert to activity_log.
+// ─── Background Publish Worker ─────────────────────────────────────────────────
+// Drains pending publish jobs every 60 seconds — both immediate retries and
+// scheduled posts whose scheduledAt has passed.
 async function processPendingPublishJobs() {
   try {
     const now = new Date();
-    // Pick up pending jobs that are not scheduled in the future
-    const pending = await db.select().from(publishJobsTable)
-      .where(and(
-        eq(publishJobsTable.status, "pending"),
-        lte(publishJobsTable.scheduledAt, now),
-      ))
+
+    // Jobs with a past/present scheduledAt
+    const scheduled = await db.select({ id: publishJobsTable.id })
+      .from(publishJobsTable)
+      .where(and(eq(publishJobsTable.status, "pending"), lte(publishJobsTable.scheduledAt, now)))
       .limit(20);
 
-    // Also process unscheduled pending jobs (scheduledAt IS NULL)
-    const unscheduled = await db.select().from(publishJobsTable)
-      .where(and(
-        eq(publishJobsTable.status, "pending"),
-        isNull(publishJobsTable.scheduledAt),
-      ))
+    // Jobs with no scheduled time (immediate publish that hasn't been picked up yet)
+    const immediate = await db.select({ id: publishJobsTable.id })
+      .from(publishJobsTable)
+      .where(and(eq(publishJobsTable.status, "pending"), isNull(publishJobsTable.scheduledAt)))
       .limit(20);
 
-    const toProcess = [...new Map([...pending, ...unscheduled].map(j => [j.id, j])).values()];
-    if (toProcess.length === 0) return;
+    const ids = [...new Set([...scheduled, ...immediate].map(j => j.id))];
+    if (ids.length === 0) return;
 
-    for (const job of toProcess) {
-      // Stub: in production this would call the real platform API.
-      // Simulate a ~90% success rate so demo data shows realistic failure states.
-      const simulatedSuccess = Math.random() > 0.10;
-
-      if (simulatedSuccess) {
-        await db.update(publishJobsTable).set({
-          status: "published",
-          publishedAt: new Date(),
-          lastAttemptAt: new Date(),
-          attemptCount: job.attemptCount + 1,
-          updatedAt: new Date(),
-        }).where(eq(publishJobsTable.id, job.id));
-      } else {
-        const newAttemptCount = job.attemptCount + 1;
-        const isPermanentlyFailed = newAttemptCount >= job.maxAttempts;
-
-        await db.update(publishJobsTable).set({
-          status: isPermanentlyFailed ? "failed" : "pending",
-          attemptCount: newAttemptCount,
-          errorMessage: isPermanentlyFailed
-            ? `Publishing failed after ${newAttemptCount} attempt(s). Connect platform account to enable live push.`
-            : `Attempt ${newAttemptCount} failed — will retry automatically.`,
-          lastAttemptAt: new Date(),
-          updatedAt: new Date(),
-        }).where(eq(publishJobsTable.id, job.id));
-
-        // Log a manager alert notification when a job permanently fails
-        if (isPermanentlyFailed) {
-          await db.insert(activityLogTable).values({
-            userId: job.userId,
-            type: "auto_post_job_failed",
-            description: `Publish job #${job.id} for ${job.platform} permanently failed after ${newAttemptCount} attempt(s). Manual retry or reconnection required.`,
-          }).catch(e => console.error("Failed to log publish failure:", e));
-        }
-      }
-    }
+    // Fire each job through the real publisher — errors are captured inside executePublishJob
+    await Promise.allSettled(ids.map(id =>
+      executePublishJob(id).catch(err =>
+        console.error(`[AutoPost Worker] job ${id} threw unexpectedly:`, err?.message ?? err)
+      )
+    ));
   } catch (err) {
     console.error("[AutoPost Worker] Error processing jobs:", err);
   }

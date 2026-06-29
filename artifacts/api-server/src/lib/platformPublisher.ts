@@ -91,6 +91,8 @@ async function uploadMediaToX(accessToken: string, mediaUrl: string): Promise<st
 // ─── Instagram Graph API ─────────────────────────────────────────────────────
 
 async function publishToInstagram(accessToken: string, platformUserId: string, job: any): Promise<PublishResult> {
+  // Uses Instagram Graph API via graph.facebook.com — requires an Instagram Business
+  // or Creator account connected to a Facebook Page.
   const caption = [job.caption, ...(job.hashtags ?? [])].filter(Boolean).join(" ");
   const mediaUrls = (job.mediaUrls as string[]) ?? [];
 
@@ -106,17 +108,19 @@ async function publishToInstagram(accessToken: string, platformUserId: string, j
     access_token: accessToken,
   });
 
+  // Step 1: Create media container
   const containerData = await fetchJSON(
-    `https://graph.instagram.com/v18.0/${platformUserId}/media?${params}`,
+    `https://graph.facebook.com/v18.0/${platformUserId}/media?${params}`,
     { method: "POST" }
   );
 
+  // Step 2: Publish the container
   const publishParams = new URLSearchParams({
     creation_id: containerData.id,
     access_token: accessToken,
   });
   const publishData = await fetchJSON(
-    `https://graph.instagram.com/v18.0/${platformUserId}/media_publish?${publishParams}`,
+    `https://graph.facebook.com/v18.0/${platformUserId}/media_publish?${publishParams}`,
     { method: "POST" }
   );
   return { platformPostId: publishData.id };

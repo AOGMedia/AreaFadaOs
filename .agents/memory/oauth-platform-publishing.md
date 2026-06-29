@@ -1,31 +1,34 @@
 ---
 name: OAuth Platform Publishing
-description: How OAuth connect flow and real publishing are wired in AreaFada OS; key pitfalls encountered.
+description: Durable rules for OAuth connect flow and platform publishing in AreaFada OS.
 ---
 
 # OAuth Platform Publishing
 
-## Rule
-`platformAccountsTable` has a unique index on `(userId, platform)` — always use select-then-upsert (not onConflictDoUpdate) for the OAuth state row unless drizzle is pointed at that exact index definition.
+## Instagram must use Facebook Login, not Basic Display API
 
-**Why:** The unique index was added after the table was already live; drizzle's onConflictDoUpdate requires the target to match an existing DB constraint.
+**Rule:** Instagram Graph API publishing requires a Facebook App with "Instagram Graph API" enabled as a product. OAuth must go through `https://www.facebook.com/v18.0/dialog/oauth` (Facebook Login dialog), NOT `api.instagram.com`. Token exchange uses `graph.facebook.com/v18.0/oauth/access_token`. All media container and publish calls use `graph.facebook.com/v18.0/{ig-business-id}/media` and `/media_publish`.
 
-**How to apply:** In oauth.ts start route, do a SELECT first, then INSERT or UPDATE based on result.
+**Why:** Basic Display API (`api.instagram.com`) is read-only and cannot post content. Using it for publishing is a silent integration failure — the auth flow looks similar but publishing will always fail.
+
+**How to apply:** Whenever Instagram OAuth or publishing is touched, verify the auth URL domain is `facebook.com`, the token exchange host is `graph.facebook.com`, and the platformUserId stored is the Instagram Business Account ID (from `me?fields=instagram_business_account`), not the Facebook user ID.
+
+## platform_accounts unique constraint
+
+**Rule:** There is a unique index on `(user_id, platform)` in `platform_accounts`. Always select-then-upsert rather than relying on `onConflictDoUpdate` unless Drizzle is explicitly pointed at that named index.
+
+**Why:** The index was added post-launch. Drizzle's onConflictDoUpdate target must match the exact DB constraint by name — without it, the conflict goes unhandled.
+
+## Token encryption key is production-critical
+
+**Rule:** `TOKEN_ENCRYPTION_KEY` must be a 64-char hex string set as an env var before any OAuth account is connected in production. The app throws at token encrypt/decrypt time if missing in production — so connecting any account will hard-fail until it is set.
+
+**How to apply:** Add to deployment checklist. Generate with `openssl rand -hex 32`.
+
+## Enterprise email elevation
+
+**Rule:** `ENTERPRISE_EMAILS` set in `routes/users.ts` auto-upgrades matching emails to `enterprise` tier on every `GET /users/me` call, in addition to at account creation. Add emails to that set to grant admin access without a DB migration.
 
 ## OAuth state blob format
-`"userId:codeVerifier:state"` stored in `platform_accounts.oauth_state`.  
-On callback, find the matching row by scanning all rows for the platform and matching `parts[2] === returnedState` — do NOT rely on ordering or a direct WHERE clause since state is embedded in the blob.
 
-## Token storage
-Tokens are AES-256-GCM encrypted via `lib/tokenEncryption.ts`. Key source: `TOKEN_ENCRYPTION_KEY` env var (64-char hex). Falls back to sha256 of a default string in dev — must be set in production.
-
-## Enterprise email auto-elevation
-`ENTERPRISE_EMAILS` set in `artifacts/api-server/src/routes/users.ts` — emails listed here get `enterprise` tier on creation AND on every `GET /users/me` call if tier isn't already enterprise. Add emails to that set to grant admin access without a DB migration.
-
-## Publish flow
-- Immediate publish: `POST /auto-post/drafts/:id/publish` (no scheduledAt) creates jobs then fire-and-forgets `executePublishJob(jobId)` for each.
-- Scheduled publish: jobs are created with `scheduledAt` set but no background cron exists yet — needs Task #61.
-- `executePublishJob` is in `artifacts/api-server/src/lib/platformPublisher.ts`.
-
-## Env vars required before OAuth works
-`INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `X_CLIENT_ID`, `X_CLIENT_SECRET`, `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY`
+State is stored as `"userId:codeVerifier:state"` in `platform_accounts.oauth_state`. On callback, find the matching row by scanning all rows for the platform and matching `blob.split(":")[2] === returnedState` — do not rely on row ordering.
