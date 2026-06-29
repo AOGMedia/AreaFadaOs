@@ -18,7 +18,7 @@ import {
   Radio, Calendar, Settings, MessageSquare, Bell, Scissors, DollarSign, Copy,
   Plus, Play, Square, Zap, CheckCircle, Clock, Users, Eye, TrendingUp,
   Pin, Ban, HelpCircle, Trash2, Send, RefreshCw, ShieldCheck, AlertCircle,
-  Wifi, WifiOff, MonitorPlay, StopCircle, Youtube, ExternalLink,
+  Wifi, WifiOff, MonitorPlay, StopCircle, Youtube, ExternalLink, Circle,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
@@ -61,7 +61,12 @@ interface ValidationResult {
 }
 
 interface RestreamChannel {
-  id: number; displayName: string; enabled: boolean; platform: string;
+  id: number; displayName: string; enabled: boolean; platform: string; active?: boolean;
+}
+
+interface RestreamChannelsResult {
+  ok: boolean; configured: boolean; invalid?: boolean; error?: string;
+  channels: Array<{ id: number; displayName: string; platform: string; active: boolean }>;
 }
 
 interface GoLiveResult {
@@ -348,6 +353,13 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
     staleTime: 60000,
   });
 
+  const { data: restreamChannels, isLoading: restreamChannelsLoading } = useQuery<RestreamChannelsResult>({
+    queryKey: ["restream-channels-preview"],
+    queryFn: () => apiFetch("/settings/live-api-keys/restream-channels"),
+    enabled: session.status !== "live" && session.status !== "ended",
+    staleTime: 120000,
+  });
+
   const updateConfig = useMutation({
     mutationFn: ({ platform, body }: { platform: string; body: object }) =>
       apiFetch(`/live-sessions/${session.id}/platform-configs/${platform}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
@@ -590,6 +602,87 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                 </a>
               </div>
             )}
+
+            {/* ─── Restream channel preview ─── */}
+            <div className="mt-3 rounded-lg border border-gray-200 bg-white/60 p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                  <Wifi className="w-3.5 h-3.5 text-gray-500" />
+                  Restream Destination Channels
+                </p>
+                {restreamChannels?.configured && (
+                  <a
+                    href={`${import.meta.env.BASE_URL}settings#live-viewer-api-keys`}
+                    className="text-[11px] text-muted-foreground hover:underline"
+                  >
+                    Manage in Settings →
+                  </a>
+                )}
+              </div>
+
+              {restreamChannelsLoading && (
+                <p className="text-xs text-muted-foreground">Checking Restream channels…</p>
+              )}
+
+              {!restreamChannelsLoading && restreamChannels && !restreamChannels.configured && (
+                <div className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    No Restream API key configured. Add one in{" "}
+                    <a href={`${import.meta.env.BASE_URL}settings#live-viewer-api-keys`} className="underline font-medium">
+                      Settings → Live API Keys
+                    </a>{" "}
+                    to confirm which destinations are active before going live.
+                  </span>
+                </div>
+              )}
+
+              {!restreamChannelsLoading && restreamChannels?.invalid && (
+                <div className="flex items-start gap-1.5 text-xs text-red-700 bg-red-50 border border-red-200 rounded p-2">
+                  <WifiOff className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    Restream API key is invalid or expired. Update it in{" "}
+                    <a href={`${import.meta.env.BASE_URL}settings#live-viewer-api-keys`} className="underline font-medium">
+                      Settings → Live API Keys
+                    </a>{" "}
+                    before going live.
+                  </span>
+                </div>
+              )}
+
+              {!restreamChannelsLoading && restreamChannels?.error && !restreamChannels.invalid && (
+                <div className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>Could not reach Restream: {restreamChannels.error}</span>
+                </div>
+              )}
+
+              {!restreamChannelsLoading && restreamChannels?.ok && restreamChannels.channels.length === 0 && (
+                <div className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>Restream key is valid but no destination channels are configured yet. Add destinations at restream.io before going live.</span>
+                </div>
+              )}
+
+              {!restreamChannelsLoading && restreamChannels?.ok && restreamChannels.channels.length > 0 && (
+                <ul className="space-y-1">
+                  {restreamChannels.channels.map(ch => (
+                    <li key={ch.id} className="flex items-center gap-1.5 text-xs">
+                      {ch.active ? (
+                        <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0" />
+                      ) : (
+                        <Circle className="w-3 h-3 text-amber-500 shrink-0" />
+                      )}
+                      <span className={ch.active ? "text-emerald-700" : "text-amber-700"}>
+                        {ch.displayName}
+                        <span className="ml-1 opacity-60 font-normal">({ch.platform})</span>
+                        {!ch.active && <span className="ml-1 text-amber-600 font-medium">— disabled</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
             {/* Broadcast trigger: Restream (env-based) or OBS WebSocket */}
             <div className="mt-3 space-y-2 border border-gray-200 rounded-lg p-3 bg-white/60">
