@@ -162,7 +162,7 @@ const htmlBody = `
             <table width="100%" cellpadding="0" cellspacing="0" style="margin:36px 0 24px;">
               <tr>
                 <td align="center">
-                  <a href="https://areafadaos.replit.app"
+                  <a href="https://www.areafadaos.com"
                      style="display:inline-block;background:#15803d;color:#ffffff;font-size:16px;font-weight:700;
                             text-decoration:none;padding:16px 48px;border-radius:10px;letter-spacing:-0.2px;">
                     Log In to AreaFada OS →
@@ -186,7 +186,7 @@ const htmlBody = `
             <p style="margin:0;color:#9ca3af;font-size:12px;text-align:center;line-height:1.6;">
               AreaFada OS · Enterprise Tier<br/>
               You received this because you are an enterprise member of AreaFada OS.<br/>
-              <a href="https://areafadaos.replit.app" style="color:#16a34a;text-decoration:none;">areafadaos.replit.app</a>
+              <a href="https://www.areafadaos.com" style="color:#16a34a;text-decoration:none;">www.areafadaos.com</a>
             </p>
           </td>
         </tr>
