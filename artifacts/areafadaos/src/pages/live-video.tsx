@@ -465,6 +465,36 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                     </div>
                   ))}
                 </div>
+                {/* ─── API connection status chips (mirrored from pre-live card) ─── */}
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] text-red-700/70 font-medium mr-0.5">Viewer count API:</span>
+                  <a
+                    href={`${import.meta.env.BASE_URL}settings#live-viewer-api-keys`}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-opacity hover:opacity-75 ${
+                      viewerData.apiKeysConfigured.youtube
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                    title={viewerData.apiKeysConfigured.youtube ? "YouTube Data API connected — counts are real-time" : "YouTube API key not set — showing last-known count. Click to configure."}
+                  >
+                    <Youtube className="w-3 h-3" />
+                    YouTube {viewerData.apiKeysConfigured.youtube ? "✓" : "✗"}
+                    {!viewerData.apiKeysConfigured.youtube && <ExternalLink className="w-2.5 h-2.5 ml-0.5 opacity-60" />}
+                  </a>
+                  <a
+                    href={`${import.meta.env.BASE_URL}settings#live-viewer-api-keys`}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-opacity hover:opacity-75 ${
+                      viewerData.apiKeysConfigured.instagram
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                    title={viewerData.apiKeysConfigured.instagram ? "Instagram Graph API connected — counts are real-time" : "Instagram access token not set — showing last-known count. Click to configure."}
+                  >
+                    <span className="text-[10px] leading-none">📸</span>
+                    Instagram {viewerData.apiKeysConfigured.instagram ? "✓" : "✗"}
+                    {!viewerData.apiKeysConfigured.instagram && <ExternalLink className="w-2.5 h-2.5 ml-0.5 opacity-60" />}
+                  </a>
+                </div>
                 {viewerData.note && (
                   <p className="text-xs text-amber-600 mt-1.5">
                     <AlertCircle className="w-3 h-3 inline mr-1" />{viewerData.note}
