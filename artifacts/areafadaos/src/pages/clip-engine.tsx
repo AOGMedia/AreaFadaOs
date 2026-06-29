@@ -458,7 +458,7 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const { data: calData = [] } = useQuery<Array<{ schedule: ClipSchedule; clip: Clip | null; account: ClipAccount | null }>>({
+  const { data: calData = [], isLoading: calLoading } = useQuery<Array<{ schedule: ClipSchedule; clip: Clip | null; account: ClipAccount | null }>>({
     queryKey: ["clip-schedules-calendar"],
     queryFn: () => apiFetch(`/clip-schedules/calendar?from=${today.toISOString()}`),
   });
@@ -644,11 +644,11 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
         <Button variant={!bulkMode ? "default" : "outline"} size="sm" onClick={() => setBulkMode(false)}>Single Schedule</Button>
         <Button variant={bulkMode ? "default" : "outline"} size="sm" onClick={() => setBulkMode(true)}>Bulk Schedule (30-day)</Button>
         <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={exportCSV} disabled={calData.length === 0} title="Download a CSV of the next 30 days">
-          ⬇ Export CSV
+        <Button variant="outline" size="sm" onClick={exportCSV} disabled={calLoading || calData.length === 0} title={calLoading ? "Loading schedule…" : "Download a CSV of the next 30 days"}>
+          {calLoading ? "⏳ Loading…" : "⬇ Export CSV"}
         </Button>
-        <Button variant="outline" size="sm" onClick={exportICS} disabled={calData.length === 0} title="Download .ics for Google Calendar or Apple Calendar">
-          📅 Add to Google Calendar
+        <Button variant="outline" size="sm" onClick={exportICS} disabled={calLoading || calData.length === 0} title={calLoading ? "Loading schedule…" : "Download .ics for Google Calendar or Apple Calendar"}>
+          {calLoading ? "⏳ Loading…" : "📅 Add to Google Calendar"}
         </Button>
         <Button variant="outline" size="sm" onClick={() => { setSendModalOpen(true); setEmailList([]); setEmailInput(""); }} title="Email the 30-day schedule to your team">
           ✉ Send to Team
