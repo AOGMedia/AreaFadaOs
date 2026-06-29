@@ -183,10 +183,26 @@ router.post("/webhooks/clerk", async (req: Request, res: Response): Promise<void
       const primaryEmail = (event.data.email_addresses ?? []).find(
         (e: any) => e.id === primaryEmailId
       );
-      const email: string | undefined = primaryEmail?.email_address;
+      let email: string | undefined = primaryEmail?.email_address;
       const first = (event.data.first_name as string | undefined) ?? "";
       const last = (event.data.last_name as string | undefined) ?? "";
-      const name = [first, last].filter(Boolean).join(" ") || undefined;
+      let name: string | undefined = [first, last].filter(Boolean).join(" ") || undefined;
+
+      if (!email) {
+        logger.warn(
+          { clerkId },
+          "Webhook: user.created payload missing email — fetching from Clerk API (OAuth user)"
+        );
+        const profile = await fetchClerkUser(clerkId);
+        email = profile?.email;
+        name = name || profile?.name;
+        if (!email) {
+          logger.warn(
+            { clerkId },
+            "Webhook: user.created — no email in payload or Clerk API; row creation deferred to session.created"
+          );
+        }
+      }
 
       await upsertUserFromClerk(clerkId, email, name);
     } else if (event.type === "session.created") {
