@@ -329,6 +329,7 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
   const [showOBSGuide, setShowOBSGuide] = useState(false);
   const [showStreamKeys, setShowStreamKeys] = useState<Record<string, boolean>>({});
   const [editableStreamKeys, setEditableStreamKeys] = useState<Record<string, string>>({});
+  const [dirtyStreamKeys, setDirtyStreamKeys] = useState<Record<string, boolean>>({});
   const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
   const [goLiveResult, setGoLiveResult] = useState<GoLiveResult | null>(null);
   const [obsWebSocketUrl, setObsWebSocketUrl] = useState("");
@@ -389,8 +390,15 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
   const updateConfig = useMutation({
     mutationFn: ({ platform, body }: { platform: string; body: object }) =>
       apiFetch(`/live-sessions/${session.id}/platform-configs/${platform}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["live-platform-configs", session.id] }); toast({ title: "Config updated!" }); },
-    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+    onSuccess: (_data, { platform: p }) => {
+      setDirtyStreamKeys(s => { const n = { ...s }; delete n[p]; return n; });
+      qc.invalidateQueries({ queryKey: ["live-platform-configs", session.id] });
+      toast({ title: "Config updated!" });
+    },
+    onError: (e: Error, { platform: p }) => {
+      setDirtyStreamKeys(s => { const n = { ...s }; delete n[p]; return n; });
+      toast({ title: e.message, variant: "destructive" });
+    },
   });
 
   const toggleRestreamChannel = useMutation({
@@ -476,7 +484,7 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
   const configByPlatform = Object.fromEntries(configs.map(c => [c.platform, c]));
   const platforms = session.platforms as string[];
 
-  const allValidated = configs.length > 0 && configs.every(c => c.status === "validated" || c.status === "live");
+  const allValidated = configs.length > 0 && configs.every(c => (c.status === "validated" || c.status === "live") && !dirtyStreamKeys[c.platform]);
   const isLive = session.status === "live";
   const isArmed = session.status === "armed";
   const isEnded = session.status === "ended";
@@ -489,7 +497,10 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
   });
   const hasMissingKeys = platformsWithMissingKeys.length > 0;
 
-  const platformsWithPendingStatus = configs.filter(c => c.status === "pending").map(c => c.platform);
+  const platformsWithPendingStatus = Array.from(new Set([
+    ...configs.filter(c => c.status === "pending").map(c => c.platform),
+    ...Object.entries(dirtyStreamKeys).filter(([, dirty]) => dirty).map(([p]) => p),
+  ]));
   const hasPendingConfigs = platformsWithPendingStatus.length > 0;
 
   return (
@@ -1071,12 +1082,14 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
       <div className="space-y-3">
         {platforms.map(platform => {
           const cfg = configByPlatform[platform];
-          const statusCfg = STATUS_CONFIG[cfg?.status ?? "pending"];
+          const isDirty = dirtyStreamKeys[platform] ?? false;
+          const effectiveStatus = isDirty ? "pending" : (cfg?.status ?? "pending");
+          const statusCfg = STATUS_CONFIG[effectiveStatus];
           const validResult = validationResults?.results.find(r => r.platform === platform);
           const showKey = showStreamKeys[platform] ?? false;
 
           return (
-            <Card key={platform} className={cfg?.status === "live" ? "border-red-300" : cfg?.status === "validated" ? "border-emerald-300" : cfg?.status === "invalid" ? "border-red-200" : ""}>
+            <Card key={platform} className={effectiveStatus === "live" ? "border-red-300" : effectiveStatus === "validated" ? "border-emerald-300" : effectiveStatus === "invalid" ? "border-red-200" : ""}>
               <CardContent className="py-4 px-4">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-xl">{PLATFORM_ICONS[platform]}</span>
@@ -1086,7 +1099,7 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                       <Badge className={`${statusCfg?.cls ?? "bg-gray-100 text-gray-600"} text-xs`}>
                         {statusCfg?.label ?? cfg?.status ?? "pending"}
                       </Badge>
-                      {cfg?.validatedAt && (
+                      {cfg?.validatedAt && !isDirty && (
                         <span className="text-xs text-muted-foreground">validated {new Date(cfg.validatedAt).toLocaleTimeString()}</span>
                       )}
                     </div>
@@ -1136,13 +1149,18 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                     <div className="flex gap-1">
                       <Input
                         value={editableStreamKeys[platform] ?? cfg?.streamKey ?? ""}
-                        onChange={e => setEditableStreamKeys(s => ({ ...s, [platform]: e.target.value }))}
+                        onChange={e => {
+                          setEditableStreamKeys(s => ({ ...s, [platform]: e.target.value }));
+                          setDirtyStreamKeys(s => ({ ...s, [platform]: true }));
+                        }}
                         onBlur={e => {
                           const newKey = e.target.value.trim();
                           const currentKey = cfg?.streamKey ?? "";
                           if (newKey !== currentKey && newKey !== "") {
                             updateConfig.mutate({ platform, body: { streamKey: newKey, status: "pending" } });
                             setValidationResults(null);
+                          } else {
+                            setDirtyStreamKeys(s => { const n = { ...s }; delete n[platform]; return n; });
                           }
                         }}
                         placeholder="Paste stream key from platform dashboard…"
