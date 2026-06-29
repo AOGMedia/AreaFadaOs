@@ -13,6 +13,13 @@ const TIER_RANK: Record<Tier, number> = {
   enterprise: 4,
 };
 
+// SECURITY INVARIANT: The database is ALWAYS the source of truth for a user's tier.
+// We extract the Clerk user ID from the verified JWT (sessionClaims.userId / userId)
+// but we NEVER read tier or any permission level from the JWT claims themselves.
+// Any "tier" field injected into a forged or tampered JWT is completely ignored —
+// the tier is always fetched fresh from the DB on every request.
+// This ensures that even if an attacker crafts a JWT with sessionClaims.tier = "enterprise",
+// they cannot bypass this guard; the DB lookup will return their actual tier.
 export function requireTier(minimumTier: Tier) {
   return async (req: any, res: any, next: any): Promise<void> => {
     const auth = getAuth(req);
