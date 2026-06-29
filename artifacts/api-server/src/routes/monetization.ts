@@ -13,7 +13,7 @@ import {
   paymentRemindersTable,
 } from "@workspace/db";
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
-import type { Currency, PaymentGateway } from "@workspace/db";
+import type { Currency, PaymentGateway, DealStatus, InvoiceStatus } from "@workspace/db";
 
 const router = Router();
 
@@ -152,7 +152,7 @@ router.get("/brand-deals", ...requireMonetization, async (req: any, res): Promis
     if (!user) { res.json([]); return; }
 
     const where = req.query.status
-      ? and(eq(brandDealsTable.userId, user.id), eq(brandDealsTable.status, req.query.status as "inbound" | "negotiating" | "agreed" | "deliverable_due" | "invoiced" | "paid" | "cancelled"))
+      ? and(eq(brandDealsTable.userId, user.id), eq(brandDealsTable.status, req.query.status as DealStatus))
       : eq(brandDealsTable.userId, user.id);
 
     const deals = await db.select().from(brandDealsTable).where(where).orderBy(desc(brandDealsTable.createdAt));
@@ -253,7 +253,7 @@ router.get("/invoices", ...requireMonetization, async (req: any, res): Promise<v
     if (!user) { res.json([]); return; }
 
     const where = req.query.status
-      ? and(eq(invoicesTable.userId, user.id), eq(invoicesTable.status, req.query.status as "draft" | "sent" | "paid" | "overdue" | "cancelled"))
+      ? and(eq(invoicesTable.userId, user.id), eq(invoicesTable.status, req.query.status as InvoiceStatus))
       : eq(invoicesTable.userId, user.id);
 
     const invoices = await db.select().from(invoicesTable).where(where).orderBy(desc(invoicesTable.createdAt));

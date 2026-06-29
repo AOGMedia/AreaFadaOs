@@ -1,5 +1,6 @@
 import { db } from "@workspace/db";
 import { publishJobsTable, platformAccountsTable } from "@workspace/db";
+import type { Platform } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { decryptToken, encryptToken, isTokenExpired } from "./tokenEncryption.js";
 
@@ -35,7 +36,7 @@ export function classifyError(err: any): { errorCode: ErrorCode; shouldRetry: bo
 
 async function fetchJSON(url: string, options: RequestInit): Promise<any> {
   const res = await fetch(url, options);
-  const body = await res.json().catch(() => ({}));
+  const body = await (res.json() as Promise<any>).catch(() => ({}));
   if (!res.ok) {
     const err: any = new Error(body.error?.message ?? body.message ?? `HTTP ${res.status}`);
     err.status = res.status;
@@ -289,7 +290,7 @@ export async function executePublishJob(jobId: number): Promise<void> {
       ? eq(platformAccountsTable.id, job.platformAccountId)
       : and(
           eq(platformAccountsTable.userId, job.userId),
-          eq(platformAccountsTable.platform, job.platform),
+          eq(platformAccountsTable.platform, job.platform as Platform),
           eq(platformAccountsTable.connected, true)
         )
   );
