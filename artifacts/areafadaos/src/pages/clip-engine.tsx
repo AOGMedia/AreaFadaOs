@@ -513,11 +513,102 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
   const accountMap = Object.fromEntries(accounts.map(a => [a.id, a]));
   const days: Date[] = Array.from({ length: 30 }, (_, i) => new Date(today.getTime() + i * 86400000));
 
+  function exportCSV() {
+    const header = ["Date", "Time", "Account", "Account Color", "Platform", "Clip Label", "Format", "Status"];
+    const rows = calData
+      .slice()
+      .sort((a, b) => a.schedule.scheduledAt.localeCompare(b.schedule.scheduledAt))
+      .map(item => {
+        const dt = new Date(item.schedule.scheduledAt);
+        return [
+          dt.toLocaleDateString("en-NG", { year: "numeric", month: "2-digit", day: "2-digit" }),
+          dt.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: false }),
+          item.account?.name ?? "",
+          item.account?.color ?? "",
+          item.account?.platform ?? "",
+          item.clip?.label ?? "",
+          item.clip?.format ?? "",
+          item.schedule.status,
+        ].map(v => `"${String(v).replace(/"/g, '""')}"`);
+      });
+
+    const csv = [header.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const fromDate = new Date().toISOString().slice(0, 10);
+    a.download = `clip-schedule-${fromDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportICS() {
+    const escapeICS = (s: string) => s.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+
+    const lines: string[] = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//AreaFada OS//Clip Schedule//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+    ];
+
+    calData
+      .slice()
+      .sort((a, b) => a.schedule.scheduledAt.localeCompare(b.schedule.scheduledAt))
+      .forEach(item => {
+        const start = new Date(item.schedule.scheduledAt);
+        const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+        const toICSDate = (d: Date) =>
+          d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+
+        const uid = `clip-schedule-${item.schedule.id}@areafada.os`;
+        const summary = [item.clip?.label ?? "Clip", item.account?.name ? `— ${item.account.name}` : ""].filter(Boolean).join(" ");
+        const description = [
+          `Format: ${item.clip?.format ?? ""}`,
+          `Platform: ${item.account?.platform ?? ""}`,
+          `Status: ${item.schedule.status}`,
+          item.clip?.captionText ? `Caption: ${item.clip.captionText}` : "",
+        ].filter(Boolean).join("\\n");
+
+        lines.push(
+          "BEGIN:VEVENT",
+          `UID:${uid}`,
+          `DTSTART:${toICSDate(start)}`,
+          `DTEND:${toICSDate(end)}`,
+          `SUMMARY:${escapeICS(summary)}`,
+          `DESCRIPTION:${escapeICS(description)}`,
+          `CATEGORIES:${escapeICS(item.account?.platform ?? "clip")}`,
+          "END:VEVENT",
+        );
+      });
+
+    lines.push("END:VCALENDAR");
+
+    const blob = new Blob([lines.join("\r\n")], { type: "text/calendar;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const fromDate = new Date().toISOString().slice(0, 10);
+    a.download = `clip-schedule-${fromDate}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         <Button variant={!bulkMode ? "default" : "outline"} size="sm" onClick={() => setBulkMode(false)}>Single Schedule</Button>
         <Button variant={bulkMode ? "default" : "outline"} size="sm" onClick={() => setBulkMode(true)}>Bulk Schedule (30-day)</Button>
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" onClick={exportCSV} disabled={calData.length === 0} title="Download a CSV of the next 30 days">
+          ⬇ Export CSV
+        </Button>
+        <Button variant="outline" size="sm" onClick={exportICS} disabled={calData.length === 0} title="Download .ics for Google Calendar or Apple Calendar">
+          📅 Add to Google Calendar
+        </Button>
       </div>
 
       {!bulkMode ? (
