@@ -46,6 +46,7 @@ interface LiveApiKeyStatus {
 interface LiveApiKeysResponse {
   youtube: LiveApiKeyStatus;
   instagram: LiveApiKeyStatus;
+  restream: LiveApiKeyStatus;
 }
 
 const PLATFORM_CONFIG = [
@@ -261,18 +262,21 @@ function LiveApiKeysCard({
   isClearing,
 }: {
   data: LiveApiKeysResponse | undefined;
-  onSave: (youtubeApiKey?: string, instagramAccessToken?: string) => void;
-  onClear: (key: "youtube" | "instagram") => void;
+  onSave: (youtubeApiKey?: string, instagramAccessToken?: string, restreamApiKey?: string) => void;
+  onClear: (key: "youtube" | "instagram" | "restream") => void;
   isSaving: boolean;
   isClearing: string | null;
 }) {
   const [youtubeApiKey, setYoutubeApiKey] = useState("");
   const [instagramAccessToken, setInstagramAccessToken] = useState("");
+  const [restreamApiKey, setRestreamApiKey] = useState("");
   const [showYt, setShowYt] = useState(false);
   const [showIg, setShowIg] = useState(false);
+  const [showRst, setShowRst] = useState(false);
 
   const ytStatus = data?.youtube;
   const igStatus = data?.instagram;
+  const rstStatus = data?.restream;
 
   return (
     <Card className="border-red-200 bg-red-50/20">
@@ -407,14 +411,69 @@ function LiveApiKeysCard({
           )}
         </div>
 
+        {/* Restream API Key */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium flex items-center gap-1.5">
+              <span className="text-[13px]">📡</span> Restream.io API Key
+              {rstStatus?.envOverride && (
+                <Badge variant="outline" className="text-[10px] py-0 h-4 text-blue-600 border-blue-300 ml-1">env override</Badge>
+              )}
+              {!rstStatus?.envOverride && rstStatus?.configured && (
+                <Badge variant="outline" className="text-[10px] py-0 h-4 text-emerald-600 border-emerald-300 ml-1">saved</Badge>
+              )}
+            </Label>
+            {rstStatus?.configured && !rstStatus?.envOverride && (
+              <button
+                type="button"
+                className="text-[11px] text-destructive hover:underline flex items-center gap-0.5"
+                onClick={() => onClear("restream")}
+                disabled={isClearing === "restream"}
+              >
+                <Trash2 className="w-3 h-3" /> {isClearing === "restream" ? "Clearing…" : "Clear"}
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <Input
+              type={showRst ? "text" : "password"}
+              value={restreamApiKey}
+              onChange={e => setRestreamApiKey(e.target.value)}
+              placeholder={rstStatus?.configured || rstStatus?.envOverride ? "Leave blank to keep existing key" : "Paste your Restream Personal Access Token…"}
+              className="h-8 text-sm font-mono pr-9"
+              disabled={!!rstStatus?.envOverride}
+            />
+            <button
+              type="button"
+              onClick={() => setShowRst(v => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showRst ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          {rstStatus?.envOverride && (
+            <p className="text-[11px] text-blue-600">Set via server environment variable — to override, clear the env var first.</p>
+          )}
+          {!rstStatus?.envOverride && (
+            <p className="text-[11px] text-muted-foreground">
+              Get your token at{" "}
+              <a href="https://app.restream.io/settings/api" target="_blank" rel="noopener noreferrer" className="underline">
+                app.restream.io/settings/api
+              </a>
+              {" "}→ Personal Access Token. One OBS feed fans out to all connected platforms automatically.
+            </p>
+          )}
+        </div>
+
         <Button
           size="sm"
           className="w-full h-8 text-xs"
-          disabled={isSaving || (!youtubeApiKey && !instagramAccessToken)}
+          disabled={isSaving || (!youtubeApiKey && !instagramAccessToken && !restreamApiKey)}
           onClick={() => {
-            onSave(youtubeApiKey || undefined, instagramAccessToken || undefined);
+            onSave(youtubeApiKey || undefined, instagramAccessToken || undefined, restreamApiKey || undefined);
             setYoutubeApiKey("");
             setInstagramAccessToken("");
+            setRestreamApiKey("");
           }}
         >
           <Save className="w-3 h-3 mr-1.5" />
@@ -476,16 +535,16 @@ export function SettingsPage() {
   });
 
   const saveLiveKeysMutation = useMutation({
-    mutationFn: ({ youtubeApiKey, instagramAccessToken }: { youtubeApiKey?: string; instagramAccessToken?: string }) =>
+    mutationFn: ({ youtubeApiKey, instagramAccessToken, restreamApiKey }: { youtubeApiKey?: string; instagramAccessToken?: string; restreamApiKey?: string }) =>
       apiFetch("/settings/live-api-keys", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ youtubeApiKey, instagramAccessToken }),
+        body: JSON.stringify({ youtubeApiKey, instagramAccessToken, restreamApiKey }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] });
       setSavingLiveKeys(false);
-      toast({ title: "Live API keys saved", description: "Viewer counts will now use your API keys." });
+      toast({ title: "Live API keys saved", description: "Your API keys have been saved and encrypted." });
     },
     onError: (err: Error) => {
       setSavingLiveKeys(false);
@@ -499,7 +558,8 @@ export function SettingsPage() {
     onSuccess: (_, key) => {
       queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] });
       setClearingLiveKey(null);
-      toast({ title: "Key cleared", description: `${key === "youtube" ? "YouTube API key" : "Instagram access token"} removed.` });
+      const label = key === "youtube" ? "YouTube API key" : key === "restream" ? "Restream API key" : "Instagram access token";
+      toast({ title: "Key cleared", description: `${label} removed.` });
     },
     onError: (err: Error) => {
       setClearingLiveKey(null);
@@ -517,12 +577,12 @@ export function SettingsPage() {
     clearMutation.mutate(platform);
   };
 
-  const handleSaveLiveKeys = (youtubeApiKey?: string, instagramAccessToken?: string) => {
+  const handleSaveLiveKeys = (youtubeApiKey?: string, instagramAccessToken?: string, restreamApiKey?: string) => {
     setSavingLiveKeys(true);
-    saveLiveKeysMutation.mutate({ youtubeApiKey, instagramAccessToken });
+    saveLiveKeysMutation.mutate({ youtubeApiKey, instagramAccessToken, restreamApiKey });
   };
 
-  const handleClearLiveKey = (key: "youtube" | "instagram") => {
+  const handleClearLiveKey = (key: "youtube" | "instagram" | "restream") => {
     setClearingLiveKey(key);
     clearLiveKeyMutation.mutate(key);
   };

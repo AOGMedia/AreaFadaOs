@@ -117,6 +117,7 @@ router.delete("/settings/credentials/:platform", requireAuth, async (req: any, r
 const LIVE_API_PLATFORMS = {
   youtube: "youtube_live_api",
   instagram: "instagram_live_api",
+  restream: "restream_live_api",
 } as const;
 
 // GET /settings/live-api-keys — returns presence only (values never sent to client)
@@ -132,10 +133,12 @@ router.get("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
 
   const ytRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.youtube);
   const igRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.instagram);
+  const rstRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.restream);
 
   res.json({
     youtube: { configured: !!(ytRow?.appId), envOverride: !!process.env.YOUTUBE_API_KEY },
     instagram: { configured: !!(igRow?.appSecret), envOverride: !!process.env.INSTAGRAM_ACCESS_TOKEN },
+    restream: { configured: !!(rstRow?.appSecret), envOverride: !!process.env.RESTREAM_API_KEY },
   });
 });
 
@@ -144,7 +147,7 @@ router.put("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
   const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const { youtubeApiKey, instagramAccessToken } = req.body as { youtubeApiKey?: string; instagramAccessToken?: string };
+  const { youtubeApiKey, instagramAccessToken, restreamApiKey } = req.body as { youtubeApiKey?: string; instagramAccessToken?: string; restreamApiKey?: string };
 
   if (youtubeApiKey !== undefined) {
     const [existing] = await db.select({ id: platformOauthConfigsTable.id })
@@ -179,6 +182,23 @@ router.put("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
     }
   }
 
+  if (restreamApiKey !== undefined) {
+    const encrypted = restreamApiKey ? encryptToken(restreamApiKey) : null;
+    const [existing] = await db.select({ id: platformOauthConfigsTable.id })
+      .from(platformOauthConfigsTable)
+      .where(and(eq(platformOauthConfigsTable.userId, user.id), eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.restream)));
+
+    if (existing) {
+      await db.update(platformOauthConfigsTable)
+        .set({ appSecret: encrypted, updatedAt: new Date() })
+        .where(eq(platformOauthConfigsTable.id, existing.id));
+    } else {
+      await db.insert(platformOauthConfigsTable).values({
+        userId: user.id, platform: LIVE_API_PLATFORMS.restream, appSecret: encrypted,
+      });
+    }
+  }
+
   res.json({ ok: true });
 });
 
@@ -196,8 +216,12 @@ router.delete("/settings/live-api-keys/:key", requireAuth, async (req: any, res)
     await db.update(platformOauthConfigsTable)
       .set({ appSecret: null, updatedAt: new Date() })
       .where(and(eq(platformOauthConfigsTable.userId, user.id), eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.instagram)));
+  } else if (key === "restream") {
+    await db.update(platformOauthConfigsTable)
+      .set({ appSecret: null, updatedAt: new Date() })
+      .where(and(eq(platformOauthConfigsTable.userId, user.id), eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.restream)));
   } else {
-    res.status(400).json({ error: "key must be youtube or instagram" }); return;
+    res.status(400).json({ error: "key must be youtube, instagram, or restream" }); return;
   }
 
   res.json({ ok: true });
@@ -205,17 +229,19 @@ router.delete("/settings/live-api-keys/:key", requireAuth, async (req: any, res)
 
 export { getDbUserCredentials, getDbUserLiveApiKeys };
 
-async function getDbUserLiveApiKeys(userId: number): Promise<{ youtubeApiKey: string | null; instagramAccessToken: string | null }> {
+async function getDbUserLiveApiKeys(userId: number): Promise<{ youtubeApiKey: string | null; instagramAccessToken: string | null; restreamApiKey: string | null }> {
   const rows = await db.select()
     .from(platformOauthConfigsTable)
     .where(eq(platformOauthConfigsTable.userId, userId));
 
   const ytRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.youtube);
   const igRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.instagram);
+  const rstRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.restream);
 
   return {
     youtubeApiKey: ytRow?.appId ?? null,
     instagramAccessToken: igRow?.appSecret ? decryptToken(igRow.appSecret) : null,
+    restreamApiKey: rstRow?.appSecret ? decryptToken(rstRow.appSecret) : null,
   };
 }
 

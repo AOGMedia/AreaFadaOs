@@ -1059,10 +1059,13 @@ router.post("/live-sessions/:id/validate-stream-keys", ...requireLive, async (re
     let restreamApiReachable = false;
     let restreamApiError: string | null = null;
 
-    if (process.env.RESTREAM_API_KEY) {
+    const dbKeysForValidate = await getDbUserLiveApiKeys(user.id);
+    const activeRestreamKey = process.env.RESTREAM_API_KEY || dbKeysForValidate.restreamApiKey;
+
+    if (activeRestreamKey) {
       try {
         const channelsRes = await fetch("https://api.restream.io/v2/channel", {
-          headers: { Authorization: `Bearer ${process.env.RESTREAM_API_KEY}` },
+          headers: { Authorization: `Bearer ${activeRestreamKey}` },
         });
         if (channelsRes.ok) {
           restreamChannels = (await channelsRes.json()) as RestreamChannel[];
@@ -1250,15 +1253,18 @@ router.post("/live-sessions/:id/go-live", ...requireLive, async (req: any, res):
     let restreamResult: {
       connected: boolean; message: string;
       obsServer?: string; obsStreamKey?: string;
-    } = { connected: false, message: "Restream not configured — push directly to each platform using the RTMP endpoints below (set RESTREAM_API_KEY to enable single-feed multi-streaming)" };
+    } = { connected: false, message: "Restream not configured — push directly to each platform using the RTMP endpoints below (set RESTREAM_API_KEY to enable single-feed multi-streaming, or enter your key in Settings)" };
 
-    if (process.env.RESTREAM_API_KEY) {
+    const dbKeysForGoLive = await getDbUserLiveApiKeys(user.id);
+    const activeRestreamKeyGoLive = process.env.RESTREAM_API_KEY || dbKeysForGoLive.restreamApiKey;
+
+    if (activeRestreamKeyGoLive) {
       // Step 1: Verify API key via profile fetch
       let apiKeyValid = false;
       let restreamStreamKey: string | undefined;
       try {
         const profileRes = await fetch("https://api.restream.io/v2/user/profile", {
-          headers: { Authorization: `Bearer ${process.env.RESTREAM_API_KEY}` },
+          headers: { Authorization: `Bearer ${activeRestreamKeyGoLive}` },
         });
         if (profileRes.ok) {
           const profile = (await profileRes.json().catch(() => ({}))) as Record<string, any>;
@@ -1464,12 +1470,14 @@ router.post("/live-sessions/:id/end-stream", ...requireLive, async (req: any, re
 
     // Notify Restream API to stop broadcast if configured
     let restreamResult: { connected: boolean; message: string } = { connected: false, message: "Restream not configured" };
-    if (process.env.RESTREAM_API_KEY) {
+    const dbKeysForEnd = await getDbUserLiveApiKeys(user.id);
+    const activeRestreamKeyEnd = process.env.RESTREAM_API_KEY || dbKeysForEnd.restreamApiKey;
+    if (activeRestreamKeyEnd) {
       try {
         // Restream API v2: PATCH /broadcast to signal end
         const rstRes = await fetch("https://api.restream.io/v2/broadcast/end", {
           method: "POST",
-          headers: { Authorization: `Bearer ${process.env.RESTREAM_API_KEY}` },
+          headers: { Authorization: `Bearer ${activeRestreamKeyEnd}` },
         });
         restreamResult = rstRes.ok
           ? { connected: true, message: "Restream broadcast ended" }
@@ -1510,6 +1518,7 @@ router.get("/live-sessions/:id/viewer-count", ...requireLive, async (req: any, r
     const dbKeys = await getDbUserLiveApiKeys(user.id);
     const youtubeApiKey = process.env.YOUTUBE_API_KEY || dbKeys.youtubeApiKey;
     const instagramAccessToken = process.env.INSTAGRAM_ACCESS_TOKEN || dbKeys.instagramAccessToken;
+    void dbKeys.restreamApiKey; // resolved per-request below if needed
 
     // YouTube Live viewer count via YouTube Data API v3
     if (youtubeApiKey) {
