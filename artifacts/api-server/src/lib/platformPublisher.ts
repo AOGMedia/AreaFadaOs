@@ -1,8 +1,10 @@
 import { db } from "@workspace/db";
-import { publishJobsTable, platformAccountsTable } from "@workspace/db";
+import { publishJobsTable, platformAccountsTable, usersTable } from "@workspace/db";
 import type { Platform } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { decryptToken, encryptToken, isTokenExpired } from "./tokenEncryption.js";
+import { logger } from "./logger.js";
+import { Resend } from "resend";
 
 export type ErrorCode = "rate_limit" | "auth_failure" | "content_policy" | "server_error" | "unknown";
 
@@ -187,6 +189,44 @@ async function publishToTikTok(accessToken: string, job: any): Promise<PublishRe
   return { platformPostId: data.data?.publish_id };
 }
 
+// ─── Reconnect email ──────────────────────────────────────────────────────────
+
+async function sendReconnectEmail(userId: number, platform: string): Promise<void> {
+  try {
+    const [userRow] = await db.select({ email: usersTable.email, displayName: usersTable.displayName })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    if (!userRow?.email) return;
+
+    const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1);
+    const subject = `Action required: reconnect your ${platformLabel} account`;
+    const body = `Hi ${userRow.displayName},\n\nYour ${platformLabel} access token has expired and could not be refreshed automatically. As a result, one or more scheduled posts were not published.\n\nTo resume posting, please reconnect your ${platformLabel} account in AreaFada OS:\n  Settings → Connected Accounts → ${platformLabel} → Reconnect\n\nIf you have any questions, reply to this email.\n\nThe AreaFada OS team`;
+
+    if (process.env.RESEND_API_KEY) {
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error } = await resend.emails.send({
+        from: "AreaFada OS <noreply@areafada.com>",
+        to: userRow.email,
+        subject,
+        text: body,
+      });
+      if (error) {
+        logger.warn({ error, userId, email: userRow.email, platform }, "Resend delivery failed for reconnect email");
+      } else {
+        logger.info({ userId, email: userRow.email, platform }, "Reconnect email sent via Resend");
+      }
+    } else {
+      logger.info(
+        { userId, email: userRow.email, platform },
+        `[RECONNECT EMAIL STUB] ${subject} — set RESEND_API_KEY to enable real delivery`,
+      );
+    }
+  } catch (err) {
+    logger.warn({ err, userId, platform }, "Failed to send reconnect email");
+  }
+}
+
 // ─── Token refresh ────────────────────────────────────────────────────────────
 
 async function tryRefreshToken(account: any): Promise<boolean> {
@@ -318,12 +358,13 @@ export async function executePublishJob(jobId: number): Promise<void> {
         connected: false, errorCode: "auth_failure",
         errorMessage: "Token expired — please reconnect", updatedAt: new Date(),
       }).where(eq(platformAccountsTable.id, account.id));
+      await sendReconnectEmail(job.userId, job.platform);
       return;
     }
   }
 
-  const [freshAccount] = await db.select().from(platformAccountsTable).where(eq(platformAccountsTable.id, account.id));
-  const accessToken = decryptToken(freshAccount.accessToken!);
+  let [freshAccount] = await db.select().from(platformAccountsTable).where(eq(platformAccountsTable.id, account.id));
+  let accessToken = decryptToken(freshAccount.accessToken!);
 
   await db.update(publishJobsTable).set({
     status: "in_progress",
@@ -332,26 +373,20 @@ export async function executePublishJob(jobId: number): Promise<void> {
     updatedAt: new Date(),
   }).where(eq(publishJobsTable.id, jobId));
 
-  try {
-    let result: PublishResult;
-    const userId = freshAccount.platformUserId ?? "";
-
+  async function doPublish(token: string): Promise<PublishResult> {
+    const platformUserId = freshAccount.platformUserId ?? "";
     switch (job.platform) {
-      case "x":
-        result = await publishToX(accessToken, job);
-        break;
-      case "instagram":
-        result = await publishToInstagram(accessToken, userId, job);
-        break;
-      case "facebook":
-        result = await publishToFacebook(accessToken, userId, job);
-        break;
-      case "tiktok":
-        result = await publishToTikTok(accessToken, job);
-        break;
+      case "x":         return publishToX(token, job);
+      case "instagram": return publishToInstagram(token, platformUserId, job);
+      case "facebook":  return publishToFacebook(token, platformUserId, job);
+      case "tiktok":    return publishToTikTok(token, job);
       default:
         throw Object.assign(new Error(`Unsupported platform: ${job.platform}`), { status: 422 });
     }
+  }
+
+  try {
+    const result = await doPublish(accessToken);
 
     await db.update(publishJobsTable).set({
       status: "published",
@@ -368,6 +403,50 @@ export async function executePublishJob(jobId: number): Promise<void> {
 
   } catch (err: any) {
     const { errorCode, shouldRetry, retryAfterMs } = classifyError(err);
+
+    // If the platform rejected the token at publish time, attempt one token refresh
+    // and retry before giving up — covers stale-but-not-yet-expired tokens.
+    if (errorCode === "auth_failure") {
+      const refreshed = await tryRefreshToken(freshAccount);
+      if (refreshed) {
+        const [reloaded] = await db.select().from(platformAccountsTable).where(eq(platformAccountsTable.id, freshAccount.id));
+        freshAccount = reloaded;
+        accessToken = decryptToken(reloaded.accessToken!);
+        try {
+          const retryResult = await doPublish(accessToken);
+          await db.update(publishJobsTable).set({
+            status: "published",
+            publishedAt: new Date(),
+            platformPostId: retryResult.platformPostId ?? null,
+            errorMessage: null,
+            errorCode: null,
+            updatedAt: new Date(),
+          }).where(eq(publishJobsTable.id, jobId));
+          await db.update(platformAccountsTable).set({
+            errorMessage: null, errorCode: null, updatedAt: new Date(),
+          }).where(eq(platformAccountsTable.id, freshAccount.id));
+          logger.info({ jobId, platform: job.platform }, "Publish succeeded after token refresh retry");
+          return;
+        } catch (retryErr: any) {
+          logger.warn({ err: retryErr, jobId, platform: job.platform }, "Publish still failed after token refresh retry");
+        }
+      }
+
+      // Refresh failed or retry still failed — disconnect the account and notify the creator
+      await db.update(publishJobsTable).set({
+        status: "failed",
+        errorMessage: err.message ?? "Unknown error",
+        errorCode: "auth_failure",
+        attemptCount: (job.attemptCount ?? 0) + 1,
+        updatedAt: new Date(),
+      }).where(eq(publishJobsTable.id, jobId));
+      await db.update(platformAccountsTable).set({
+        connected: false, errorCode: "auth_failure", errorMessage: err.message, updatedAt: new Date(),
+      }).where(eq(platformAccountsTable.id, freshAccount.id));
+      await sendReconnectEmail(job.userId, job.platform);
+      return;
+    }
+
     const newAttemptCount = (job.attemptCount ?? 0) + 1;
     const canRetry = shouldRetry && newAttemptCount < (job.maxAttempts ?? 3);
 
@@ -379,11 +458,5 @@ export async function executePublishJob(jobId: number): Promise<void> {
       ...(canRetry && retryAfterMs ? { scheduledAt: new Date(Date.now() + retryAfterMs) } : {}),
       updatedAt: new Date(),
     }).where(eq(publishJobsTable.id, jobId));
-
-    if (errorCode === "auth_failure") {
-      await db.update(platformAccountsTable).set({
-        connected: false, errorCode, errorMessage: err.message, updatedAt: new Date(),
-      }).where(eq(platformAccountsTable.id, freshAccount.id));
-    }
   }
 }

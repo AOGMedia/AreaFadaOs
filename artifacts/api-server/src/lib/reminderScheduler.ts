@@ -1,8 +1,9 @@
 import { db } from "@workspace/db";
-import { invoicesTable, paymentRemindersTable, analyticsSnapshots, weeklyDigests, usersTable } from "@workspace/db";
+import { invoicesTable, paymentRemindersTable, analyticsSnapshots, weeklyDigests, usersTable, publishJobsTable } from "@workspace/db";
 import { eq, and, gte, lte, lt, sql, desc } from "drizzle-orm";
 import { logger } from "./logger";
 import { runDailyIngestion } from "./platformDataFetcher.js";
+import { executePublishJob } from "./platformPublisher.js";
 
 const REMINDER_DAYS = [3, 7, 14];
 const INTERVAL_MS = 60 * 60 * 1000; // check every hour
@@ -225,8 +226,44 @@ async function runDailyIngestionCycle() {
   await runDailyIngestion();
 }
 
-const WEEKLY_INTERVAL_MS = 60 * 60 * 1000; // check every hour; generateWeeklyDigests guards on Sunday
-const DAILY_INTERVAL_MS  = 60 * 60 * 1000; // check every hour; runDailyIngestionCycle guards on day
+// ─── Publish job scheduler ────────────────────────────────────────────────────
+
+/** Pick up any pending publish_jobs whose scheduledAt has passed and execute them. */
+async function runPublishJobScheduler(): Promise<void> {
+  try {
+    const now = new Date();
+    const dueJobs = await db
+      .select({ id: publishJobsTable.id })
+      .from(publishJobsTable)
+      .where(
+        and(
+          eq(publishJobsTable.status, "pending"),
+          lte(publishJobsTable.scheduledAt, now),
+        ),
+      );
+
+    if (dueJobs.length === 0) return;
+
+    logger.info({ count: dueJobs.length }, "Publish job scheduler: found due jobs");
+
+    await Promise.allSettled(
+      dueJobs.map(async ({ id }) => {
+        try {
+          await executePublishJob(id);
+          logger.info({ jobId: id }, "Publish job executed");
+        } catch (err) {
+          logger.error({ err, jobId: id }, "Publish job failed unexpectedly");
+        }
+      }),
+    );
+  } catch (err) {
+    logger.error({ err }, "Publish job scheduler error");
+  }
+}
+
+const WEEKLY_INTERVAL_MS   = 60 * 60 * 1000;       // check every hour; generateWeeklyDigests guards on Sunday
+const DAILY_INTERVAL_MS    = 60 * 60 * 1000;       // check every hour; runDailyIngestionCycle guards on day
+const PUBLISH_INTERVAL_MS  = 60 * 1000;            // every minute — pick up scheduled posts
 
 export function startReminderScheduler(): { stop: () => void } {
   // Hourly: invoice reminders + overdue transitions
@@ -241,14 +278,22 @@ export function startReminderScheduler(): { stop: () => void } {
   runDailyIngestionCycle();
   const ingestionInterval = setInterval(runDailyIngestionCycle, DAILY_INTERVAL_MS);
 
-  logger.info({ intervalMs: INTERVAL_MS }, "Payment reminder + weekly digest + platform ingestion scheduler started");
+  // Every minute: fire any scheduled publish jobs that are due
+  runPublishJobScheduler();
+  const publishInterval = setInterval(runPublishJobScheduler, PUBLISH_INTERVAL_MS);
+
+  logger.info(
+    { intervalMs: INTERVAL_MS, publishIntervalMs: PUBLISH_INTERVAL_MS },
+    "Payment reminder + weekly digest + platform ingestion + publish job scheduler started",
+  );
 
   return {
     stop: () => {
       clearInterval(hourlyInterval);
       clearInterval(weeklyInterval);
       clearInterval(ingestionInterval);
-      logger.info("Reminder + digest + ingestion scheduler stopped");
+      clearInterval(publishInterval);
+      logger.info("Reminder + digest + ingestion + publish scheduler stopped");
     },
   };
 }
