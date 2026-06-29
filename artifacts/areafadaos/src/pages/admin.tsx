@@ -198,6 +198,27 @@ export function AdminPage() {
           <code className="bg-muted px-1 rounded">session.created</code>, then set the{" "}
           <code className="bg-muted px-1 rounded">CLERK_WEBHOOK_SECRET</code> environment variable.
         </p>
+
+        <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          <p className="font-semibold mb-1">Bootstrap promote — force-upgrade any account by email</p>
+          <p className="mb-2 text-amber-700">
+            If a user row was created before enterprise auto-upgrade was active, use this one-off{" "}
+            <code className="bg-amber-100 px-1 rounded">curl</code> command to fix it immediately.
+            First set <code className="bg-amber-100 px-1 rounded">ADMIN_SECRET</code> as a Replit
+            secret (Secrets tab in the workspace toolbar), then run:
+          </p>
+          <pre className="bg-amber-100 rounded p-2 overflow-x-auto text-[10px] leading-relaxed whitespace-pre-wrap break-all">
+{`curl -X PATCH https://<your-replit-domain>/api/admin/promote \\
+  -H "Content-Type: application/json" \\
+  -H "x-admin-secret: <ADMIN_SECRET>" \\
+  -d '{"email":"osejialexander77@gmail.com","tier":"enterprise"}'`}
+          </pre>
+          <p className="mt-1 text-amber-600">
+            The endpoint returns <code className="bg-amber-100 px-1 rounded">501</code> if{" "}
+            <code className="bg-amber-100 px-1 rounded">ADMIN_SECRET</code> is not set, and{" "}
+            <code className="bg-amber-100 px-1 rounded">401</code> if the secret is wrong.
+          </p>
+        </div>
       </div>
     </AppShell>
   );
