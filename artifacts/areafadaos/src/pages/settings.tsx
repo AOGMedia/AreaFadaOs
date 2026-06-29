@@ -19,6 +19,10 @@ import {
   Info,
   Radio,
   Youtube,
+  Loader2,
+  Wifi,
+  WifiOff,
+  AlertCircle,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
@@ -254,6 +258,20 @@ function PlatformCredentialCard({
   );
 }
 
+interface RestreamChannel {
+  id: string | number;
+  displayName: string;
+  platform: string;
+  active: boolean;
+}
+
+interface RestreamTestResult {
+  ok: boolean;
+  invalid?: boolean;
+  error?: string;
+  channels?: RestreamChannel[];
+}
+
 function LiveApiKeysCard({
   data,
   onSave,
@@ -273,10 +291,31 @@ function LiveApiKeysCard({
   const [showYt, setShowYt] = useState(false);
   const [showIg, setShowIg] = useState(false);
   const [showRst, setShowRst] = useState(false);
+  const [testingRestream, setTestingRestream] = useState(false);
+  const [restreamTestResult, setRestreamTestResult] = useState<RestreamTestResult | null>(null);
 
   const ytStatus = data?.youtube;
   const igStatus = data?.instagram;
   const rstStatus = data?.restream;
+
+  const canTestRestream = !!(restreamApiKey || rstStatus?.configured || rstStatus?.envOverride);
+
+  async function testRestreamConnection() {
+    setTestingRestream(true);
+    setRestreamTestResult(null);
+    try {
+      const result = await apiFetch("/settings/live-api-keys/test-restream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(restreamApiKey ? { apiKey: restreamApiKey } : {}),
+      });
+      setRestreamTestResult(result as RestreamTestResult);
+    } catch (err: any) {
+      setRestreamTestResult({ ok: false, error: err?.message ?? "Request failed." });
+    } finally {
+      setTestingRestream(false);
+    }
+  }
 
   return (
     <Card className="border-red-200 bg-red-50/20">
@@ -438,7 +477,10 @@ function LiveApiKeysCard({
             <Input
               type={showRst ? "text" : "password"}
               value={restreamApiKey}
-              onChange={e => setRestreamApiKey(e.target.value)}
+              onChange={e => {
+                setRestreamApiKey(e.target.value);
+                setRestreamTestResult(null);
+              }}
               placeholder={rstStatus?.configured || rstStatus?.envOverride ? "Leave blank to keep existing key" : "Paste your Restream Personal Access Token…"}
               className="h-8 text-sm font-mono pr-9"
               disabled={!!rstStatus?.envOverride}
@@ -451,6 +493,74 @@ function LiveApiKeysCard({
               {showRst ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
+
+          {/* Test Connection button */}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs px-3 w-full"
+            disabled={testingRestream || !canTestRestream}
+            onClick={testRestreamConnection}
+          >
+            {testingRestream ? (
+              <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Testing…</>
+            ) : (
+              <><Wifi className="w-3 h-3 mr-1.5" />Test Connection</>
+            )}
+          </Button>
+
+          {/* Inline test results */}
+          {restreamTestResult && (
+            <div className={`rounded-lg border p-3 space-y-2 text-xs ${
+              restreamTestResult.ok
+                ? "bg-emerald-50 border-emerald-200"
+                : restreamTestResult.invalid
+                ? "bg-red-50 border-red-200"
+                : "bg-amber-50 border-amber-200"
+            }`}>
+              {restreamTestResult.ok ? (
+                <>
+                  <div className="flex items-center gap-1.5 font-medium text-emerald-700">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Key valid — {restreamTestResult.channels?.length ?? 0} destination{restreamTestResult.channels?.length !== 1 ? "s" : ""} found
+                  </div>
+                  {restreamTestResult.channels && restreamTestResult.channels.length > 0 && (
+                    <ul className="space-y-1 pl-5">
+                      {restreamTestResult.channels.map((ch) => (
+                        <li key={ch.id} className="flex items-center gap-1.5">
+                          {ch.active ? (
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                          ) : (
+                            <Circle className="w-3 h-3 text-amber-500 shrink-0" />
+                          )}
+                          <span className={ch.active ? "text-emerald-700" : "text-amber-700"}>
+                            {ch.displayName}
+                            <span className="ml-1 opacity-60 font-normal">({ch.platform})</span>
+                            {!ch.active && <span className="ml-1 text-amber-600 font-medium">— disabled</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {restreamTestResult.channels?.length === 0 && (
+                    <p className="text-emerald-600 pl-5">Key is valid but no destination channels are configured yet.</p>
+                  )}
+                </>
+              ) : restreamTestResult.invalid ? (
+                <div className="flex items-center gap-1.5 font-medium text-red-700">
+                  <WifiOff className="w-3.5 h-3.5" />
+                  Invalid key — Restream rejected the credentials. Double-check your Personal Access Token.
+                </div>
+              ) : (
+                <div className="flex items-start gap-1.5 text-amber-700">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{restreamTestResult.error ?? "Connection test failed."}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {rstStatus?.envOverride && (
             <p className="text-[11px] text-blue-600">Set via server environment variable — to override, clear the env var first.</p>
           )}

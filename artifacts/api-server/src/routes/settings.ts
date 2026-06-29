@@ -202,6 +202,76 @@ router.put("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
   res.json({ ok: true });
 });
 
+// POST /settings/live-api-keys/test-restream — validate key against Restream API
+router.post("/settings/live-api-keys/test-restream", requireAuth, async (req: any, res): Promise<void> => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  // Accept an unsaved key from the body (the user may be testing before saving),
+  // otherwise fall back to the stored or env key.
+  let apiKey: string | null = (req.body as { apiKey?: string }).apiKey?.trim() || null;
+
+  if (!apiKey) {
+    // Try env override first, then DB
+    if (process.env.RESTREAM_API_KEY) {
+      apiKey = process.env.RESTREAM_API_KEY;
+    } else {
+      const rows = await db.select()
+        .from(platformOauthConfigsTable)
+        .where(and(
+          eq(platformOauthConfigsTable.userId, user.id),
+          eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.restream),
+        ));
+      const rstRow = rows[0];
+      apiKey = rstRow?.appSecret ? decryptToken(rstRow.appSecret) : null;
+    }
+  }
+
+  if (!apiKey) {
+    res.status(422).json({ ok: false, error: "No Restream API key configured. Save or paste a key first." });
+    return;
+  }
+
+  try {
+    const response = await fetch("https://api.restream.io/v2/channel", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      res.json({ ok: false, invalid: true, channels: [] });
+      return;
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      res.json({ ok: false, error: `Restream returned ${response.status}: ${text}`, channels: [] });
+      return;
+    }
+
+    const data = await response.json() as unknown;
+    // Restream /v2/channel returns an array of channel objects
+    const raw = Array.isArray(data) ? data : ((data as any)?.items ?? []);
+    const channels = raw.map((ch: any) => ({
+      id: ch.id ?? ch.channelId,
+      displayName: ch.displayName ?? ch.name ?? ch.platform ?? "Unknown",
+      platform: ch.type ?? ch.platform ?? "unknown",
+      active: ch.active ?? ch.enabled ?? ch.status === "active" ?? false,
+    }));
+
+    res.json({ ok: true, channels });
+  } catch (err: any) {
+    if (err?.name === "TimeoutError" || err?.code === "ABORT_ERR") {
+      res.status(504).json({ ok: false, error: "Request to Restream timed out. Check your network or try again." });
+    } else {
+      res.status(502).json({ ok: false, error: err?.message ?? "Failed to reach Restream API." });
+    }
+  }
+});
+
 // DELETE /settings/live-api-keys/:key — clear youtube or instagram key
 router.delete("/settings/live-api-keys/:key", requireAuth, async (req: any, res): Promise<void> => {
   const user = await getDbUser(req.clerkUserId);
