@@ -61,6 +61,7 @@ export const platformAccountsTable = pgTable("platform_accounts", {
   scopes: jsonb("scopes").$type<string[]>(),
   // Temporary PKCE / state storage during the OAuth redirect round-trip
   oauthState: text("oauth_state"),
+  oauthStateExpiresAt: timestamp("oauth_state_expires_at", { withTimezone: true }),
   // Last error from platform API
   errorMessage: text("error_message"),
   // rate_limit | auth_failure | content_policy

@@ -148,9 +148,11 @@ router.get("/oauth/:platform/start", requireAuth, async (req: any, res): Promise
     .from(platformAccountsTable)
     .where(and(eq(platformAccountsTable.userId, user.id), eq(platformAccountsTable.platform, platform)));
 
+  const oauthStateExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
   if (existing) {
     await db.update(platformAccountsTable)
-      .set({ oauthState: stateBlob, updatedAt: new Date() })
+      .set({ oauthState: stateBlob, oauthStateExpiresAt, updatedAt: new Date() })
       .where(eq(platformAccountsTable.id, existing.id));
   } else {
     await db.insert(platformAccountsTable).values({
@@ -159,6 +161,7 @@ router.get("/oauth/:platform/start", requireAuth, async (req: any, res): Promise
       handle: "pending",
       connected: false,
       oauthState: stateBlob,
+      oauthStateExpiresAt,
     });
   }
 
@@ -204,6 +207,16 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
 
   if (!account) {
     res.redirect(`${frontendBase}/scheduling?oauth_error=invalid_state&platform=${platform}`);
+    return;
+  }
+
+  if (!account.oauthStateExpiresAt || account.oauthStateExpiresAt < new Date()) {
+    await db.update(platformAccountsTable).set({
+      oauthState: null,
+      oauthStateExpiresAt: null,
+      updatedAt: new Date(),
+    }).where(eq(platformAccountsTable.id, account.id));
+    res.redirect(`${frontendBase}/scheduling?oauth_error=state_expired&platform=${platform}`);
     return;
   }
 

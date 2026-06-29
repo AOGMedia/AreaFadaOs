@@ -13,12 +13,14 @@ const TEST_OAUTH_STATE_BLOB = `${TEST_USER_ID}:${TEST_CODE_VERIFIER}:${TEST_STAT
 
 const dbState = {
   updatedValues: null as any,
+  updateCallCount: 0,
   selectCallIndex: 0,
   selectResults: [] as any[][],
 };
 
 function resetDb(selectResults: any[][]) {
   dbState.updatedValues = null;
+  dbState.updateCallCount = 0;
   dbState.selectCallIndex = 0;
   dbState.selectResults = selectResults;
 }
@@ -45,6 +47,7 @@ const mockDb: any = {
   update: (_table: any) => ({
     set: (vals: any) => {
       dbState.updatedValues = vals;
+      dbState.updateCallCount++;
       return { where: (_cond: any) => Promise.resolve([]) };
     },
   }),
@@ -118,11 +121,15 @@ function makeFetchMock(...responses: FakeResp[]) {
 
 // ─── Account fixtures ──────────────────────────────────────────────────────────
 
+const FUTURE_EXPIRY = new Date(Date.now() + 10 * 60 * 1000);
+const PAST_EXPIRY = new Date(Date.now() - 1);
+
 const xAccount = {
   id: 7,
   userId: TEST_USER_ID,
   platform: "x",
   oauthState: TEST_OAUTH_STATE_BLOB,
+  oauthStateExpiresAt: FUTURE_EXPIRY,
 };
 
 const igAccount = {
@@ -130,6 +137,7 @@ const igAccount = {
   userId: TEST_USER_ID,
   platform: "instagram",
   oauthState: TEST_OAUTH_STATE_BLOB,
+  oauthStateExpiresAt: FUTURE_EXPIRY,
 };
 
 const ttAccount = {
@@ -137,6 +145,20 @@ const ttAccount = {
   userId: TEST_USER_ID,
   platform: "tiktok",
   oauthState: TEST_OAUTH_STATE_BLOB,
+  oauthStateExpiresAt: FUTURE_EXPIRY,
+};
+
+const xAccountExpired = {
+  ...xAccount,
+  oauthStateExpiresAt: PAST_EXPIRY,
+};
+
+const xAccountNoExpiry = {
+  id: 7,
+  userId: TEST_USER_ID,
+  platform: "x",
+  oauthState: TEST_OAUTH_STATE_BLOB,
+  oauthStateExpiresAt: null,
 };
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -210,6 +232,49 @@ describe("OAuth callback route — /oauth/:platform/callback", async () => {
     assert.ok(
       (res.headers["location"] as string).includes("oauth_error=invalid_state"),
       `expected oauth_error=invalid_state, got: ${res.headers["location"]}`,
+    );
+  });
+
+  test("expired state — redirects with oauth_error=state_expired when oauthStateExpiresAt is in the past", async () => {
+    resetDb([[xAccountExpired]]);
+
+    const res = await request(app).get(`/oauth/x/callback?code=valid_code&state=${TEST_STATE}`);
+
+    assert.equal(res.status, 302, "must redirect");
+    assert.ok(
+      (res.headers["location"] as string).includes("oauth_error=state_expired"),
+      `expected oauth_error=state_expired, got: ${res.headers["location"]}`,
+    );
+  });
+
+  test("null expiry (legacy row) — redirects with oauth_error=state_expired and clears the stale state from DB", async () => {
+    resetDb([[xAccountNoExpiry]]);
+
+    const res = await request(app).get(`/oauth/x/callback?code=valid_code&state=${TEST_STATE}`);
+
+    assert.equal(res.status, 302, "must redirect");
+    assert.ok(
+      (res.headers["location"] as string).includes("oauth_error=state_expired"),
+      `expected oauth_error=state_expired for null expiry, got: ${res.headers["location"]}`,
+    );
+    assert.ok(dbState.updatedValues, "db.update must have been called to clear state");
+    assert.equal(dbState.updatedValues.oauthState, null, "oauthState must be cleared");
+    assert.equal(dbState.updatedValues.oauthStateExpiresAt, null, "oauthStateExpiresAt must be cleared");
+  });
+
+  test("non-expired state — proceeds normally when oauthStateExpiresAt is in the future", async () => {
+    resetDb([[xAccount]]);
+    globalThis.fetch = makeFetchMock(
+      { ok: true, json: { access_token: "tok", refresh_token: null, expires_in: 0, scope: "" } },
+      { ok: true, json: { data: { id: "uid", username: "user", name: "User" } } },
+    ) as any;
+
+    const res = await request(app).get(`/oauth/x/callback?code=valid_code&state=${TEST_STATE}`);
+
+    assert.equal(res.status, 302, "must redirect");
+    assert.ok(
+      (res.headers["location"] as string).includes("oauth_success=x"),
+      `expected oauth_success=x, got: ${res.headers["location"]}`,
     );
   });
 

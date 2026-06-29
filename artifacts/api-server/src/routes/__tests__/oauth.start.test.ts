@@ -182,6 +182,36 @@ describe("OAuth start route — /oauth/:platform/start", async () => {
     assert.match(statePart, /^[0-9a-f]+$/i);
   });
 
+  test("oauthStateExpiresAt is set ~10 minutes in the future on insert", async () => {
+    setDb([defaultUser, []]);
+    const before = Date.now();
+    await request(app).get("/oauth/x/start");
+    const after = Date.now();
+
+    const inserted = Array.isArray(dbState.insertedValues)
+      ? dbState.insertedValues[0]
+      : dbState.insertedValues;
+
+    assert.ok(inserted, "db.insert must have been called");
+    assert.ok(inserted.oauthStateExpiresAt instanceof Date, "oauthStateExpiresAt must be a Date");
+    const expiryMs = (inserted.oauthStateExpiresAt as Date).getTime();
+    assert.ok(expiryMs > before + 9 * 60 * 1000, "expiry must be at least 9 minutes from now");
+    assert.ok(expiryMs < after + 11 * 60 * 1000, "expiry must be at most 11 minutes from now");
+  });
+
+  test("oauthStateExpiresAt is set ~10 minutes in the future on update (existing account)", async () => {
+    setDb([defaultUser, [{ id: 7 }]]);
+    const before = Date.now();
+    await request(app).get("/oauth/x/start");
+    const after = Date.now();
+
+    assert.ok(dbState.updatedValues, "db.update must have been called");
+    assert.ok(dbState.updatedValues.oauthStateExpiresAt instanceof Date, "oauthStateExpiresAt must be a Date");
+    const expiryMs = (dbState.updatedValues.oauthStateExpiresAt as Date).getTime();
+    assert.ok(expiryMs > before + 9 * 60 * 1000, "expiry must be at least 9 minutes from now");
+    assert.ok(expiryMs < after + 11 * 60 * 1000, "expiry must be at most 11 minutes from now");
+  });
+
   test("returns 302 to settings with missing_credentials when no app credentials exist", async () => {
     setDb([defaultUser, []], { appId: null, appSecret: null });
     const savedId = process.env.X_CLIENT_ID;
