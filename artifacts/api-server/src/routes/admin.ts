@@ -98,6 +98,19 @@ router.patch(
     }
 
     try {
+      const self = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(eq(usersTable.clerkId, (req as any).clerkUserId))
+        .limit(1);
+
+      if (self.length && self[0].id === userId) {
+        res.status(403).json({
+          error: "You cannot change your own tier. Ask another enterprise admin to do this.",
+        });
+        return;
+      }
+
       const [updated] = await db
         .update(usersTable)
         .set({ tier, updatedAt: new Date() })

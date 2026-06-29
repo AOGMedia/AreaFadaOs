@@ -5,6 +5,7 @@ import { useGetMyTier } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, Users } from "lucide-react";
 
@@ -41,6 +42,13 @@ export function AdminPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [pendingTiers, setPendingTiers] = useState<Record<number, string>>({});
+
+  const { data: meData } = useQuery<{ id: number }>({
+    queryKey: ["users", "me"],
+    queryFn: () => apiFetch("/users/me"),
+    enabled: tierData?.tier === "enterprise",
+  });
+  const myId = meData?.id;
 
   const { data, isLoading, error } = useQuery<{ users: AdminUser[] }>({
     queryKey: ["admin", "users"],
@@ -160,26 +168,52 @@ export function AdminPage() {
                             })}
                           </td>
                           <td className="py-3 px-3">
-                            <Select
-                              value={activeTier}
-                              onValueChange={(tier) => {
-                                if (tier === user.tier) return;
-                                setPendingTiers((prev) => ({ ...prev, [user.id]: tier }));
-                                patchTier.mutate({ id: user.id, tier });
-                              }}
-                              disabled={patchTier.isPending && pendingTiers[user.id] !== undefined}
-                            >
-                              <SelectTrigger className="h-7 text-xs w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {TIERS.map((t) => (
-                                  <SelectItem key={t} value={t} className="text-xs">
-                                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            {user.id === myId ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-block">
+                                      <Select value={activeTier} disabled>
+                                        <SelectTrigger className="h-7 text-xs w-32 cursor-not-allowed opacity-50">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {TIERS.map((t) => (
+                                            <SelectItem key={t} value={t} className="text-xs">
+                                              {t.charAt(0).toUpperCase() + t.slice(1)}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="max-w-[200px] text-xs">
+                                    You can't change your own tier — ask another enterprise admin to do this.
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <Select
+                                value={activeTier}
+                                onValueChange={(tier) => {
+                                  if (tier === user.tier) return;
+                                  setPendingTiers((prev) => ({ ...prev, [user.id]: tier }));
+                                  patchTier.mutate({ id: user.id, tier });
+                                }}
+                                disabled={patchTier.isPending && pendingTiers[user.id] !== undefined}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {TIERS.map((t) => (
+                                    <SelectItem key={t} value={t} className="text-xs">
+                                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
                           </td>
                         </tr>
                       );
