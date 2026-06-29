@@ -17,11 +17,13 @@ import mediaPartnersRouter from "./media-partners";
 import oauthRouter from "./oauth";
 import settingsRouter from "./settings";
 import webhookClerkRouter from "./webhook-clerk";
+import webhookResendRouter from "./webhook-resend";
 import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
 router.use(webhookClerkRouter);
+router.use(webhookResendRouter);
 router.use(adminRouter);
 router.use(healthRouter);
 router.use(usersRouter);

@@ -15,6 +15,7 @@ import {
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
+import { isEmailSuppressed } from "./webhook-resend";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -941,6 +942,20 @@ router.post("/clip-schedules/export-email", ...requireClip, async (req: any, res
     if (invalid) { res.status(400).json({ error: `Invalid email address: ${invalid}` }); return; }
     if (recipients.length > 20) { res.status(400).json({ error: "Maximum 20 recipients allowed per send" }); return; }
 
+    // Filter out suppressed addresses (bounced or complained) before sending
+    const suppressionChecks = await Promise.all(recipients.map(r => isEmailSuppressed(r)));
+    const activeRecipients = recipients.filter((_, i) => !suppressionChecks[i]);
+    const suppressedRecipients = recipients.filter((_, i) => suppressionChecks[i]);
+
+    if (suppressedRecipients.length > 0) {
+      console.warn(`[clip-export-email] Skipping ${suppressedRecipients.length} suppressed address(es): ${suppressedRecipients.join(", ")}`);
+    }
+
+    if (activeRecipients.length === 0) {
+      res.status(200).json({ status: "suppressed", recipients: 0, scheduleCount: 0, suppressed: suppressedRecipients.length, note: "All recipients are on the suppression list (bounced or complained). No email sent." });
+      return;
+    }
+
     // Fetch next 30 days of schedules with clip + account join
     const start = new Date();
     const end = new Date(start.getTime() + 30 * 86400000);
@@ -987,7 +1002,7 @@ router.post("/clip-schedules/export-email", ...requireClip, async (req: any, res
       try {
         const sendPromise = resend.emails.send({
           from: fromAddress,
-          to: recipients,
+          to: activeRecipients,
           subject,
           html: htmlBody,
           attachments: [{ filename, content: csvBase64 }],
@@ -1025,17 +1040,17 @@ router.post("/clip-schedules/export-email", ...requireClip, async (req: any, res
         res.status(502).json({ error: "Email delivery failed", detail: sendError.message });
         return;
       }
-      console.info(`[clip-export-email] Sent to ${recipients.length} recipient(s). messageId=${sendData?.id}`);
-      res.json({ status: "sent", recipients: recipients.length, scheduleCount, messageId: sendData?.id });
+      console.info(`[clip-export-email] Sent to ${activeRecipients.length} recipient(s). messageId=${sendData?.id}`);
+      res.json({ status: "sent", recipients: activeRecipients.length, scheduleCount, suppressed: suppressedRecipients.length, messageId: sendData?.id });
     } else {
       if (process.env.NODE_ENV === "production") {
         console.error("[clip-export-email] RESEND_API_KEY is not configured — refusing to silently drop email in production");
         res.status(503).json({ error: "Email delivery is not configured. Set the RESEND_API_KEY environment variable to enable this feature." });
         return;
       }
-      console.info(`[clip-export-email] RESEND_API_KEY not set — simulated send to: ${recipients.join(", ")}`);
+      console.info(`[clip-export-email] RESEND_API_KEY not set — simulated send to: ${activeRecipients.join(", ")}`);
       console.info(`[clip-export-email] Subject: ${subject} | ${scheduleCount} rows`);
-      res.json({ status: "simulated", recipients: recipients.length, scheduleCount, note: "Set RESEND_API_KEY to enable real email delivery" });
+      res.json({ status: "simulated", recipients: activeRecipients.length, scheduleCount, suppressed: suppressedRecipients.length, note: "Set RESEND_API_KEY to enable real email delivery" });
     }
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to email clip schedule" }); }
 });

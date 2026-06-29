@@ -24,9 +24,19 @@ export const activityLogTable = pgTable("activity_log", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const emailSuppressionsTable = pgTable("email_suppressions", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  reason: text("reason").notNull(),
+  eventType: text("event_type").notNull(),
+  resendEmailId: text("resend_email_id"),
+  suppressedAt: timestamp("suppressed_at").notNull().defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertActivitySchema = createInsertSchema(activityLogTable).omit({ id: true, createdAt: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof usersTable.$inferSelect;
 export type ActivityLog = typeof activityLogTable.$inferSelect;
+export type EmailSuppression = typeof emailSuppressionsTable.$inferSelect;
