@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { invoicesTable, paymentRemindersTable, analyticsSnapshots, weeklyDigests, usersTable } from "@workspace/db";
 import { eq, and, gte, lte, lt, sql, desc } from "drizzle-orm";
 import { logger } from "./logger";
+import { runDailyIngestion } from "./platformDataFetcher.js";
 
 const REMINDER_DAYS = [3, 7, 14];
 const INTERVAL_MS = 60 * 60 * 1000; // check every hour
@@ -211,7 +212,21 @@ async function runWeeklyCycle() {
   }
 }
 
+// ─── Daily platform data ingestion ───────────────────────────────────────────
+
+/** Track the last calendar day (UTC) that ingestion ran so we don't re-fire
+ *  multiple times within the same hour during the same day. */
+let lastIngestionDay = -1;
+
+async function runDailyIngestionCycle() {
+  const nowDay = new Date().getUTCDate();
+  if (nowDay === lastIngestionDay) return; // already ran today
+  lastIngestionDay = nowDay;
+  await runDailyIngestion();
+}
+
 const WEEKLY_INTERVAL_MS = 60 * 60 * 1000; // check every hour; generateWeeklyDigests guards on Sunday
+const DAILY_INTERVAL_MS  = 60 * 60 * 1000; // check every hour; runDailyIngestionCycle guards on day
 
 export function startReminderScheduler(): { stop: () => void } {
   // Hourly: invoice reminders + overdue transitions
@@ -222,13 +237,18 @@ export function startReminderScheduler(): { stop: () => void } {
   runWeeklyCycle();
   const weeklyInterval = setInterval(runWeeklyCycle, WEEKLY_INTERVAL_MS);
 
-  logger.info({ intervalMs: INTERVAL_MS }, "Payment reminder + weekly digest scheduler started");
+  // Daily: pull real follower / reach data from connected platform APIs
+  runDailyIngestionCycle();
+  const ingestionInterval = setInterval(runDailyIngestionCycle, DAILY_INTERVAL_MS);
+
+  logger.info({ intervalMs: INTERVAL_MS }, "Payment reminder + weekly digest + platform ingestion scheduler started");
 
   return {
     stop: () => {
       clearInterval(hourlyInterval);
       clearInterval(weeklyInterval);
-      logger.info("Reminder + digest scheduler stopped");
+      clearInterval(ingestionInterval);
+      logger.info("Reminder + digest + ingestion scheduler stopped");
     },
   };
 }

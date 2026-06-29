@@ -13,6 +13,7 @@ import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
 import { PDFDocument, StandardFonts, rgb, grayscale } from "pdf-lib";
+import { ingestPlatformData } from "../lib/platformDataFetcher.js";
 
 const router = Router();
 
@@ -702,6 +703,38 @@ router.get("/analytics/reports/:id/pdf", requireAuth, requireTier("brand"), asyn
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to generate PDF" });
+  }
+});
+
+// ─── POST /analytics/ingest ───────────────────────────────────────────────
+// Triggers real-time ingestion from all connected platform accounts for the
+// authenticated user.  Returns a per-platform result list so the UI can show
+// which connections succeeded or need re-authorising.
+router.post("/analytics/ingest", requireAuth, requireTier("creator"), async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const results = await ingestPlatformData(user.id);
+
+    const ok = results.filter(r => r.status === "ok");
+    const errors = results.filter(r => r.status === "error");
+    const skipped = results.filter(r => r.status === "skipped");
+
+    res.json({
+      ingested: ok.length,
+      skipped: skipped.length,
+      errors: errors.length,
+      results,
+      message: ok.length > 0
+        ? `Successfully pulled live data from ${ok.length} platform(s). Dashboard will reflect real numbers.`
+        : results.length === 0
+          ? "No connected platform accounts found. Connect a platform in Settings to enable live analytics."
+          : `No platforms ingested. ${skipped.length} skipped (no token), ${errors.length} failed. Check platform connections in Settings.`,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to ingest platform data" });
   }
 });
 
