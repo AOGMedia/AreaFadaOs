@@ -2,7 +2,7 @@ import { Router } from "express";
 import { randomBytes, createHash } from "node:crypto";
 import { db } from "@workspace/db";
 import { platformAccountsTable, usersTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import { getAuth } from "@clerk/express";
 import { encryptToken } from "../lib/tokenEncryption.js";
 import { fetchFollowerCount } from "../lib/platformPublisher.js";
@@ -138,6 +138,14 @@ router.get("/oauth/:platform/start", requireAuth, async (req: any, res): Promise
     res.redirect(`${settingsBase}/settings?oauth_error=missing_credentials&platform=${platform}`);
     return;
   }
+
+  // Wipe stale OAuth state blobs that were never completed (expired + not connected)
+  await db.update(platformAccountsTable)
+    .set({ oauthState: null, oauthStateExpiresAt: null })
+    .where(and(
+      lt(platformAccountsTable.oauthStateExpiresAt, new Date()),
+      eq(platformAccountsTable.connected, false),
+    ));
 
   const state = randomBytes(24).toString("hex");
   const codeVerifier = randomBytes(32).toString("hex");
