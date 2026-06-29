@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { TierGuard } from "@/components/TierGuard";
@@ -48,7 +49,7 @@ interface PostDraft {
 interface PublishJob {
   id: number; draftId: number; platform: string; caption: string;
   status: string; attemptCount: number; maxAttempts: number;
-  errorMessage?: string; scheduledAt?: string; publishedAt?: string; createdAt: string;
+  errorMessage?: string; errorCode?: string; scheduledAt?: string; publishedAt?: string; createdAt: string;
 }
 
 interface AccountGroup {
@@ -459,12 +460,38 @@ function ComposerTab() {
 function JobStatusTab() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [filterStatus, setFilterStatus] = useState("all");
+  const [dismissedAuthBanners, setDismissedAuthBanners] = useState<Set<number>>(new Set());
+  const prevStatusRef = useRef<Record<number, string>>({});
 
-  const { data: jobs = [] } = useQuery<PublishJob[]>({
+  const { data: jobs = [], dataUpdatedAt } = useQuery<PublishJob[]>({
     queryKey: ["auto-post-jobs", filterStatus],
     queryFn: () => apiFetch(`/auto-post/publish-jobs${filterStatus !== "all" ? `?status=${filterStatus}` : ""}`),
+    refetchInterval: 5000,
   });
+
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    jobs.forEach(job => {
+      const oldStatus = prev[job.id];
+      if (oldStatus !== undefined && oldStatus !== job.status) {
+        if (job.status === "published") {
+          toast({
+            title: "Post published! 🎉",
+            description: `${PLATFORM_ICONS[job.platform] ?? "📱"} ${job.platform} — draft #${job.draftId} went live successfully.`,
+          });
+        } else if (job.status === "failed") {
+          toast({
+            title: "Publish failed",
+            description: `${PLATFORM_ICONS[job.platform] ?? "📱"} ${job.platform} — ${job.errorMessage ?? "Unknown error"}`,
+            variant: "destructive",
+          });
+        }
+      }
+    });
+    prevStatusRef.current = Object.fromEntries(jobs.map(j => [j.id, j.status]));
+  }, [dataUpdatedAt]);
 
   const retry = useMutation({
     mutationFn: (id: number) => apiFetch(`/auto-post/publish-jobs/${id}/retry`, { method: "POST" }),
@@ -472,10 +499,67 @@ function JobStatusTab() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const failedCount = jobs.filter(j => j.status === "failed").length;
+  const allJobs: PublishJob[] = useQuery<PublishJob[]>({
+    queryKey: ["auto-post-jobs", "all"],
+    queryFn: () => apiFetch("/auto-post/publish-jobs"),
+    refetchInterval: 5000,
+  }).data ?? [];
+
+  const failedJobs = allJobs.filter(j => j.status === "failed");
+  const authFailureJobs = failedJobs.filter(j => j.errorCode === "auth_failure");
+  const visibleAuthFailures = authFailureJobs.filter(j => !dismissedAuthBanners.has(j.id));
+  const otherFailedJobs = failedJobs.filter(
+    j => !authFailureJobs.find(a => a.id === j.id) && !dismissedAuthBanners.has(j.id)
+  );
 
   return (
     <div className="space-y-4">
+      {/* Auth failure reconnect banners */}
+      {visibleAuthFailures.map(job => (
+        <div key={job.id} className="flex items-start gap-3 p-4 rounded-lg border border-amber-200 bg-amber-50">
+          <span className="text-xl mt-0.5">🔑</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-900">Account reconnection required</p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              {PLATFORM_ICONS[job.platform] ?? "📱"} <span className="capitalize">{job.platform}</span> — your access token has expired or been revoked.
+              Reconnect your account to resume posting.
+            </p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={() => navigate("/scheduling")}>
+              Reconnect Account
+            </Button>
+            <button className="text-amber-600 hover:text-amber-800 text-xs"
+              onClick={() => setDismissedAuthBanners(prev => new Set([...prev, job.id]))}>✕</button>
+          </div>
+        </div>
+      ))}
+
+      {/* General failure banners */}
+      {otherFailedJobs.map(job => (
+        <div key={job.id} className="flex items-start gap-3 p-4 rounded-lg border border-red-200 bg-red-50">
+          <span className="text-xl mt-0.5">❌</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-900">
+              {PLATFORM_ICONS[job.platform] ?? "📱"} <span className="capitalize">{job.platform}</span> publish failed
+              <span className="font-normal text-red-700 ml-1">— draft #{job.draftId}</span>
+            </p>
+            <p className="text-xs text-red-700 mt-0.5 break-words">{job.errorMessage ?? "Unknown error"}</p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            {job.attemptCount < job.maxAttempts && (
+              <Button size="sm" variant="outline" className="h-7 text-xs border-red-300 text-red-700 hover:bg-red-100"
+                onClick={() => retry.mutate(job.id)} disabled={retry.isPending}>
+                Retry
+              </Button>
+            )}
+            <button className="text-red-400 hover:text-red-600 text-xs"
+              onClick={() => setDismissedAuthBanners(prev => new Set([...prev, job.id]))}>✕</button>
+          </div>
+        </div>
+      ))}
+
       <div className="flex items-center gap-3">
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
@@ -485,9 +569,10 @@ function JobStatusTab() {
             ))}
           </SelectContent>
         </Select>
-        {failedCount > 0 && (
-          <Badge className="bg-red-100 text-red-700">{failedCount} failed — retry available</Badge>
+        {failedJobs.length > 0 && (
+          <Badge className="bg-red-100 text-red-700">{failedJobs.length} failed — retry available</Badge>
         )}
+        <span className="text-xs text-muted-foreground ml-auto">Auto-refreshing every 5s</span>
       </div>
 
       {jobs.length === 0 && <p className="text-sm text-muted-foreground py-6 text-center">No publish jobs yet. Publish a draft from the Composer tab.</p>}
@@ -500,14 +585,14 @@ function JobStatusTab() {
               <th className="text-left pb-2 pr-4">Draft ID</th>
               <th className="text-left pb-2 pr-4">Status</th>
               <th className="text-left pb-2 pr-4">Attempts</th>
-              <th className="text-left pb-2 pr-4">Scheduled</th>
+              <th className="text-left pb-2 pr-4">When</th>
               <th className="text-left pb-2 pr-4">Error</th>
               <th className="text-left pb-2">Actions</th>
             </tr>
           </thead>
           <tbody>
             {jobs.map(job => (
-              <tr key={job.id} className="border-b last:border-0">
+              <tr key={job.id} className={`border-b last:border-0 ${job.status === "failed" ? "bg-red-50/40" : job.status === "published" ? "bg-green-50/40" : ""}`}>
                 <td className="py-2 pr-4">
                   <span className="flex items-center gap-1.5">
                     <span>{PLATFORM_ICONS[job.platform] ?? "📱"}</span>
@@ -520,14 +605,25 @@ function JobStatusTab() {
                 </td>
                 <td className="py-2 pr-4 text-center">{job.attemptCount}/{job.maxAttempts}</td>
                 <td className="py-2 pr-4 text-xs text-muted-foreground">
-                  {job.scheduledAt ? new Date(job.scheduledAt).toLocaleDateString("en-NG") : job.publishedAt ? `✅ ${new Date(job.publishedAt).toLocaleDateString("en-NG")}` : "—"}
+                  {job.publishedAt
+                    ? <span className="text-green-700 font-medium">✅ {new Date(job.publishedAt).toLocaleString("en-NG", { dateStyle: "short", timeStyle: "short" })}</span>
+                    : job.scheduledAt
+                    ? new Date(job.scheduledAt).toLocaleString("en-NG", { dateStyle: "short", timeStyle: "short" })
+                    : "—"}
                 </td>
-                <td className="py-2 pr-4 text-xs text-red-600 max-w-40 truncate">{job.errorMessage ?? "—"}</td>
+                <td className="py-2 pr-4 text-xs text-red-600 max-w-48">
+                  {job.errorMessage
+                    ? <span className="break-words line-clamp-2" title={job.errorMessage}>{job.errorMessage}</span>
+                    : <span className="text-muted-foreground">—</span>}
+                </td>
                 <td className="py-2">
                   {job.status === "failed" && job.attemptCount < job.maxAttempts && (
                     <Button size="sm" variant="outline" className="h-6 text-xs" onClick={() => retry.mutate(job.id)} disabled={retry.isPending}>
                       Retry
                     </Button>
+                  )}
+                  {job.status === "failed" && job.attemptCount >= job.maxAttempts && (
+                    <span className="text-xs text-muted-foreground">Max retries</span>
                   )}
                 </td>
               </tr>
