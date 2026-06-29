@@ -381,7 +381,7 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
       if (!res.ok) return null;
       return res.json() as Promise<{ ok: boolean; expired: boolean; lastVerified: string; error: string | null }>;
     },
-    enabled: session.status === "live",
+    enabled: session.status !== "ended",
     refetchInterval: session.status === "live" ? RESTREAM_CHECK_INTERVAL_MS : false,
     staleTime: RESTREAM_CHECK_INTERVAL_MS - 60000,
   });
@@ -480,6 +480,7 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
   const isLive = session.status === "live";
   const isArmed = session.status === "armed";
   const isEnded = session.status === "ended";
+  const restreamKeyExpired = restreamKeyHealth != null && restreamKeyHealth.expired === true;
 
   const platformsWithMissingKeys = platforms.filter(p => {
     const cfg = configByPlatform[p];
@@ -905,6 +906,23 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
               </div>
             )}
 
+            {/* ─── Restream expired-key warning (pre-live) ─── */}
+            {restreamKeyExpired && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-400 bg-red-50 px-3 py-2.5 text-xs text-red-900">
+                <WifiOff className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-600" />
+                <div className="flex-1">
+                  <span className="font-semibold">⚠ Restream API key is expired or revoked.</span>{" "}
+                  Going live will fail until the key is refreshed. Please update it before proceeding.{" "}
+                  <a
+                    href={`${import.meta.env.BASE_URL}settings#live-viewer-api-keys`}
+                    className="underline font-semibold hover:text-red-700"
+                  >
+                    Update key in Settings →
+                  </a>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 mt-3">
               <Button size="sm" variant="outline" onClick={() => validateKeys.mutate()} disabled={validateKeys.isPending || configs.length === 0 || hasMissingKeys}>
                 <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />{validateKeys.isPending ? "Validating…" : "Validate Keys"}
@@ -913,7 +931,7 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                 size="sm"
                 className="bg-red-600 hover:bg-red-700 text-white"
                 onClick={() => goLive.mutate()}
-                disabled={goLive.isPending || !allValidated || hasMissingKeys || hasPendingConfigs}
+                disabled={goLive.isPending || !allValidated || hasMissingKeys || hasPendingConfigs || restreamKeyExpired}
               >
                 <MonitorPlay className="w-3.5 h-3.5 mr-1.5" />{goLive.isPending ? "Going Live…" : "🔴 Go Live"}
               </Button>
