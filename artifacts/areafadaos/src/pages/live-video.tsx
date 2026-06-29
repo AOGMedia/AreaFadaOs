@@ -393,6 +393,36 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const toggleRestreamChannel = useMutation({
+    mutationFn: ({ channelId, enabled }: { channelId: number; enabled: boolean }) =>
+      apiFetch(`/live-sessions/${session.id}/restream-channel/${channelId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      }),
+    onMutate: async ({ channelId, enabled }) => {
+      await qc.cancelQueries({ queryKey: ["restream-channels-preview"] });
+      await qc.cancelQueries({ queryKey: ["live-restream-channels", session.id] });
+      const prevPreview = qc.getQueryData<RestreamChannelsResult>(["restream-channels-preview"]);
+      const prevLive = qc.getQueryData<RestreamChannelsResult>(["live-restream-channels", session.id]);
+      const patch = (data: RestreamChannelsResult | undefined) =>
+        data ? { ...data, channels: data.channels.map(ch => ch.id === channelId ? { ...ch, active: enabled } : ch) } : data;
+      qc.setQueryData(["restream-channels-preview"], patch);
+      qc.setQueryData(["live-restream-channels", session.id], patch);
+      return { prevPreview, prevLive };
+    },
+    onError: (e: Error, _vars, ctx: any) => {
+      if (ctx?.prevPreview) qc.setQueryData(["restream-channels-preview"], ctx.prevPreview);
+      if (ctx?.prevLive) qc.setQueryData(["live-restream-channels", session.id], ctx.prevLive);
+      toast({ title: "Failed to update channel", description: e.message, variant: "destructive" });
+    },
+    onSuccess: (_data, { enabled }) => {
+      qc.invalidateQueries({ queryKey: ["restream-channels-preview"] });
+      qc.invalidateQueries({ queryKey: ["live-restream-channels", session.id] });
+      toast({ title: enabled ? "Channel enabled" : "Channel disabled" });
+    },
+  });
+
   const validateKeys = useMutation({
     mutationFn: () => apiFetch(`/live-sessions/${session.id}/validate-stream-keys`, { method: "POST" }),
     onSuccess: (data: ValidationResult) => {
@@ -520,22 +550,36 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                     </div>
                   </div>
                 )}
-                <div className="rounded-md border border-gray-200 bg-white/60 px-2.5 py-2 space-y-1">
+                <div className="rounded-md border border-gray-200 bg-white/60 px-2.5 py-2 space-y-1.5">
                   <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Live Channel Status</p>
-                  {liveRestreamChannels.channels.map(ch => (
-                    <div key={ch.id} className="flex items-center gap-1.5 text-xs">
-                      {ch.active ? (
-                        <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0" />
-                      ) : (
-                        <AlertCircle className="w-3 h-3 text-red-500 shrink-0 animate-pulse" />
-                      )}
-                      <span className={ch.active ? "text-emerald-700" : "text-red-700 font-medium"}>
-                        {ch.displayName}
-                        <span className="ml-1 opacity-60 font-normal">({ch.platform})</span>
-                        {!ch.active && <span className="ml-1 text-red-600">— dropped</span>}
-                      </span>
-                    </div>
-                  ))}
+                  {liveRestreamChannels.channels.map(ch => {
+                    const isPending = toggleRestreamChannel.isPending && (toggleRestreamChannel.variables as any)?.channelId === ch.id;
+                    return (
+                      <div key={ch.id} className="flex items-center gap-1.5 text-xs">
+                        {ch.active ? (
+                          <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-3 h-3 text-red-500 shrink-0 animate-pulse" />
+                        )}
+                        <span className={`flex-1 ${ch.active ? "text-emerald-700" : "text-red-700 font-medium"}`}>
+                          {ch.displayName}
+                          <span className="ml-1 opacity-60 font-normal">({ch.platform})</span>
+                          {!ch.active && <span className="ml-1 text-red-600">— dropped</span>}
+                        </span>
+                        <button
+                          disabled={isPending}
+                          onClick={() => toggleRestreamChannel.mutate({ channelId: ch.id, enabled: !ch.active })}
+                          className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold border transition-colors disabled:opacity-50 ${
+                            ch.active
+                              ? "border-gray-300 text-gray-600 hover:bg-gray-100 hover:border-gray-400"
+                              : "border-emerald-400 text-emerald-700 hover:bg-emerald-50"
+                          }`}
+                        >
+                          {isPending ? "…" : ch.active ? "Disable" : "Enable"}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -753,21 +797,35 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
               )}
 
               {!restreamChannelsLoading && restreamChannels?.ok && restreamChannels.channels.length > 0 && (
-                <ul className="space-y-1">
-                  {restreamChannels.channels.map(ch => (
-                    <li key={ch.id} className="flex items-center gap-1.5 text-xs">
-                      {ch.active ? (
-                        <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0" />
-                      ) : (
-                        <Circle className="w-3 h-3 text-amber-500 shrink-0" />
-                      )}
-                      <span className={ch.active ? "text-emerald-700" : "text-amber-700"}>
-                        {ch.displayName}
-                        <span className="ml-1 opacity-60 font-normal">({ch.platform})</span>
-                        {!ch.active && <span className="ml-1 text-amber-600 font-medium">— disabled</span>}
-                      </span>
-                    </li>
-                  ))}
+                <ul className="space-y-1.5">
+                  {restreamChannels.channels.map(ch => {
+                    const isPending = toggleRestreamChannel.isPending && (toggleRestreamChannel.variables as any)?.channelId === ch.id;
+                    return (
+                      <li key={ch.id} className="flex items-center gap-1.5 text-xs">
+                        {ch.active ? (
+                          <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0" />
+                        ) : (
+                          <Circle className="w-3 h-3 text-amber-500 shrink-0" />
+                        )}
+                        <span className={`flex-1 ${ch.active ? "text-emerald-700" : "text-amber-700"}`}>
+                          {ch.displayName}
+                          <span className="ml-1 opacity-60 font-normal">({ch.platform})</span>
+                          {!ch.active && <span className="ml-1 text-amber-600 font-medium">— disabled</span>}
+                        </span>
+                        <button
+                          disabled={isPending}
+                          onClick={() => toggleRestreamChannel.mutate({ channelId: ch.id, enabled: !ch.active })}
+                          className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold border transition-colors disabled:opacity-50 ${
+                            ch.active
+                              ? "border-gray-300 text-gray-600 hover:bg-gray-100 hover:border-gray-400"
+                              : "border-emerald-400 text-emerald-700 hover:bg-emerald-50"
+                          }`}
+                        >
+                          {isPending ? "…" : ch.active ? "Disable" : "Enable"}
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

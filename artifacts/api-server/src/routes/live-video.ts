@@ -1727,6 +1727,69 @@ router.get("/live-sessions/:id/restream-channels", ...requireLive, async (req: a
   }
 });
 
+// ─── PATCH /live-sessions/:id/restream-channel/:channelId ────────────────────
+// Enables or disables a single Restream destination channel without leaving the
+// broadcast screen. Calls Restream's PATCH /v2/channel/:id and returns the
+// updated channel state so the UI can update optimistically.
+router.patch("/live-sessions/:id/restream-channel/:channelId", ...requireLive, async (req: any, res): Promise<void> => {
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const [session] = await db.select().from(liveSessionsTable)
+      .where(and(eq(liveSessionsTable.id, Number(req.params.id)), eq(liveSessionsTable.userId, user.id)));
+    if (!session) { res.status(404).json({ error: "Session not found" }); return; }
+
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") {
+      res.status(400).json({ error: "enabled (boolean) is required" });
+      return;
+    }
+
+    const dbKeys = await getDbUserLiveApiKeys(user.id);
+    const apiKey = process.env.RESTREAM_API_KEY || dbKeys.restreamApiKey;
+
+    if (!apiKey) {
+      res.status(422).json({ error: "No Restream API key configured. Add one in Settings → Live API Keys." });
+      return;
+    }
+
+    const channelId = Number(req.params.channelId);
+    if (isNaN(channelId)) { res.status(400).json({ error: "Invalid channelId" }); return; }
+
+    const patchRes = await fetch(`https://api.restream.io/v2/channel/${channelId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (patchRes.status === 401 || patchRes.status === 403) {
+      res.status(401).json({ error: "Restream API key is invalid or expired. Update it in Settings → Live API Keys." });
+      return;
+    }
+    if (patchRes.status === 404) {
+      res.status(404).json({ error: `Restream channel ${channelId} not found. It may have been deleted from your Restream account.` });
+      return;
+    }
+    if (!patchRes.ok) {
+      const text = await patchRes.text().catch(() => patchRes.statusText);
+      res.status(502).json({ error: `Restream returned ${patchRes.status}: ${text}` });
+      return;
+    }
+
+    const updated = await patchRes.json().catch(() => ({ id: channelId, enabled }));
+    res.json({ ok: true, channelId, enabled, channel: updated });
+  } catch (err: any) {
+    if (err?.name === "TimeoutError" || err?.code === "ABORT_ERR") {
+      res.status(504).json({ error: "Request to Restream timed out." });
+    } else {
+      console.error(err);
+      res.status(500).json({ error: "Failed to update Restream channel" });
+    }
+  }
+});
+
 // GET /live-notification-events — delivery log for current user's sessions
 router.get("/live-notification-events", ...requireLive, async (req: any, res): Promise<void> => {
   try {
