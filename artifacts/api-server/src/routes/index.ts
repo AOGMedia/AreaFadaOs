@@ -15,9 +15,13 @@ import fanHubRouter from "./fan-hub";
 import campaignIntelligenceRouter from "./campaign-intelligence";
 import mediaPartnersRouter from "./media-partners";
 import oauthRouter from "./oauth";
+import webhookClerkRouter from "./webhook-clerk";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
+router.use(webhookClerkRouter);
+router.use(adminRouter);
 router.use(healthRouter);
 router.use(usersRouter);
 router.use(dashboardRouter);

@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Send,
   Globe,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ interface NavItem {
   icon: React.ReactNode;
   moduleKey: string | null;
   requiredTier?: string;
+  enterpriseOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -48,6 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Fan Hub", path: "/fan-hub", icon: <Star className="w-4 h-4" />, moduleKey: "fanHub", requiredTier: "agency" },
   { label: "Intelligence", path: "/intelligence", icon: <BarChart3 className="w-4 h-4" />, moduleKey: "campaignIntelligence", requiredTier: "enterprise" },
   { label: "Media Partners", path: "/media-partners", icon: <Globe className="w-4 h-4" />, moduleKey: "ambassadorCrm", requiredTier: "agency" },
+  { label: "Admin", path: "/admin", icon: <Shield className="w-4 h-4" />, moduleKey: null, requiredTier: "enterprise", enterpriseOnly: true },
 ];
 
 const TIER_BADGE: Record<string, string> = {
@@ -96,7 +99,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5" data-testid="sidebar-nav">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => !item.enterpriseOnly || tier?.tier === "enterprise").map((item) => {
           const unlocked = item.moduleKey === null || (moduleAccess?.[item.moduleKey as string] ?? false);
           const isActive = location === item.path;
 

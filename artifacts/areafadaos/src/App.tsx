@@ -27,6 +27,7 @@ import { MediaPartnersPage } from "@/pages/media-partners";
 import { InviteLandingPage } from "@/pages/invite-landing";
 import { AmbassadorPortalPage } from "@/pages/ambassador-portal";
 import { createModulePage } from "@/pages/module-placeholder";
+import { AdminPage } from "@/pages/admin";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -265,6 +266,10 @@ function ClerkProviderWithRoutes() {
             </Route>
             <Route path="/invite/:token" component={InviteLandingPage} />
             <Route path="/ambassador-portal" component={AmbassadorPortalPage} />
+
+            <Route path="/admin">
+              <AuthRequired><AdminPage /></AuthRequired>
+            </Route>
 
             <Route component={NotFound} />
           </Switch>
