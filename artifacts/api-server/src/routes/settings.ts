@@ -356,6 +356,115 @@ router.post("/settings/live-api-keys/test-restream", requireAuth, async (req: an
   }
 });
 
+// POST /settings/live-api-keys/test-youtube — validate a YouTube Data API key
+router.post("/settings/live-api-keys/test-youtube", requireAuth, async (req: any, res): Promise<void> => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  let apiKey: string | null = (req.body as { apiKey?: string }).apiKey?.trim() || null;
+
+  if (!apiKey) {
+    if (process.env.YOUTUBE_API_KEY) {
+      apiKey = process.env.YOUTUBE_API_KEY;
+    } else {
+      const rows = await db.select()
+        .from(platformOauthConfigsTable)
+        .where(and(
+          eq(platformOauthConfigsTable.userId, user.id),
+          eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.youtube),
+        ));
+      apiKey = rows[0]?.appId ?? null;
+    }
+  }
+
+  if (!apiKey) {
+    res.status(422).json({ ok: false, error: "No YouTube API key configured. Save or paste a key first." });
+    return;
+  }
+
+  try {
+    // Use a public endpoint that works with a server-side API key (no OAuth required)
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=id&chart=mostPopular&maxResults=1&key=${encodeURIComponent(apiKey)}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+
+    if (response.status === 400 || response.status === 403) {
+      const body = await response.json().catch(() => ({})) as any;
+      const reason = body?.error?.errors?.[0]?.reason ?? body?.error?.message ?? null;
+      res.json({ ok: false, invalid: true, reason });
+      return;
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      res.json({ ok: false, error: `YouTube returned ${response.status}: ${text}` });
+      return;
+    }
+
+    res.json({ ok: true });
+  } catch (err: any) {
+    if (err?.name === "TimeoutError" || err?.code === "ABORT_ERR") {
+      res.status(504).json({ ok: false, error: "Request to YouTube timed out. Check your network or try again." });
+    } else {
+      res.status(502).json({ ok: false, error: err?.message ?? "Failed to reach YouTube API." });
+    }
+  }
+});
+
+// POST /settings/live-api-keys/test-instagram — validate an Instagram Graph API access token
+router.post("/settings/live-api-keys/test-instagram", requireAuth, async (req: any, res): Promise<void> => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  let token: string | null = (req.body as { token?: string }).token?.trim() || null;
+
+  if (!token) {
+    if (process.env.INSTAGRAM_ACCESS_TOKEN) {
+      token = process.env.INSTAGRAM_ACCESS_TOKEN;
+    } else {
+      const rows = await db.select()
+        .from(platformOauthConfigsTable)
+        .where(and(
+          eq(platformOauthConfigsTable.userId, user.id),
+          eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.instagram),
+        ));
+      const igRow = rows[0];
+      token = igRow?.appSecret ? decryptToken(igRow.appSecret) : null;
+    }
+  }
+
+  if (!token) {
+    res.status(422).json({ ok: false, error: "No Instagram access token configured. Save or paste a token first." });
+    return;
+  }
+
+  try {
+    const url = `https://graph.instagram.com/me?fields=id,name&access_token=${encodeURIComponent(token)}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+
+    if (response.status === 401 || response.status === 400 || response.status === 403) {
+      const body = await response.json().catch(() => ({})) as any;
+      const reason = body?.error?.message ?? null;
+      res.json({ ok: false, invalid: true, reason });
+      return;
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      res.json({ ok: false, error: `Instagram returned ${response.status}: ${text}` });
+      return;
+    }
+
+    const data = await response.json() as any;
+    res.json({ ok: true, accountId: data?.id ?? null, accountName: data?.name ?? null });
+  } catch (err: any) {
+    if (err?.name === "TimeoutError" || err?.code === "ABORT_ERR") {
+      res.status(504).json({ ok: false, error: "Request to Instagram timed out. Check your network or try again." });
+    } else {
+      res.status(502).json({ ok: false, error: err?.message ?? "Failed to reach Instagram API." });
+    }
+  }
+});
+
 // GET /settings/live-api-keys/restream-channels — fetch destination channels using the stored key
 router.get("/settings/live-api-keys/restream-channels", requireAuth, async (req: any, res): Promise<void> => {
   const user = await getDbUser(req.clerkUserId);

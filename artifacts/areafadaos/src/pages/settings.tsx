@@ -270,6 +270,20 @@ interface RestreamChannel {
   active: boolean;
 }
 
+interface SimpleTestResult {
+  ok: boolean;
+  invalid?: boolean;
+  error?: string;
+  reason?: string | null;
+}
+
+interface YoutubeTestResult extends SimpleTestResult {}
+
+interface InstagramTestResult extends SimpleTestResult {
+  accountId?: string | null;
+  accountName?: string | null;
+}
+
 interface RestreamTestResult {
   ok: boolean;
   invalid?: boolean;
@@ -296,6 +310,10 @@ function LiveApiKeysCard({
   const [showYt, setShowYt] = useState(false);
   const [showIg, setShowIg] = useState(false);
   const [showRst, setShowRst] = useState(false);
+  const [testingYoutube, setTestingYoutube] = useState(false);
+  const [youtubeTestResult, setYoutubeTestResult] = useState<YoutubeTestResult | null>(null);
+  const [testingInstagram, setTestingInstagram] = useState(false);
+  const [instagramTestResult, setInstagramTestResult] = useState<InstagramTestResult | null>(null);
   const [testingRestream, setTestingRestream] = useState(false);
   const [restreamTestResult, setRestreamTestResult] = useState<RestreamTestResult | null>(null);
 
@@ -303,7 +321,43 @@ function LiveApiKeysCard({
   const igStatus = data?.instagram;
   const rstStatus = data?.restream;
 
+  const canTestYoutube = !!(youtubeApiKey || ytStatus?.configured || ytStatus?.envOverride);
+  const canTestInstagram = !!(instagramAccessToken || igStatus?.configured || igStatus?.envOverride);
   const canTestRestream = !!(restreamApiKey || rstStatus?.configured || rstStatus?.envOverride);
+
+  async function testYoutubeConnection() {
+    setTestingYoutube(true);
+    setYoutubeTestResult(null);
+    try {
+      const result = await apiFetch("/settings/live-api-keys/test-youtube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(youtubeApiKey ? { apiKey: youtubeApiKey } : {}),
+      });
+      setYoutubeTestResult(result as YoutubeTestResult);
+    } catch (err: any) {
+      setYoutubeTestResult({ ok: false, error: err?.message ?? "Request failed." });
+    } finally {
+      setTestingYoutube(false);
+    }
+  }
+
+  async function testInstagramConnection() {
+    setTestingInstagram(true);
+    setInstagramTestResult(null);
+    try {
+      const result = await apiFetch("/settings/live-api-keys/test-instagram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(instagramAccessToken ? { token: instagramAccessToken } : {}),
+      });
+      setInstagramTestResult(result as InstagramTestResult);
+    } catch (err: any) {
+      setInstagramTestResult({ ok: false, error: err?.message ?? "Request failed." });
+    } finally {
+      setTestingInstagram(false);
+    }
+  }
 
   async function testRestreamConnection() {
     setTestingRestream(true);
@@ -374,7 +428,10 @@ function LiveApiKeysCard({
             <Input
               type={showYt ? "text" : "password"}
               value={youtubeApiKey}
-              onChange={e => setYoutubeApiKey(e.target.value)}
+              onChange={e => {
+                setYoutubeApiKey(e.target.value);
+                setYoutubeTestResult(null);
+              }}
               placeholder={ytStatus?.configured || ytStatus?.envOverride ? "Leave blank to keep existing key" : "AIza…"}
               className="h-8 text-sm font-mono pr-9"
               disabled={!!ytStatus?.envOverride}
@@ -387,6 +444,51 @@ function LiveApiKeysCard({
               {showYt ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
+
+          {/* Test Connection button */}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs px-3 w-full"
+            disabled={testingYoutube || !canTestYoutube}
+            onClick={testYoutubeConnection}
+          >
+            {testingYoutube ? (
+              <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Testing…</>
+            ) : (
+              <><Wifi className="w-3 h-3 mr-1.5" />Test Connection</>
+            )}
+          </Button>
+
+          {/* Inline test results */}
+          {youtubeTestResult && (
+            <div className={`rounded-lg border p-3 text-xs ${
+              youtubeTestResult.ok
+                ? "bg-emerald-50 border-emerald-200"
+                : youtubeTestResult.invalid
+                ? "bg-red-50 border-red-200"
+                : "bg-amber-50 border-amber-200"
+            }`}>
+              {youtubeTestResult.ok ? (
+                <div className="flex items-center gap-1.5 font-medium text-emerald-700">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Key valid — YouTube Data API accepted the credentials.
+                </div>
+              ) : youtubeTestResult.invalid ? (
+                <div className="flex items-center gap-1.5 font-medium text-red-700">
+                  <WifiOff className="w-3.5 h-3.5" />
+                  Invalid key — YouTube rejected the credentials.{youtubeTestResult.reason ? ` (${youtubeTestResult.reason})` : " Double-check your API key."}
+                </div>
+              ) : (
+                <div className="flex items-start gap-1.5 text-amber-700">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{youtubeTestResult.error ?? "Connection test failed."}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {ytStatus?.envOverride && (
             <p className="text-[11px] text-blue-600">Set via server environment variable — to override, clear the env var first.</p>
           )}
@@ -428,7 +530,10 @@ function LiveApiKeysCard({
             <Input
               type={showIg ? "text" : "password"}
               value={instagramAccessToken}
-              onChange={e => setInstagramAccessToken(e.target.value)}
+              onChange={e => {
+                setInstagramAccessToken(e.target.value);
+                setInstagramTestResult(null);
+              }}
               placeholder={igStatus?.configured || igStatus?.envOverride ? "Leave blank to keep existing token" : "EAAa…"}
               className="h-8 text-sm font-mono pr-9"
               disabled={!!igStatus?.envOverride}
@@ -441,6 +546,51 @@ function LiveApiKeysCard({
               {showIg ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
           </div>
+
+          {/* Test Connection button */}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs px-3 w-full"
+            disabled={testingInstagram || !canTestInstagram}
+            onClick={testInstagramConnection}
+          >
+            {testingInstagram ? (
+              <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" />Testing…</>
+            ) : (
+              <><Wifi className="w-3 h-3 mr-1.5" />Test Connection</>
+            )}
+          </Button>
+
+          {/* Inline test results */}
+          {instagramTestResult && (
+            <div className={`rounded-lg border p-3 text-xs ${
+              instagramTestResult.ok
+                ? "bg-emerald-50 border-emerald-200"
+                : instagramTestResult.invalid
+                ? "bg-red-50 border-red-200"
+                : "bg-amber-50 border-amber-200"
+            }`}>
+              {instagramTestResult.ok ? (
+                <div className="flex items-center gap-1.5 font-medium text-emerald-700">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Token valid{instagramTestResult.accountName ? ` — connected as ${instagramTestResult.accountName}` : " — Instagram Graph API accepted the token."}
+                </div>
+              ) : instagramTestResult.invalid ? (
+                <div className="flex items-center gap-1.5 font-medium text-red-700">
+                  <WifiOff className="w-3.5 h-3.5" />
+                  Invalid token — Instagram rejected the credentials.{instagramTestResult.reason ? ` (${instagramTestResult.reason})` : " Double-check your access token."}
+                </div>
+              ) : (
+                <div className="flex items-start gap-1.5 text-amber-700">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{instagramTestResult.error ?? "Connection test failed."}</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {igStatus?.envOverride && (
             <p className="text-[11px] text-blue-600">Set via server environment variable — to override, clear the env var first.</p>
           )}
