@@ -14,6 +14,7 @@ import trafficRouter from "./traffic";
 import fanHubRouter from "./fan-hub";
 import campaignIntelligenceRouter from "./campaign-intelligence";
 import mediaPartnersRouter from "./media-partners";
+import oauthRouter from "./oauth";
 
 const router: IRouter = Router();
 
@@ -32,5 +33,6 @@ router.use(trafficRouter);
 router.use(fanHubRouter);
 router.use(campaignIntelligenceRouter);
 router.use(mediaPartnersRouter);
+router.use(oauthRouter);
 
 export default router;

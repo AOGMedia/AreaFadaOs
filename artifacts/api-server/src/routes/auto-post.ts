@@ -16,6 +16,7 @@ import {
 import { eq, desc, and, gte, lte, isNull, inArray } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
+import { executePublishJob } from "../lib/platformPublisher.js";
 
 const router = Router();
 const requirePost = [requireAuth, requireTier("brand")];
@@ -423,8 +424,17 @@ router.post("/auto-post/drafts/:id/publish", ...requirePost, async (req: any, re
       updatedAt: new Date(),
     }).where(eq(postDraftsTable.id, draft.id));
 
+    // Fire-and-forget immediate publish for non-scheduled jobs
+    if (!scheduledAt) {
+      for (const job of created) {
+        executePublishJob(job.id).catch((err) =>
+          console.error(`[publish] job ${job.id} error:`, err?.message ?? err)
+        );
+      }
+    }
+
     res.status(201).json({
-      message: `${created.length} publish job(s) created.${truncationWarnings.length ? " Captions auto-truncated: " + truncationWarnings.join("; ") + "." : ""} Actual push stubbed — connect platform accounts to enable live posting.`,
+      message: `${created.length} publish job(s) ${scheduledAt ? "scheduled" : "queued for publishing"}.${truncationWarnings.length ? " Captions auto-truncated: " + truncationWarnings.join("; ") + "." : ""}`,
       jobs: created,
       truncationWarnings,
     });

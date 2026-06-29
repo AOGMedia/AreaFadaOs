@@ -1209,19 +1209,65 @@ function RecycleDialog({ post, open, onClose }: { post: any; open: boolean; onCl
 
 // ── Connect Account Banner ───────────────────────────────────────────────
 
+const PLATFORM_OAUTH: { platform: string; label: string; color: string; textColor: string }[] = [
+  { platform: "x",         label: "X / Twitter", color: "bg-black hover:bg-zinc-800",       textColor: "text-white" },
+  { platform: "instagram", label: "Instagram",   color: "bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 hover:opacity-90", textColor: "text-white" },
+  { platform: "facebook",  label: "Facebook",    color: "bg-blue-600 hover:bg-blue-700",     textColor: "text-white" },
+  { platform: "tiktok",    label: "TikTok",      color: "bg-zinc-900 hover:bg-zinc-800",     textColor: "text-white" },
+];
+
+function connectOAuthUrl(platform: string): string {
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  return `${base}/api/oauth/${platform}/start`;
+}
+
 function ConnectBanner({ accounts }: { accounts: any[] }) {
-  const connected = accounts.filter((a) => a.connected).length;
-  if (connected > 0) return null;
+  const { toast } = useToast();
+  const connected = accounts.filter((a) => a.connected);
+  const disconnected = PLATFORM_OAUTH.filter(
+    (p) => !connected.some((a) => a.platform === p.platform)
+  );
+
+  // Show OAuth result toast when returning from OAuth redirect
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get("oauth_success");
+    const error = params.get("oauth_error");
+    if (success || error) {
+      // Clear params without reload
+      const clean = window.location.pathname;
+      window.history.replaceState({}, "", clean);
+      if (success) {
+        setTimeout(() => toast({ title: `${success} connected!`, description: "Your account is now live." }), 100);
+      } else if (error) {
+        setTimeout(() => toast({ title: "Connection failed", description: decodeURIComponent(error), variant: "destructive" }), 100);
+      }
+    }
+  }
+
+  if (disconnected.length === 0) return null;
+
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm mb-4">
-      <Link className="w-4 h-4 text-amber-600 shrink-0" />
-      <div className="flex-1">
-        <span className="font-medium text-amber-800">Connect your social accounts</span>
-        <span className="text-amber-700 ml-1">to start publishing. Platform OAuth integration coming soon.</span>
+    <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 mb-4 space-y-3">
+      <div className="flex items-center gap-2 text-sm">
+        <Link className="w-4 h-4 text-amber-600 shrink-0" />
+        <span className="font-medium text-amber-800">Connect your social accounts to start publishing</span>
       </div>
-      <Button size="sm" variant="outline" className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100">
-        Connect accounts
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        {disconnected.map(({ platform, label, color, textColor }) => (
+          <a
+            key={platform}
+            href={connectOAuthUrl(platform)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-opacity ${color} ${textColor}`}
+          >
+            <Link className="w-3 h-3" />
+            Connect {label}
+          </a>
+        ))}
+      </div>
+      {connected.length > 0 && (
+        <p className="text-xs text-amber-700">{connected.length} account{connected.length > 1 ? "s" : ""} already connected.</p>
+      )}
     </div>
   );
 }

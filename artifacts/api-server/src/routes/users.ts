@@ -75,6 +75,15 @@ const TIER_FEATURES: Record<string, { name: string; price: number | null; featur
   },
 };
 
+const ENTERPRISE_EMAILS = new Set([
+  "osejialexander77@gmail.com",
+]);
+
+function resolveInitialTier(email?: string): string {
+  if (email && ENTERPRISE_EMAILS.has(email.toLowerCase())) return "enterprise";
+  return "creator";
+}
+
 async function getOrCreateUser(clerkId: string, email?: string, name?: string) {
   const existing = await db.select().from(usersTable).where(eq(usersTable.clerkId, clerkId)).limit(1);
   if (existing.length > 0) return existing[0];
@@ -83,14 +92,23 @@ async function getOrCreateUser(clerkId: string, email?: string, name?: string) {
     clerkId,
     email: email || `${clerkId}@areafadaos.app`,
     displayName: name || "Area Fada",
-    tier: "creator",
+    tier: resolveInitialTier(email),
   }).returning();
   return created;
 }
 
 router.get("/users/me", requireAuth, async (req: any, res): Promise<void> => {
   try {
-    const user = await getOrCreateUser(req.clerkUserId);
+    let user = await getOrCreateUser(req.clerkUserId);
+
+    if (ENTERPRISE_EMAILS.has(user.email.toLowerCase()) && user.tier !== "enterprise") {
+      const [upgraded] = await db.update(usersTable)
+        .set({ tier: "enterprise", updatedAt: new Date() })
+        .where(eq(usersTable.clerkId, req.clerkUserId))
+        .returning();
+      user = upgraded;
+    }
+
     res.json({
       id: user.id,
       clerkId: user.clerkId,

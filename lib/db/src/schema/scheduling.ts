@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -67,7 +67,7 @@ export const platformAccountsTable = pgTable("platform_accounts", {
   errorCode: text("error_code"),
   updatedAt: timestamp("updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [uniqueIndex("platform_accounts_user_platform_idx").on(t.userId, t.platform)]);
 
 export const hashtagCacheTable = pgTable("hashtag_cache", {
   id: serial("id").primaryKey(),
