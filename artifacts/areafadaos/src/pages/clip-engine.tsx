@@ -508,8 +508,15 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
       setSendModalOpen(false);
       setEmailList([]);
       setEmailInput("");
-      const delivered = r.status === "simulated" ? "queued (configure RESEND_API_KEY for live delivery)" : "sent";
-      toast({ title: "Schedule emailed!", description: `${r.scheduleCount} clip${r.scheduleCount !== 1 ? "s" : ""} ${delivered} to ${r.recipients} recipient${r.recipients !== 1 ? "s" : ""}` });
+      if (r.status === "simulated") {
+        toast({
+          title: "⚠️ Email simulated (dev mode)",
+          description: `No email was actually delivered. Set RESEND_API_KEY to enable real delivery. Would have sent ${r.scheduleCount} clip${r.scheduleCount !== 1 ? "s" : ""} to ${r.recipients} recipient${r.recipients !== 1 ? "s" : ""}.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Schedule emailed!", description: `${r.scheduleCount} clip${r.scheduleCount !== 1 ? "s" : ""} sent to ${r.recipients} recipient${r.recipients !== 1 ? "s" : ""}` });
+      }
     },
     onError: (e: Error) => toast({ title: "Failed to send", description: e.message, variant: "destructive" }),
   });

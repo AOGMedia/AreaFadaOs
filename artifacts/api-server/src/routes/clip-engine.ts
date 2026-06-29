@@ -964,6 +964,11 @@ router.post("/clip-schedules/export-email", ...requireClip, async (req: any, res
       console.info(`[clip-export-email] Sent to ${recipients.length} recipient(s). messageId=${data?.id}`);
       res.json({ status: "sent", recipients: recipients.length, scheduleCount, messageId: data?.id });
     } else {
+      if (process.env.NODE_ENV === "production") {
+        console.error("[clip-export-email] RESEND_API_KEY is not configured — refusing to silently drop email in production");
+        res.status(503).json({ error: "Email delivery is not configured. Set the RESEND_API_KEY environment variable to enable this feature." });
+        return;
+      }
       console.info(`[clip-export-email] RESEND_API_KEY not set — simulated send to: ${recipients.join(", ")}`);
       console.info(`[clip-export-email] Subject: ${subject} | ${scheduleCount} rows`);
       res.json({ status: "simulated", recipients: recipients.length, scheduleCount, note: "Set RESEND_API_KEY to enable real email delivery" });
