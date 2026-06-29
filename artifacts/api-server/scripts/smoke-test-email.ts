@@ -21,7 +21,7 @@
  *   RESEND_API_KEY   — Resend API key (set as a Replit secret)
  *
  * Optional env vars:
- *   RESEND_FROM_EMAIL — sender address (default: AreaFada OS <onboarding@resend.dev>)
+ *   RESEND_FROM_EMAIL — sender address (default: AreaFada OS <no-reply@areafada.com>)
  *   SMOKE_RECIPIENT   — recipient (default: delivered@resend.dev)
  *   SMOKE_USER_ID     — numeric DB user id (default: first user in DB)
  *   DATABASE_URL      — Postgres connection string (auto-set in Replit)
@@ -41,7 +41,7 @@ if (!key) {
 
 const resend = new Resend(key);
 const recipient = process.env.SMOKE_RECIPIENT ?? "delivered@resend.dev";
-const fromAddress = process.env.RESEND_FROM_EMAIL ?? "AreaFada OS <onboarding@resend.dev>";
+const fromAddress = process.env.RESEND_FROM_EMAIL ?? "AreaFada OS <no-reply@areafada.com>";
 
 if (fromAddress.includes("resend.dev")) {
   console.error(

@@ -255,7 +255,7 @@ section("D. RESEND_FROM_EMAIL environment variable");
 const fromEmail = process.env.RESEND_FROM_EMAIL ?? "";
 if (!fromEmail) {
   warn(
-    "RESEND_FROM_EMAIL is not set — transactional emails will fall back to onboarding@resend.dev",
+    "RESEND_FROM_EMAIL is not set — transactional emails will use the branded default no-reply@areafada.com",
     `Set RESEND_FROM_EMAIL="AreaFada OS <no-reply@${DOMAIN}>" in Replit Secrets after verifying the domain in Resend`,
   );
 } else if (fromEmail.includes("resend.dev")) {
