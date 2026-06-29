@@ -125,6 +125,20 @@ const xAccount = {
   oauthState: TEST_OAUTH_STATE_BLOB,
 };
 
+const igAccount = {
+  id: 8,
+  userId: TEST_USER_ID,
+  platform: "instagram",
+  oauthState: TEST_OAUTH_STATE_BLOB,
+};
+
+const ttAccount = {
+  id: 9,
+  userId: TEST_USER_ID,
+  platform: "tiktok",
+  oauthState: TEST_OAUTH_STATE_BLOB,
+};
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("OAuth callback route — /oauth/:platform/callback", async () => {
@@ -237,6 +251,221 @@ describe("OAuth callback route — /oauth/:platform/callback", async () => {
     assert.ok(
       (res.headers["location"] as string).includes("oauth_error=missing_code"),
       `expected oauth_error=missing_code, got: ${res.headers["location"]}`,
+    );
+  });
+});
+
+// ─── Instagram callback tests ─────────────────────────────────────────────────
+
+describe("OAuth callback route — Instagram", async () => {
+  let savedFetch: typeof globalThis.fetch;
+
+  before(() => { savedFetch = globalThis.fetch; });
+  after(() => { globalThis.fetch = savedFetch; });
+  beforeEach(() => { resetEncrypt(); });
+
+  test("full success: short-lived → long-lived token, business account found — updates DB and redirects with oauth_success", async () => {
+    resetDb([[igAccount]]);
+    globalThis.fetch = makeFetchMock(
+      // Step 1: short-lived token exchange
+      { ok: true, json: { access_token: "ig_short_lived_token" } },
+      // Step 2: long-lived token exchange
+      { ok: true, json: { access_token: "ig_long_lived_token", expires_in: 5184000 } },
+      // Step 3: pages/accounts — page with Instagram Business Account
+      {
+        ok: true,
+        json: {
+          data: [
+            {
+              id: "page_123",
+              access_token: "ig_page_token",
+              instagram_business_account: { id: "ig_biz_456" },
+            },
+          ],
+        },
+      },
+      // Step 4: me info for the business account
+      { ok: true, json: { username: "test_ig_creator", followers_count: 5000 } },
+    ) as any;
+
+    const res = await request(app).get(`/oauth/instagram/callback?code=ig_auth_code&state=${TEST_STATE}`);
+
+    assert.equal(res.status, 302, "must redirect");
+    assert.ok(
+      (res.headers["location"] as string).includes("oauth_success=instagram"),
+      `expected oauth_success=instagram, got: ${res.headers["location"]}`,
+    );
+
+    assert.ok(dbState.updatedValues, "db.update must have been called");
+    assert.equal(dbState.updatedValues.connected, true, "connected must be set to true");
+    assert.ok(
+      typeof dbState.updatedValues.accessToken === "string" && dbState.updatedValues.accessToken.length > 0,
+      "accessToken must be written to DB",
+    );
+    assert.equal(
+      dbState.updatedValues.accessToken,
+      "enc:ig_page_token",
+      "DB must store the encrypted page access token",
+    );
+    assert.notEqual(
+      dbState.updatedValues.accessToken,
+      "ig_page_token",
+      "plain page access token must never be stored in DB",
+    );
+    assert.equal(
+      dbState.updatedValues.refreshToken,
+      "enc:ig_long_lived_token",
+      "DB must store the encrypted long-lived user token as refreshToken",
+    );
+  });
+
+  test("encryptToken is called with the raw page token — never stores plain text", async () => {
+    resetDb([[igAccount]]);
+    globalThis.fetch = makeFetchMock(
+      { ok: true, json: { access_token: "raw_short_token" } },
+      { ok: true, json: { access_token: "raw_long_token", expires_in: 5184000 } },
+      {
+        ok: true,
+        json: {
+          data: [
+            {
+              id: "page_abc",
+              access_token: "raw_page_access_token",
+              instagram_business_account: { id: "ig_biz_789" },
+            },
+          ],
+        },
+      },
+      { ok: true, json: { username: "creator_handle" } },
+    ) as any;
+
+    await request(app).get(`/oauth/instagram/callback?code=c&state=${TEST_STATE}`);
+
+    assert.ok(
+      encryptState.calls.includes("raw_page_access_token"),
+      `encryptToken must be called with the raw page access token; calls were: ${JSON.stringify(encryptState.calls)}`,
+    );
+    assert.notEqual(
+      dbState.updatedValues?.accessToken,
+      "raw_page_access_token",
+      "plain page access token must not be written to DB",
+    );
+  });
+
+  test("short-lived token exchange fails — redirects with oauth_error", async () => {
+    resetDb([[igAccount]]);
+    globalThis.fetch = makeFetchMock(
+      { ok: false, json: { error: { message: "Invalid OAuth access code" } } },
+    ) as any;
+
+    const res = await request(app).get(`/oauth/instagram/callback?code=bad_code&state=${TEST_STATE}`);
+
+    assert.equal(res.status, 302);
+    const location = res.headers["location"] as string;
+    assert.ok(location.includes("oauth_error="), `expected oauth_error param, got: ${location}`);
+    assert.ok(
+      decodeURIComponent(location).includes("Invalid OAuth access code"),
+      `expected the API error message in the redirect, got: ${location}`,
+    );
+  });
+
+  test("no Instagram Business Account found — redirects with oauth_error", async () => {
+    resetDb([[igAccount]]);
+    globalThis.fetch = makeFetchMock(
+      // Step 1: short-lived token succeeds
+      { ok: true, json: { access_token: "ig_short_token" } },
+      // Step 2: long-lived token succeeds
+      { ok: true, json: { access_token: "ig_long_token", expires_in: 5184000 } },
+      // Step 3: pages list — no page has an instagram_business_account
+      { ok: true, json: { data: [{ id: "page_no_ig", access_token: "page_tok" }] } },
+    ) as any;
+
+    const res = await request(app).get(`/oauth/instagram/callback?code=ok_code&state=${TEST_STATE}`);
+
+    assert.equal(res.status, 302);
+    const location = res.headers["location"] as string;
+    assert.ok(location.includes("oauth_error="), `expected oauth_error param, got: ${location}`);
+    assert.ok(
+      decodeURIComponent(location).includes("No Instagram Business Account"),
+      `expected "No Instagram Business Account" in redirect, got: ${location}`,
+    );
+  });
+});
+
+// ─── TikTok callback tests ────────────────────────────────────────────────────
+
+describe("OAuth callback route — TikTok", async () => {
+  let savedFetch: typeof globalThis.fetch;
+
+  before(() => { savedFetch = globalThis.fetch; });
+  after(() => { globalThis.fetch = savedFetch; });
+  beforeEach(() => { resetEncrypt(); });
+
+  test("token exchange success — updates DB with encrypted token and redirects with oauth_success", async () => {
+    resetDb([[ttAccount]]);
+    globalThis.fetch = makeFetchMock(
+      // Step 1: token exchange
+      {
+        ok: true,
+        json: {
+          access_token: "tt_raw_access_token",
+          refresh_token: "tt_raw_refresh_token",
+          expires_in: 86400,
+          scope: "user.info.basic,video.list",
+          open_id: "tt_open_id_123",
+        },
+      },
+      // Step 2: user info
+      {
+        ok: true,
+        json: {
+          data: {
+            user: { username: "tt_creator", display_name: "TikTok Creator" },
+          },
+        },
+      },
+    ) as any;
+
+    const res = await request(app).get(`/oauth/tiktok/callback?code=tt_auth_code&state=${TEST_STATE}`);
+
+    assert.equal(res.status, 302, "must redirect");
+    assert.ok(
+      (res.headers["location"] as string).includes("oauth_success=tiktok"),
+      `expected oauth_success=tiktok, got: ${res.headers["location"]}`,
+    );
+
+    assert.ok(dbState.updatedValues, "db.update must have been called");
+    assert.equal(dbState.updatedValues.connected, true, "connected must be set to true");
+    assert.equal(
+      dbState.updatedValues.accessToken,
+      "enc:tt_raw_access_token",
+      "DB must store the encrypted access token",
+    );
+    assert.notEqual(
+      dbState.updatedValues.accessToken,
+      "tt_raw_access_token",
+      "plain TikTok access token must never be stored in DB",
+    );
+    assert.ok(
+      encryptState.calls.includes("tt_raw_access_token"),
+      `encryptToken must be called with the raw TikTok access token; calls were: ${JSON.stringify(encryptState.calls)}`,
+    );
+  });
+
+  test("token exchange failure — redirects with the error description from the API", async () => {
+    resetDb([[ttAccount]]);
+    globalThis.fetch = makeFetchMock(
+      { ok: false, json: { error_description: "Authorization code has expired or been used" } },
+    ) as any;
+
+    const res = await request(app).get(`/oauth/tiktok/callback?code=stale_tt_code&state=${TEST_STATE}`);
+
+    assert.equal(res.status, 302);
+    const location = res.headers["location"] as string;
+    assert.ok(location.includes("oauth_error="), `expected oauth_error param, got: ${location}`);
+    assert.ok(
+      decodeURIComponent(location).includes("Authorization code has expired or been used"),
+      `expected the TikTok error description in the redirect, got: ${location}`,
     );
   });
 });
