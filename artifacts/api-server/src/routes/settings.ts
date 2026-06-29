@@ -110,7 +110,114 @@ router.delete("/settings/credentials/:platform", requireAuth, async (req: any, r
   res.json({ ok: true });
 });
 
-export { getDbUserCredentials };
+// ─── Live API Keys (YouTube Data API / Instagram Graph API) ─────────────────
+// Stored in platformOauthConfigsTable with special platform names so they
+// share the same encrypted-at-rest pattern as OAuth credentials.
+
+const LIVE_API_PLATFORMS = {
+  youtube: "youtube_live_api",
+  instagram: "instagram_live_api",
+} as const;
+
+// GET /settings/live-api-keys — returns presence only (values never sent to client)
+router.get("/settings/live-api-keys", requireAuth, async (req: any, res): Promise<void> => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const rows = await db.select()
+    .from(platformOauthConfigsTable)
+    .where(
+      eq(platformOauthConfigsTable.userId, user.id)
+    );
+
+  const ytRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.youtube);
+  const igRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.instagram);
+
+  res.json({
+    youtube: { configured: !!(ytRow?.appId), envOverride: !!process.env.YOUTUBE_API_KEY },
+    instagram: { configured: !!(igRow?.appSecret), envOverride: !!process.env.INSTAGRAM_ACCESS_TOKEN },
+  });
+});
+
+// PUT /settings/live-api-keys — upsert one or both keys
+router.put("/settings/live-api-keys", requireAuth, async (req: any, res): Promise<void> => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { youtubeApiKey, instagramAccessToken } = req.body as { youtubeApiKey?: string; instagramAccessToken?: string };
+
+  if (youtubeApiKey !== undefined) {
+    const [existing] = await db.select({ id: platformOauthConfigsTable.id })
+      .from(platformOauthConfigsTable)
+      .where(and(eq(platformOauthConfigsTable.userId, user.id), eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.youtube)));
+
+    if (existing) {
+      await db.update(platformOauthConfigsTable)
+        .set({ appId: youtubeApiKey || null, updatedAt: new Date() })
+        .where(eq(platformOauthConfigsTable.id, existing.id));
+    } else {
+      await db.insert(platformOauthConfigsTable).values({
+        userId: user.id, platform: LIVE_API_PLATFORMS.youtube, appId: youtubeApiKey || null,
+      });
+    }
+  }
+
+  if (instagramAccessToken !== undefined) {
+    const encrypted = instagramAccessToken ? encryptToken(instagramAccessToken) : null;
+    const [existing] = await db.select({ id: platformOauthConfigsTable.id })
+      .from(platformOauthConfigsTable)
+      .where(and(eq(platformOauthConfigsTable.userId, user.id), eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.instagram)));
+
+    if (existing) {
+      await db.update(platformOauthConfigsTable)
+        .set({ appSecret: encrypted, updatedAt: new Date() })
+        .where(eq(platformOauthConfigsTable.id, existing.id));
+    } else {
+      await db.insert(platformOauthConfigsTable).values({
+        userId: user.id, platform: LIVE_API_PLATFORMS.instagram, appSecret: encrypted,
+      });
+    }
+  }
+
+  res.json({ ok: true });
+});
+
+// DELETE /settings/live-api-keys/:key — clear youtube or instagram key
+router.delete("/settings/live-api-keys/:key", requireAuth, async (req: any, res): Promise<void> => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { key } = req.params;
+  if (key === "youtube") {
+    await db.update(platformOauthConfigsTable)
+      .set({ appId: null, updatedAt: new Date() })
+      .where(and(eq(platformOauthConfigsTable.userId, user.id), eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.youtube)));
+  } else if (key === "instagram") {
+    await db.update(platformOauthConfigsTable)
+      .set({ appSecret: null, updatedAt: new Date() })
+      .where(and(eq(platformOauthConfigsTable.userId, user.id), eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.instagram)));
+  } else {
+    res.status(400).json({ error: "key must be youtube or instagram" }); return;
+  }
+
+  res.json({ ok: true });
+});
+
+export { getDbUserCredentials, getDbUserLiveApiKeys };
+
+async function getDbUserLiveApiKeys(userId: number): Promise<{ youtubeApiKey: string | null; instagramAccessToken: string | null }> {
+  const rows = await db.select()
+    .from(platformOauthConfigsTable)
+    .where(eq(platformOauthConfigsTable.userId, userId));
+
+  const ytRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.youtube);
+  const igRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.instagram);
+
+  return {
+    youtubeApiKey: ytRow?.appId ?? null,
+    instagramAccessToken: igRow?.appSecret ? decryptToken(igRow.appSecret) : null,
+  };
+}
 
 async function getDbUserCredentials(userId: number, platform: string): Promise<{ appId: string | null; appSecret: string | null }> {
   const [row] = await db.select()

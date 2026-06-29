@@ -17,6 +17,8 @@ import {
   Trash2,
   Save,
   Info,
+  Radio,
+  Youtube,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
@@ -34,6 +36,16 @@ interface CredentialStatus {
 
 interface CredentialsResponse {
   credentials: Record<string, CredentialStatus>;
+}
+
+interface LiveApiKeyStatus {
+  configured: boolean;
+  envOverride: boolean;
+}
+
+interface LiveApiKeysResponse {
+  youtube: LiveApiKeyStatus;
+  instagram: LiveApiKeyStatus;
 }
 
 const PLATFORM_CONFIG = [
@@ -241,15 +253,194 @@ function PlatformCredentialCard({
   );
 }
 
+function LiveApiKeysCard({
+  data,
+  onSave,
+  onClear,
+  isSaving,
+  isClearing,
+}: {
+  data: LiveApiKeysResponse | undefined;
+  onSave: (youtubeApiKey?: string, instagramAccessToken?: string) => void;
+  onClear: (key: "youtube" | "instagram") => void;
+  isSaving: boolean;
+  isClearing: string | null;
+}) {
+  const [youtubeApiKey, setYoutubeApiKey] = useState("");
+  const [instagramAccessToken, setInstagramAccessToken] = useState("");
+  const [showYt, setShowYt] = useState(false);
+  const [showIg, setShowIg] = useState(false);
+
+  const ytStatus = data?.youtube;
+  const igStatus = data?.instagram;
+
+  return (
+    <Card className="border-red-200 bg-red-50/20">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+            <Radio className="w-4 h-4 text-red-600" />
+          </div>
+          <div>
+            <CardTitle className="text-sm font-semibold">Live Viewer API Keys</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Required for real-time viewer counts during live sessions (polled every 15 s)
+            </p>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-5">
+        <div className={`flex items-start gap-2 p-2.5 rounded-lg text-xs bg-blue-50 border border-blue-200`}>
+          <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-500" />
+          <span className="text-blue-700 leading-relaxed">
+            Keys are encrypted before storage and never sent back to the browser.
+            Without them, the live panel shows last-known stored counts instead of real-time numbers.
+          </span>
+        </div>
+
+        {/* YouTube API Key */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium flex items-center gap-1.5">
+              <Youtube className="w-3.5 h-3.5 text-red-500" /> YouTube Data API Key
+              {ytStatus?.envOverride && (
+                <Badge variant="outline" className="text-[10px] py-0 h-4 text-blue-600 border-blue-300 ml-1">env override</Badge>
+              )}
+              {!ytStatus?.envOverride && ytStatus?.configured && (
+                <Badge variant="outline" className="text-[10px] py-0 h-4 text-emerald-600 border-emerald-300 ml-1">saved</Badge>
+              )}
+            </Label>
+            {ytStatus?.configured && !ytStatus?.envOverride && (
+              <button
+                type="button"
+                className="text-[11px] text-destructive hover:underline flex items-center gap-0.5"
+                onClick={() => onClear("youtube")}
+                disabled={isClearing === "youtube"}
+              >
+                <Trash2 className="w-3 h-3" /> {isClearing === "youtube" ? "Clearing…" : "Clear"}
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <Input
+              type={showYt ? "text" : "password"}
+              value={youtubeApiKey}
+              onChange={e => setYoutubeApiKey(e.target.value)}
+              placeholder={ytStatus?.configured || ytStatus?.envOverride ? "Leave blank to keep existing key" : "AIza…"}
+              className="h-8 text-sm font-mono pr-9"
+              disabled={!!ytStatus?.envOverride}
+            />
+            <button
+              type="button"
+              onClick={() => setShowYt(v => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showYt ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          {ytStatus?.envOverride && (
+            <p className="text-[11px] text-blue-600">Set via server environment variable — to override, clear the env var first.</p>
+          )}
+          {!ytStatus?.envOverride && (
+            <p className="text-[11px] text-muted-foreground">
+              Get a key at{" "}
+              <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline">
+                console.cloud.google.com
+              </a>{" "}
+              → APIs &amp; Services → Credentials. Enable the YouTube Data API v3.
+            </p>
+          )}
+        </div>
+
+        {/* Instagram Access Token */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium flex items-center gap-1.5">
+              <span className="text-[13px]">📸</span> Instagram Graph API Access Token
+              {igStatus?.envOverride && (
+                <Badge variant="outline" className="text-[10px] py-0 h-4 text-blue-600 border-blue-300 ml-1">env override</Badge>
+              )}
+              {!igStatus?.envOverride && igStatus?.configured && (
+                <Badge variant="outline" className="text-[10px] py-0 h-4 text-emerald-600 border-emerald-300 ml-1">saved</Badge>
+              )}
+            </Label>
+            {igStatus?.configured && !igStatus?.envOverride && (
+              <button
+                type="button"
+                className="text-[11px] text-destructive hover:underline flex items-center gap-0.5"
+                onClick={() => onClear("instagram")}
+                disabled={isClearing === "instagram"}
+              >
+                <Trash2 className="w-3 h-3" /> {isClearing === "instagram" ? "Clearing…" : "Clear"}
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <Input
+              type={showIg ? "text" : "password"}
+              value={instagramAccessToken}
+              onChange={e => setInstagramAccessToken(e.target.value)}
+              placeholder={igStatus?.configured || igStatus?.envOverride ? "Leave blank to keep existing token" : "EAAa…"}
+              className="h-8 text-sm font-mono pr-9"
+              disabled={!!igStatus?.envOverride}
+            />
+            <button
+              type="button"
+              onClick={() => setShowIg(v => !v)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showIg ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          {igStatus?.envOverride && (
+            <p className="text-[11px] text-blue-600">Set via server environment variable — to override, clear the env var first.</p>
+          )}
+          {!igStatus?.envOverride && (
+            <p className="text-[11px] text-muted-foreground">
+              Long-lived token from a Facebook App with <code className="bg-muted px-0.5 rounded">instagram_basic</code> +{" "}
+              <code className="bg-muted px-0.5 rounded">instagram_manage_insights</code> permissions.{" "}
+              <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer" className="underline">
+                developers.facebook.com
+              </a>
+            </p>
+          )}
+        </div>
+
+        <Button
+          size="sm"
+          className="w-full h-8 text-xs"
+          disabled={isSaving || (!youtubeApiKey && !instagramAccessToken)}
+          onClick={() => {
+            onSave(youtubeApiKey || undefined, instagramAccessToken || undefined);
+            setYoutubeApiKey("");
+            setInstagramAccessToken("");
+          }}
+        >
+          <Save className="w-3 h-3 mr-1.5" />
+          {isSaving ? "Saving…" : "Save Live API Keys"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [savingPlatform, setSavingPlatform] = useState<string | null>(null);
   const [clearingPlatform, setClearingPlatform] = useState<string | null>(null);
+  const [savingLiveKeys, setSavingLiveKeys] = useState(false);
+  const [clearingLiveKey, setClearingLiveKey] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery<CredentialsResponse>({
     queryKey: ["settings-credentials"],
     queryFn: () => apiFetch("/settings/credentials"),
+  });
+
+  const { data: liveApiKeysData } = useQuery<LiveApiKeysResponse>({
+    queryKey: ["settings-live-api-keys"],
+    queryFn: () => apiFetch("/settings/live-api-keys"),
   });
 
   const saveMutation = useMutation({
@@ -264,7 +455,7 @@ export function SettingsPage() {
       setSavingPlatform(null);
       toast({ title: "Credentials saved", description: `${platform} credentials have been saved.` });
     },
-    onError: (err: Error, { platform }) => {
+    onError: (err: Error) => {
       setSavingPlatform(null);
       toast({ title: "Failed to save", description: err.message, variant: "destructive" });
     },
@@ -278,8 +469,40 @@ export function SettingsPage() {
       setClearingPlatform(null);
       toast({ title: "Credentials cleared", description: `${platform} credentials removed.` });
     },
-    onError: (err: Error, platform) => {
+    onError: (err: Error) => {
       setClearingPlatform(null);
+      toast({ title: "Failed to clear", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const saveLiveKeysMutation = useMutation({
+    mutationFn: ({ youtubeApiKey, instagramAccessToken }: { youtubeApiKey?: string; instagramAccessToken?: string }) =>
+      apiFetch("/settings/live-api-keys", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ youtubeApiKey, instagramAccessToken }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] });
+      setSavingLiveKeys(false);
+      toast({ title: "Live API keys saved", description: "Viewer counts will now use your API keys." });
+    },
+    onError: (err: Error) => {
+      setSavingLiveKeys(false);
+      toast({ title: "Failed to save", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const clearLiveKeyMutation = useMutation({
+    mutationFn: (key: string) =>
+      apiFetch(`/settings/live-api-keys/${key}`, { method: "DELETE" }),
+    onSuccess: (_, key) => {
+      queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] });
+      setClearingLiveKey(null);
+      toast({ title: "Key cleared", description: `${key === "youtube" ? "YouTube API key" : "Instagram access token"} removed.` });
+    },
+    onError: (err: Error) => {
+      setClearingLiveKey(null);
       toast({ title: "Failed to clear", description: err.message, variant: "destructive" });
     },
   });
@@ -294,9 +517,38 @@ export function SettingsPage() {
     clearMutation.mutate(platform);
   };
 
+  const handleSaveLiveKeys = (youtubeApiKey?: string, instagramAccessToken?: string) => {
+    setSavingLiveKeys(true);
+    saveLiveKeysMutation.mutate({ youtubeApiKey, instagramAccessToken });
+  };
+
+  const handleClearLiveKey = (key: "youtube" | "instagram") => {
+    setClearingLiveKey(key);
+    clearLiveKeyMutation.mutate(key);
+  };
+
   return (
     <AppShell title="Settings">
-      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-6">
+      <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-8">
+        {/* ─── Live Viewer API Keys ─── */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Radio className="w-5 h-5 text-red-500" />
+            <h1 className="text-xl font-bold tracking-tight">Live Viewer API Keys</h1>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            Connect YouTube and Instagram APIs so viewer counts update automatically every 15 seconds during a live session.
+          </p>
+          <LiveApiKeysCard
+            data={liveApiKeysData}
+            onSave={handleSaveLiveKeys}
+            onClear={handleClearLiveKey}
+            isSaving={savingLiveKeys}
+            isClearing={clearingLiveKey}
+          />
+        </div>
+
+        {/* ─── Platform OAuth Credentials ─── */}
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Settings className="w-5 h-5 text-primary" />

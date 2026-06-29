@@ -19,6 +19,7 @@ import {
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "./users";
 import { requireTier } from "../middlewares/tierGuard";
+import { getDbUserLiveApiKeys } from "./settings";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -1505,8 +1506,13 @@ router.get("/live-sessions/:id/viewer-count", ...requireLive, async (req: any, r
 
     const platformCounts: Record<string, { viewers: number; source: string }> = {};
 
+    // Resolve API keys: env var takes priority, then fall back to per-user DB value
+    const dbKeys = await getDbUserLiveApiKeys(user.id);
+    const youtubeApiKey = process.env.YOUTUBE_API_KEY || dbKeys.youtubeApiKey;
+    const instagramAccessToken = process.env.INSTAGRAM_ACCESS_TOKEN || dbKeys.instagramAccessToken;
+
     // YouTube Live viewer count via YouTube Data API v3
-    if (process.env.YOUTUBE_API_KEY) {
+    if (youtubeApiKey) {
       const ytConfig = configs.find(c => c.platform === "youtube");
       if (ytConfig && ytConfig.broadcastUrl) {
         // Extract video ID from broadcast URL if possible
@@ -1514,7 +1520,7 @@ router.get("/live-sessions/:id/viewer-count", ...requireLive, async (req: any, r
         const videoId = ytVideoIdMatch?.[1];
         if (videoId) {
           try {
-            const ytUrl = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${process.env.YOUTUBE_API_KEY}`;
+            const ytUrl = `https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id=${videoId}&key=${youtubeApiKey}`;
             const ytRes = await fetch(ytUrl);
             if (ytRes.ok) {
               const ytData = (await ytRes.json()) as Record<string, any>;
@@ -1533,14 +1539,14 @@ router.get("/live-sessions/:id/viewer-count", ...requireLive, async (req: any, r
     }
 
     // Instagram Live viewer count via Instagram Graph API
-    if (process.env.INSTAGRAM_ACCESS_TOKEN) {
+    if (instagramAccessToken) {
       const igConfig = configs.find(c => c.platform === "instagram");
       if (igConfig && igConfig.broadcastUrl) {
         const igMediaIdMatch = igConfig.broadcastUrl.match(/\/(\d+)\/?$/);
         const mediaId = igMediaIdMatch?.[1];
         if (mediaId) {
           try {
-            const igUrl = `https://graph.instagram.com/${mediaId}?fields=live_status,viewer_count&access_token=${process.env.INSTAGRAM_ACCESS_TOKEN}`;
+            const igUrl = `https://graph.instagram.com/${mediaId}?fields=live_status,viewer_count&access_token=${instagramAccessToken}`;
             const igRes = await fetch(igUrl);
             if (igRes.ok) {
               const igData = (await igRes.json()) as Record<string, any>;
