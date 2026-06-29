@@ -17,7 +17,8 @@ import {
 import {
   Radio, Calendar, Settings, MessageSquare, Bell, Scissors, DollarSign, Copy,
   Plus, Play, Square, Zap, CheckCircle, Clock, Users, Eye, TrendingUp,
-  Pin, Ban, HelpCircle, Trash2, Send, RefreshCw,
+  Pin, Ban, HelpCircle, Trash2, Send, RefreshCw, ShieldCheck, AlertCircle,
+  Wifi, WifiOff, MonitorPlay, StopCircle,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
@@ -43,6 +44,34 @@ interface LiveSession {
 interface PlatformConfig {
   id: number; sessionId: number; platform: string; streamKey?: string;
   rtmpEndpoint?: string; broadcastUrl?: string; status: string;
+  validatedAt?: string; currentViewers?: number; restreamChannelId?: string;
+}
+
+interface ViewerCountData {
+  sessionId: number; totalViewers: number; peakViewers: number;
+  platforms: Record<string, { viewers: number; source: string }>;
+  apiKeysConfigured: { youtube: boolean; instagram: boolean; restream: boolean };
+  note?: string;
+}
+
+interface ValidationResult {
+  allValid: boolean; message: string;
+  validationType: "restream_api" | "format_only";
+  results: Array<{ platform: string; configId: number; valid: boolean; message: string; newStatus: string }>;
+}
+
+interface GoLiveResult {
+  message: string; session: LiveSession;
+  streamConfigs: Array<{ platform: string; rtmpEndpoint?: string; streamKey?: string; status: string; obsSetup: string; included: boolean }>;
+  restream: { connected: boolean; message: string; obsServer?: string; obsStreamKey?: string };
+  obsInstructions: {
+    mode: "restream" | "direct_multi_rtmp";
+    summary: string;
+    server?: string;
+    streamKey?: string;
+    pluginUrl?: string;
+    targets?: Array<{ platform: string; server?: string; key?: string }>;
+  };
 }
 
 interface ChatMessage {
@@ -265,13 +294,36 @@ function CalendarTab({ sessions, onSelect }: { sessions: LiveSession[]; onSelect
   );
 }
 
-function BroadcastTab({ session }: { session: LiveSession }) {
+const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
+  pending:   { label: "Pending",   cls: "bg-gray-100 text-gray-600" },
+  ready:     { label: "Ready",     cls: "bg-blue-100 text-blue-700" },
+  validated: { label: "Validated", cls: "bg-emerald-100 text-emerald-700" },
+  invalid:   { label: "Invalid",   cls: "bg-red-100 text-red-700" },
+  armed:     { label: "⚡ Armed",  cls: "bg-amber-100 text-amber-800 animate-pulse" },
+  live:      { label: "🔴 Live",   cls: "bg-red-100 text-red-700 animate-pulse" },
+  ended:     { label: "Ended",     cls: "bg-gray-100 text-gray-500" },
+};
+
+function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSessionUpdate: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const [showOBSGuide, setShowOBSGuide] = useState(false);
+  const [showStreamKeys, setShowStreamKeys] = useState<Record<string, boolean>>({});
+  const [validationResults, setValidationResults] = useState<ValidationResult | null>(null);
+  const [goLiveResult, setGoLiveResult] = useState<GoLiveResult | null>(null);
+  const [obsWebSocketUrl, setObsWebSocketUrl] = useState("");
+  const [obsWebSocketPassword, setObsWebSocketPassword] = useState("");
 
   const { data: configs = [] } = useQuery<PlatformConfig[]>({
     queryKey: ["live-platform-configs", session.id],
     queryFn: () => apiFetch(`/live-sessions/${session.id}/platform-configs`),
+  });
+
+  const { data: viewerData, refetch: refetchViewers } = useQuery<ViewerCountData>({
+    queryKey: ["live-viewer-count", session.id],
+    queryFn: () => apiFetch(`/live-sessions/${session.id}/viewer-count`),
+    enabled: session.status === "live",
+    refetchInterval: session.status === "live" ? 15000 : false,
   });
 
   const updateConfig = useMutation({
@@ -281,36 +333,346 @@ function BroadcastTab({ session }: { session: LiveSession }) {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const validateKeys = useMutation({
+    mutationFn: () => apiFetch(`/live-sessions/${session.id}/validate-stream-keys`, { method: "POST" }),
+    onSuccess: (data: ValidationResult) => {
+      setValidationResults(data);
+      qc.invalidateQueries({ queryKey: ["live-platform-configs", session.id] });
+      toast({ title: data.allValid ? "✅ All stream keys valid!" : "⚠️ Some keys need fixing", description: data.message });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const goLive = useMutation({
+    mutationFn: () => apiFetch(`/live-sessions/${session.id}/go-live`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...(obsWebSocketUrl ? { obsWebSocketUrl, ...(obsWebSocketPassword ? { obsWebSocketPassword } : {}) } : {}),
+      }),
+    }),
+    onSuccess: (data: GoLiveResult) => {
+      setGoLiveResult(data);
+      qc.invalidateQueries({ queryKey: ["live-sessions"] });
+      qc.invalidateQueries({ queryKey: ["live-platform-configs", session.id] });
+      onSessionUpdate();
+      toast({ title: "🔴 You're LIVE!", description: `${session.platforms.length} platform(s) broadcasting` });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const confirmLive = useMutation({
+    mutationFn: () => apiFetch(`/live-sessions/${session.id}/confirm-live`, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["live-sessions"] });
+      qc.invalidateQueries({ queryKey: ["live-platform-configs", session.id] });
+      onSessionUpdate();
+      toast({ title: "🔴 You're LIVE!", description: "Session confirmed live — broadcast is active." });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const endStream = useMutation({
+    mutationFn: () => apiFetch(`/live-sessions/${session.id}/end-stream`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ totalViewers: viewerData?.totalViewers, peakViewers: viewerData?.peakViewers }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["live-sessions"] });
+      qc.invalidateQueries({ queryKey: ["live-platform-configs", session.id] });
+      onSessionUpdate();
+      toast({ title: "Stream ended", description: "Your session has been marked as ended." });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const configByPlatform = Object.fromEntries(configs.map(c => [c.platform, c]));
   const platforms = session.platforms as string[];
 
+  const allValidated = configs.length > 0 && configs.every(c => c.status === "validated" || c.status === "live");
+  const isLive = session.status === "live";
+  const isArmed = session.status === "armed";
+  const isEnded = session.status === "ended";
+
   return (
     <div className="space-y-4">
-      <Card className="border-blue-200 bg-blue-50/40">
-        <CardContent className="py-3 px-4">
-          <p className="text-sm font-medium text-blue-800">📡 RTMP Multi-Stream Setup</p>
-          <p className="text-xs text-blue-600 mt-0.5">Copy each platform's stream key and RTMP endpoint into your broadcast software (OBS, StreamYard, Restream). All platforms receive the same feed simultaneously.</p>
-        </CardContent>
-      </Card>
+      {/* ─── Live viewer count panel (only when live) ─── */}
+      {isLive && (
+        <Card className="border-red-300 bg-red-50/40">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse inline-block" />
+                <p className="text-sm font-bold text-red-800">LIVE NOW</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => refetchViewers()}>
+                  <RefreshCw className="w-3 h-3 mr-1" /> Refresh
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => endStream.mutate()} disabled={endStream.isPending}>
+                  <StopCircle className="w-3.5 h-3.5 mr-1.5" />{endStream.isPending ? "Ending…" : "End Stream"}
+                </Button>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center">
+                <p className="font-black text-2xl text-red-700">{(viewerData?.totalViewers ?? session.totalViewers).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Live Viewers</p>
+              </div>
+              <div className="text-center">
+                <p className="font-black text-2xl text-purple-700">{(viewerData?.peakViewers ?? session.peakViewers).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">Peak</p>
+              </div>
+              <div className="text-center">
+                <p className="font-black text-2xl text-blue-700">{platforms.length}</p>
+                <p className="text-xs text-muted-foreground">Platforms</p>
+              </div>
+            </div>
+            {viewerData && (
+              <div className="mt-2 pt-2 border-t border-red-200">
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(viewerData.platforms).map(([p, d]) => (
+                    <div key={p} className="flex items-center gap-1 text-xs">
+                      <span>{PLATFORM_ICONS[p] ?? "📡"}</span>
+                      <span className="font-semibold">{d.viewers.toLocaleString()}</span>
+                      <span className="text-muted-foreground">{d.source === "youtube_api" || d.source === "instagram_api" ? "● live" : "● last known"}</span>
+                    </div>
+                  ))}
+                </div>
+                {viewerData.note && (
+                  <p className="text-xs text-amber-600 mt-1.5">
+                    <AlertCircle className="w-3 h-3 inline mr-1" />{viewerData.note}
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
+      {/* ─── Armed state card: OBS credentials issued, waiting for push ─── */}
+      {isArmed && !isLive && !isEnded && goLiveResult && (
+        <Card className="border-amber-400 bg-amber-50/40">
+          <CardContent className="py-4 px-4">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-3xl">⚡</span>
+              <div className="flex-1">
+                <p className="font-bold text-amber-800">Session Armed — Start OBS Now</p>
+                <p className="text-xs text-amber-700 mt-0.5">RTMP credentials are ready. Open OBS, enter the server and stream key below, then click Start Streaming. Once OBS is live, confirm below.</p>
+              </div>
+            </div>
+            {goLiveResult.obsInstructions && (
+              <div className="text-xs bg-amber-100 rounded p-2 mb-3 space-y-1 font-mono">
+                {goLiveResult.obsInstructions.server && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-700 font-semibold w-20 shrink-0">Server:</span>
+                    <code>{goLiveResult.obsInstructions.server}</code>
+                    <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => { navigator.clipboard.writeText(goLiveResult.obsInstructions.server ?? ""); toast({ title: "Server URL copied" }); }}><Copy className="w-3 h-3" /></Button>
+                  </div>
+                )}
+                {goLiveResult.obsInstructions.streamKey && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-700 font-semibold w-20 shrink-0">Key:</span>
+                    <code>••••••••</code>
+                    <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => { navigator.clipboard.writeText(goLiveResult.obsInstructions.streamKey ?? ""); toast({ title: "Stream key copied" }); }}><Copy className="w-3 h-3" /></Button>
+                  </div>
+                )}
+              </div>
+            )}
+            <Button className="bg-red-600 hover:bg-red-700 text-white w-full" onClick={() => confirmLive.mutate()} disabled={confirmLive.isPending}>
+              <MonitorPlay className="w-4 h-4 mr-2" />{confirmLive.isPending ? "Confirming…" : "✅ I've Started OBS — Confirm Live"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ─── Go Live action card (only when not live, not armed, and not ended) ─── */}
+      {!isLive && !isArmed && !isEnded && (
+        <Card className={`border-2 ${allValidated ? "border-emerald-400 bg-emerald-50/30" : "border-dashed border-gray-300"}`}>
+          <CardContent className="py-4 px-4">
+            <div className="flex items-start gap-4">
+              <div className="text-4xl">{allValidated ? "🟢" : "🔴"}</div>
+              <div className="flex-1">
+                <p className="font-bold text-sm">{allValidated ? "Ready to go live!" : "Validate stream keys first"}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {allValidated
+                    ? "All platforms validated. Configure a broadcast trigger below, then hit Go Live."
+                    : "Run Validate Keys to confirm RTMP connectivity before going live."}
+                </p>
+              </div>
+            </div>
+
+            {/* Broadcast trigger: Restream (env-based) or OBS WebSocket */}
+            <div className="mt-3 space-y-2 border border-gray-200 rounded-lg p-3 bg-white/60">
+              <p className="text-xs font-semibold text-gray-700">Broadcast Trigger (required to go live)</p>
+              <p className="text-xs text-muted-foreground">
+                <strong>Restream:</strong> Set <code className="bg-muted px-1 rounded">RESTREAM_API_KEY</code> on the server to use Restream for automatic multi-platform fan-out. No extra config needed here.
+              </p>
+              <p className="text-xs text-muted-foreground font-medium">— or trigger OBS directly:</p>
+              <div className="space-y-1.5">
+                <div>
+                  <Label className="text-xs text-muted-foreground">OBS WebSocket URL <span className="text-gray-400">(e.g. ws://your-ip:4455)</span></Label>
+                  <Input
+                    value={obsWebSocketUrl}
+                    onChange={e => setObsWebSocketUrl(e.target.value)}
+                    placeholder="ws://192.168.1.100:4455"
+                    className="text-xs font-mono mt-0.5 h-8"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">OBS WebSocket Password <span className="text-gray-400">(if set)</span></Label>
+                  <Input
+                    type="password"
+                    value={obsWebSocketPassword}
+                    onChange={e => setObsWebSocketPassword(e.target.value)}
+                    placeholder="optional"
+                    className="text-xs mt-0.5 h-8"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-3">
+              <Button size="sm" variant="outline" onClick={() => validateKeys.mutate()} disabled={validateKeys.isPending || configs.length === 0}>
+                <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />{validateKeys.isPending ? "Validating…" : "Validate Keys"}
+              </Button>
+              <Button
+                size="sm"
+                className="bg-red-600 hover:bg-red-700 text-white"
+                onClick={() => goLive.mutate()}
+                disabled={goLive.isPending || !allValidated}
+              >
+                <MonitorPlay className="w-3.5 h-3.5 mr-1.5" />{goLive.isPending ? "Going Live…" : "🔴 Go Live"}
+              </Button>
+            </div>
+
+            {/* Validation result banner */}
+            {validationResults && (
+              <div className={`mt-3 rounded-lg p-3 text-xs ${validationResults.allValid ? "bg-emerald-50 border border-emerald-200 text-emerald-800" : "bg-amber-50 border border-amber-200 text-amber-800"}`}>
+                <p className="font-semibold mb-1">{validationResults.allValid ? "✅" : "⚠️"} {validationResults.message}</p>
+                <p className="text-muted-foreground mb-1.5">
+                  {validationResults.validationType === "restream_api"
+                    ? "Validated via Restream API — destination channels confirmed active."
+                    : "Validated via format check + TCP RTMP connectivity. Platform-level key auth requires per-platform OAuth (not supported in this mode)."}
+                </p>
+                {validationResults.results.map(r => (
+                  <div key={r.platform} className="flex items-start gap-1.5 mt-0.5">
+                    <span>{PLATFORM_ICONS[r.platform]}</span>
+                    <span>{r.valid ? "✓" : "✗"} <strong className="capitalize">{r.platform}</strong>: {r.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ─── Go Live result / OBS setup guide ─── */}
+      {(goLiveResult || isLive) && (
+        <Card className="border-blue-200 bg-blue-50/40">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-blue-900">📡 OBS / StreamYard Setup</p>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShowOBSGuide(v => !v)}>
+                {showOBSGuide ? "Hide" : "Show"} Guide
+              </Button>
+            </div>
+            {goLiveResult && (
+              <div className="flex items-center gap-2 text-xs mb-2">
+                {goLiveResult.restream.connected ? (
+                  <><Wifi className="w-3.5 h-3.5 text-emerald-600" /><span className="text-emerald-700">Restream connected — {goLiveResult.restream.message}</span></>
+                ) : (
+                  <><WifiOff className="w-3.5 h-3.5 text-amber-500" /><span className="text-amber-700">{goLiveResult.restream.message}</span></>
+                )}
+              </div>
+            )}
+            {showOBSGuide && goLiveResult && (
+              <div className="text-xs text-blue-800 space-y-2 mt-2 border-t border-blue-200 pt-2">
+                <p className="font-semibold">{goLiveResult.obsInstructions.mode === "restream" ? "Single-feed via Restream (recommended)" : "Direct multi-platform via obs-multi-rtmp"}</p>
+                <p>{goLiveResult.obsInstructions.summary}</p>
+                {goLiveResult.obsInstructions.mode === "restream" && goLiveResult.obsInstructions.server && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium w-20 shrink-0">Server:</span>
+                      <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">{goLiveResult.obsInstructions.server}</code>
+                      <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { navigator.clipboard.writeText(goLiveResult.obsInstructions.server ?? ""); toast({ title: "Server URL copied" }); }}>
+                        <Copy className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    {goLiveResult.obsInstructions.streamKey && (
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium w-20 shrink-0">Stream Key:</span>
+                        <code className="bg-blue-100 px-1.5 py-0.5 rounded font-mono">••••••••</code>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { navigator.clipboard.writeText(goLiveResult.obsInstructions.streamKey ?? ""); toast({ title: "Stream key copied" }); }}>
+                          <Copy className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {goLiveResult.obsInstructions.mode === "direct_multi_rtmp" && goLiveResult.obsInstructions.pluginUrl && (
+                  <p>Plugin: <a href={goLiveResult.obsInstructions.pluginUrl} target="_blank" rel="noreferrer" className="underline">{goLiveResult.obsInstructions.pluginUrl}</a></p>
+                )}
+              </div>
+            )}
+            {showOBSGuide && !goLiveResult && (
+              <div className="text-xs text-blue-800 space-y-2 mt-2 border-t border-blue-200 pt-2">
+                <p><strong>OBS Studio:</strong> Settings → Stream → Service: Custom… → Enter RTMP Server & Stream Key → Start Streaming.</p>
+                <p><strong>Restream.io (recommended):</strong> One OBS output to rtmp://live.restream.io/live fans out to all platforms automatically. Set RESTREAM_API_KEY to enable.</p>
+                <p><strong>Direct multi-platform:</strong> Install the <em>obs-multi-rtmp</em> plugin and add one output per platform using the keys below.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ─── RTMP info panel (when no active broadcast setup) ─── */}
+      {!goLiveResult && !isLive && (
+        <Card className="border-blue-200 bg-blue-50/40">
+          <CardContent className="py-3 px-4">
+            <p className="text-sm font-medium text-blue-800">📡 RTMP Multi-Stream Setup</p>
+            <p className="text-xs text-blue-600 mt-0.5">Copy each platform's stream key and RTMP endpoint into OBS, StreamYard, or Restream. All platforms receive the same feed simultaneously.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ─── Per-platform stream key cards ─── */}
       <div className="space-y-3">
         {platforms.map(platform => {
           const cfg = configByPlatform[platform];
+          const statusCfg = STATUS_CONFIG[cfg?.status ?? "pending"];
+          const validResult = validationResults?.results.find(r => r.platform === platform);
+          const showKey = showStreamKeys[platform] ?? false;
+
           return (
-            <Card key={platform}>
+            <Card key={platform} className={cfg?.status === "live" ? "border-red-300" : cfg?.status === "validated" ? "border-emerald-300" : cfg?.status === "invalid" ? "border-red-200" : ""}>
               <CardContent className="py-4 px-4">
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-xl">{PLATFORM_ICONS[platform]}</span>
                   <div className="flex-1">
                     <p className="font-semibold text-sm">{PLATFORM_LABELS[platform] ?? platform}</p>
-                    <Badge className={cfg?.status === "ready" ? "bg-emerald-100 text-emerald-700 text-xs" : "bg-amber-100 text-amber-700 text-xs"}>
-                      {cfg?.status ?? "pending"}
-                    </Badge>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge className={`${statusCfg?.cls ?? "bg-gray-100 text-gray-600"} text-xs`}>
+                        {statusCfg?.label ?? cfg?.status ?? "pending"}
+                      </Badge>
+                      {cfg?.validatedAt && (
+                        <span className="text-xs text-muted-foreground">validated {new Date(cfg.validatedAt).toLocaleTimeString()}</span>
+                      )}
+                    </div>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => updateConfig.mutate({ platform, body: { status: "ready" } })}>
-                    <CheckCircle className="w-3.5 h-3.5 mr-1" /> Mark Ready
-                  </Button>
+                  {/* "Mark Ready" removed — use Validate Keys to set platform status */}
+                  {isLive && cfg?.currentViewers !== undefined && (
+                    <div className="text-right">
+                      <p className="font-bold text-sm text-red-600">{(cfg.currentViewers ?? 0).toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground">viewers</p>
+                    </div>
+                  )}
                 </div>
+
+                {/* Validation message inline */}
+                {validResult && (
+                  <div className={`text-xs rounded px-2 py-1 mb-2 ${validResult.valid ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                    {validResult.valid ? <CheckCircle className="w-3 h-3 inline mr-1" /> : <AlertCircle className="w-3 h-3 inline mr-1" />}
+                    {validResult.message}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <div>
@@ -323,13 +685,31 @@ function BroadcastTab({ session }: { session: LiveSession }) {
                     </div>
                   </div>
                   <div>
-                    <Label className="text-xs text-muted-foreground">Stream Key</Label>
-                    <div className="flex gap-1 mt-0.5">
-                      <Input value={cfg?.streamKey ?? ""} readOnly className="text-xs font-mono bg-muted" type="password" />
+                    <div className="flex items-center justify-between mb-0.5">
+                      <Label className="text-xs text-muted-foreground">Stream Key</Label>
+                      <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setShowStreamKeys(s => ({ ...s, [platform]: !s[platform] }))}>
+                        {showKey ? "Hide" : "Reveal"}
+                      </button>
+                    </div>
+                    <div className="flex gap-1">
+                      <Input value={cfg?.streamKey ?? ""} readOnly className="text-xs font-mono bg-muted" type={showKey ? "text" : "password"} />
                       <Button size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={() => { navigator.clipboard.writeText(cfg?.streamKey ?? ""); toast({ title: "Copied!" }); }}>
                         <Copy className="w-3.5 h-3.5" />
                       </Button>
                     </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Broadcast URL (optional — for viewer count)</Label>
+                    <Input
+                      defaultValue={cfg?.broadcastUrl ?? ""}
+                      className="text-xs mt-0.5"
+                      placeholder={platform === "youtube" ? "https://youtube.com/watch?v=..." : platform === "instagram" ? "https://instagram.com/..." : "Paste live URL after going live"}
+                      onBlur={e => {
+                        if (e.target.value !== cfg?.broadcastUrl) {
+                          updateConfig.mutate({ platform, body: { broadcastUrl: e.target.value } });
+                        }
+                      }}
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -338,23 +718,36 @@ function BroadcastTab({ session }: { session: LiveSession }) {
         })}
       </div>
 
+      {/* ─── Go-Live Checklist ─── */}
       <Card className="border-emerald-200 bg-emerald-50/40">
         <CardContent className="py-3 px-4">
           <p className="text-sm font-semibold mb-2">Go-Live Checklist</p>
           <div className="space-y-1.5">
             {[
-              "Stream keys entered in broadcast software",
-              "Test stream sent and confirmed (30 sec preview)",
+              "Stream keys validated (click Validate Keys above)",
+              "RTMP endpoints entered in OBS / StreamYard / Restream",
+              "30-second test stream confirmed before going live",
               "Lighting and audio checked",
-              "Moderators briefed and ready",
-              "Countdown posts scheduled",
-              "Reminder notifications sent to fans",
+              "Countdown posts scheduled and reminder notifications sent",
+              "Moderators briefed and ready on the Chat tab",
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-2 text-sm">
                 <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>{item}</span>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── API key setup notice ─── */}
+      <Card className="border-amber-200 bg-amber-50/30">
+        <CardContent className="py-3 px-4">
+          <p className="text-xs font-semibold text-amber-800 mb-1">🔧 Optional: Wire up live APIs for real viewer counts</p>
+          <div className="text-xs text-amber-700 space-y-0.5">
+            <p><strong>YOUTUBE_API_KEY</strong> — pulls live concurrent viewer count from YouTube Studio API</p>
+            <p><strong>INSTAGRAM_ACCESS_TOKEN</strong> — pulls viewer count from Instagram Graph API</p>
+            <p><strong>RESTREAM_API_KEY</strong> — connects Restream.io for single-feed multi-platform broadcast management</p>
           </div>
         </CardContent>
       </Card>
@@ -836,7 +1229,7 @@ function LiveVideoInner() {
                     <TabsTrigger value="reminders" className="flex items-center gap-1.5 text-xs"><Bell className="w-3.5 h-3.5" /> Reminders</TabsTrigger>
                     <TabsTrigger value="post-live" className="flex items-center gap-1.5 text-xs"><Scissors className="w-3.5 h-3.5" /> Post-Live</TabsTrigger>
                   </TabsList>
-                  <TabsContent value="broadcast"><BroadcastTab session={selectedSession} /></TabsContent>
+                  <TabsContent value="broadcast"><BroadcastTab session={selectedSession} onSessionUpdate={() => window.location.reload()} /></TabsContent>
                   <TabsContent value="hype"><HypeTab session={selectedSession} /></TabsContent>
                   <TabsContent value="chat"><ChatTab session={selectedSession} /></TabsContent>
                   <TabsContent value="reminders"><RemindersTab session={selectedSession} /></TabsContent>

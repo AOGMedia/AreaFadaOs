@@ -31,6 +31,9 @@ export const livePlatformConfigsTable = pgTable("live_platform_configs", {
   rtmpEndpoint: text("rtmp_endpoint"),
   broadcastUrl: text("broadcast_url"),
   status: text("status").notNull().default("pending"),
+  validatedAt: timestamp("validated_at", { withTimezone: true }),
+  currentViewers: integer("current_viewers").notNull().default(0),
+  restreamChannelId: text("restream_channel_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
