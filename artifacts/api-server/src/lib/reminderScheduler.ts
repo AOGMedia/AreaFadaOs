@@ -259,7 +259,7 @@ const PUBLISH_IN_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
  * PUBLISH_IN_PROGRESS_TIMEOUT_MS.  This covers server-restart crashes where
  * the in-flight HTTP call never completed and the status was never updated.
  */
-async function recoverOrphanedPublishJobs(now: Date): Promise<void> {
+export async function recoverOrphanedPublishJobs(now: Date): Promise<void> {
   const orphanCutoff = new Date(now.getTime() - PUBLISH_IN_PROGRESS_TIMEOUT_MS);
   const recovered = await db
     .update(publishJobsTable)
@@ -290,7 +290,7 @@ async function recoverOrphanedPublishJobs(now: Date): Promise<void> {
  * duplicate publish attempts before either one had a chance to flip the status
  * to `in_progress`.
  */
-async function runPublishJobScheduler(): Promise<void> {
+export async function runPublishJobScheduler(): Promise<void> {
   try {
     const now = new Date();
 

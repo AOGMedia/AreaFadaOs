@@ -8,7 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import=tsx/esm --test-force-exit --test src/lib/__tests__/tokenEncryption.test.ts src/lib/__tests__/classifyError.test.ts src/routes/__tests__/oauth.start.test.ts src/routes/__tests__/oauth.callback.test.ts src/routes/__tests__/autoPost.publish.test.ts src/routes/__tests__/users.me.test.ts"
+    "test": "node --import=tsx/esm --test-force-exit --test src/lib/__tests__/tokenEncryption.test.ts src/lib/__tests__/classifyError.test.ts src/lib/__tests__/publishScheduler.test.ts src/routes/__tests__/oauth.start.test.ts src/routes/__tests__/oauth.callback.test.ts src/routes/__tests__/autoPost.publish.test.ts src/routes/__tests__/users.me.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
