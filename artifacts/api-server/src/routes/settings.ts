@@ -135,6 +135,32 @@ router.get("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
   const igRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.instagram);
   const rstRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.restream);
 
+  // YouTube: parse verification metadata stored in appSecret column (key itself lives in appId)
+  let youtubeLastVerified: string | null = null;
+  let youtubeKeyExpired: boolean | null = null;
+  if (ytRow?.appSecret) {
+    try {
+      const meta = JSON.parse(ytRow.appSecret) as { lastVerified?: string; expired?: boolean };
+      youtubeLastVerified = meta.lastVerified ?? null;
+      youtubeKeyExpired = meta.expired ?? null;
+    } catch {
+      // ignore malformed metadata
+    }
+  }
+
+  // Instagram: parse verification metadata stored in appId column (token lives in appSecret)
+  let instagramLastVerified: string | null = null;
+  let instagramKeyExpired: boolean | null = null;
+  if (igRow?.appId) {
+    try {
+      const meta = JSON.parse(igRow.appId) as { lastVerified?: string; expired?: boolean };
+      instagramLastVerified = meta.lastVerified ?? null;
+      instagramKeyExpired = meta.expired ?? null;
+    } catch {
+      // ignore malformed metadata
+    }
+  }
+
   // Restream: parse verification metadata stored in the otherwise-unused appId column
   let restreamLastVerified: string | null = null;
   let restreamKeyExpired: boolean | null = null;
@@ -149,8 +175,18 @@ router.get("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
   }
 
   res.json({
-    youtube: { configured: !!(ytRow?.appId), envOverride: !!process.env.YOUTUBE_API_KEY },
-    instagram: { configured: !!(igRow?.appSecret), envOverride: !!process.env.INSTAGRAM_ACCESS_TOKEN },
+    youtube: {
+      configured: !!(ytRow?.appId) || !!process.env.YOUTUBE_API_KEY,
+      envOverride: !!process.env.YOUTUBE_API_KEY,
+      lastVerified: youtubeLastVerified,
+      keyExpired: youtubeKeyExpired,
+    },
+    instagram: {
+      configured: !!(igRow?.appSecret) || !!process.env.INSTAGRAM_ACCESS_TOKEN,
+      envOverride: !!process.env.INSTAGRAM_ACCESS_TOKEN,
+      lastVerified: instagramLastVerified,
+      keyExpired: instagramKeyExpired,
+    },
     restream: {
       configured: !!(rstRow?.appSecret) || !!process.env.RESTREAM_API_KEY,
       envOverride: !!process.env.RESTREAM_API_KEY,
@@ -174,7 +210,8 @@ router.put("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
 
     if (existing) {
       await db.update(platformOauthConfigsTable)
-        .set({ appId: youtubeApiKey || null, updatedAt: new Date() })
+        // Reset verification metadata (appSecret) whenever a new key is saved
+        .set({ appId: youtubeApiKey || null, appSecret: null, updatedAt: new Date() })
         .where(eq(platformOauthConfigsTable.id, existing.id));
     } else {
       await db.insert(platformOauthConfigsTable).values({
@@ -191,7 +228,8 @@ router.put("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
 
     if (existing) {
       await db.update(platformOauthConfigsTable)
-        .set({ appSecret: encrypted, updatedAt: new Date() })
+        // Reset verification metadata (appId) whenever a new token is saved
+        .set({ appSecret: encrypted, appId: null, updatedAt: new Date() })
         .where(eq(platformOauthConfigsTable.id, existing.id));
     } else {
       await db.insert(platformOauthConfigsTable).values({
@@ -275,6 +313,143 @@ router.post("/settings/live-api-keys/check-restream", requireAuth, async (req: a
       .where(and(
         eq(platformOauthConfigsTable.userId, user.id),
         eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.restream),
+      ));
+    if (existing) {
+      await db.update(platformOauthConfigsTable)
+        .set({ appId: meta, updatedAt: new Date() })
+        .where(eq(platformOauthConfigsTable.id, existing.id));
+    }
+  }
+
+  res.json({ ok: !expired && !verifyError, expired, lastVerified, error: verifyError });
+});
+
+// POST /settings/live-api-keys/check-youtube — silently verify the stored key and persist result
+router.post("/settings/live-api-keys/check-youtube", requireAuth, async (req: any, res): Promise<void> => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  let apiKey: string | null = null;
+  let useEnvKey = false;
+  if (process.env.YOUTUBE_API_KEY) {
+    apiKey = process.env.YOUTUBE_API_KEY;
+    useEnvKey = true;
+  } else {
+    const rows = await db.select()
+      .from(platformOauthConfigsTable)
+      .where(and(
+        eq(platformOauthConfigsTable.userId, user.id),
+        eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.youtube),
+      ));
+    apiKey = rows[0]?.appId ?? null;
+  }
+
+  if (!apiKey) {
+    res.status(422).json({ ok: false, error: "No YouTube API key configured." });
+    return;
+  }
+
+  let expired = false;
+  let verifyError: string | null = null;
+
+  try {
+    // A lightweight public endpoint that validates the key without OAuth
+    const url = `https://www.googleapis.com/youtube/v3/videos?part=id&chart=mostPopular&maxResults=1&key=${encodeURIComponent(apiKey)}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (response.status === 400 || response.status === 403) {
+      const body = await response.json().catch(() => ({})) as { error?: { status?: string } };
+      const status = body?.error?.status;
+      if (status === "API_KEY_INVALID" || status === "PERMISSION_DENIED" || response.status === 400) {
+        expired = true;
+      } else {
+        verifyError = `YouTube returned ${response.status}`;
+      }
+    } else if (!response.ok) {
+      verifyError = `YouTube returned ${response.status}`;
+    }
+  } catch (err: any) {
+    verifyError = err?.name === "TimeoutError" ? "Request timed out" : (err?.message ?? "Network error");
+  }
+
+  const lastVerified = new Date().toISOString();
+  const meta = JSON.stringify({ lastVerified, expired });
+
+  // Persist verification result in appSecret column (key itself lives in appId)
+  if (!useEnvKey) {
+    const [existing] = await db.select({ id: platformOauthConfigsTable.id })
+      .from(platformOauthConfigsTable)
+      .where(and(
+        eq(platformOauthConfigsTable.userId, user.id),
+        eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.youtube),
+      ));
+    if (existing) {
+      await db.update(platformOauthConfigsTable)
+        .set({ appSecret: meta, updatedAt: new Date() })
+        .where(eq(platformOauthConfigsTable.id, existing.id));
+    }
+  }
+
+  res.json({ ok: !expired && !verifyError, expired, lastVerified, error: verifyError });
+});
+
+// POST /settings/live-api-keys/check-instagram — silently verify the stored token and persist result
+router.post("/settings/live-api-keys/check-instagram", requireAuth, async (req: any, res): Promise<void> => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  let accessToken: string | null = null;
+  let useEnvKey = false;
+  if (process.env.INSTAGRAM_ACCESS_TOKEN) {
+    accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+    useEnvKey = true;
+  } else {
+    const rows = await db.select()
+      .from(platformOauthConfigsTable)
+      .where(and(
+        eq(platformOauthConfigsTable.userId, user.id),
+        eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.instagram),
+      ));
+    const igRow = rows[0];
+    accessToken = igRow?.appSecret ? decryptToken(igRow.appSecret) : null;
+  }
+
+  if (!accessToken) {
+    res.status(422).json({ ok: false, error: "No Instagram access token configured." });
+    return;
+  }
+
+  let expired = false;
+  let verifyError: string | null = null;
+
+  try {
+    const url = `https://graph.instagram.com/me?fields=id,username&access_token=${encodeURIComponent(accessToken)}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (response.status === 400 || response.status === 401) {
+      expired = true;
+    } else if (!response.ok) {
+      const body = await response.json().catch(() => ({})) as { error?: { code?: number } };
+      const code = body?.error?.code;
+      // Instagram error code 190 = token expired/invalid
+      if (code === 190) {
+        expired = true;
+      } else {
+        verifyError = `Instagram returned ${response.status}`;
+      }
+    }
+  } catch (err: any) {
+    verifyError = err?.name === "TimeoutError" ? "Request timed out" : (err?.message ?? "Network error");
+  }
+
+  const lastVerified = new Date().toISOString();
+  const meta = JSON.stringify({ lastVerified, expired });
+
+  // Persist verification result in appId column (token lives in appSecret)
+  if (!useEnvKey) {
+    const [existing] = await db.select({ id: platformOauthConfigsTable.id })
+      .from(platformOauthConfigsTable)
+      .where(and(
+        eq(platformOauthConfigsTable.userId, user.id),
+        eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.instagram),
       ));
     if (existing) {
       await db.update(platformOauthConfigsTable)

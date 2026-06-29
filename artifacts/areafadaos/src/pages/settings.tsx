@@ -45,9 +45,6 @@ interface CredentialsResponse {
 interface LiveApiKeyStatus {
   configured: boolean;
   envOverride: boolean;
-}
-
-interface RestreamApiKeyStatus extends LiveApiKeyStatus {
   lastVerified?: string | null;
   keyExpired?: boolean | null;
 }
@@ -55,7 +52,7 @@ interface RestreamApiKeyStatus extends LiveApiKeyStatus {
 interface LiveApiKeysResponse {
   youtube: LiveApiKeyStatus;
   instagram: LiveApiKeyStatus;
-  restream: RestreamApiKeyStatus;
+  restream: LiveApiKeyStatus;
 }
 
 const PLATFORM_CONFIG = [
@@ -404,13 +401,19 @@ function LiveApiKeysCard({
         {/* YouTube API Key */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium flex items-center gap-1.5">
+            <Label className="text-xs font-medium flex items-center gap-1.5 flex-wrap">
               <Youtube className="w-3.5 h-3.5 text-red-500" /> YouTube Data API Key
               {ytStatus?.envOverride && (
                 <Badge variant="outline" className="text-[10px] py-0 h-4 text-blue-600 border-blue-300 ml-1">env override</Badge>
               )}
               {!ytStatus?.envOverride && ytStatus?.configured && (
-                <Badge variant="outline" className="text-[10px] py-0 h-4 text-emerald-600 border-emerald-300 ml-1">saved</Badge>
+                ytStatus?.keyExpired === true ? (
+                  <Badge variant="outline" className="text-[10px] py-0 h-4 text-red-600 border-red-300 ml-1 flex items-center gap-0.5">
+                    <AlertCircle className="w-2.5 h-2.5" /> expired
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] py-0 h-4 text-emerald-600 border-emerald-300 ml-1">saved</Badge>
+                )
               )}
             </Label>
             {ytStatus?.configured && !ytStatus?.envOverride && (
@@ -489,6 +492,23 @@ function LiveApiKeysCard({
             </div>
           )}
 
+          {/* Expired key warning */}
+          {!ytStatus?.envOverride && ytStatus?.configured && ytStatus?.keyExpired === true && (
+            <div className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                This YouTube Data API key has been disabled or revoked. Paste a fresh key and save to restore live viewer counts.
+              </span>
+            </div>
+          )}
+
+          {/* Last verified timestamp */}
+          {!ytStatus?.envOverride && ytStatus?.configured && ytStatus?.lastVerified && (
+            <p className="text-[11px] text-muted-foreground">
+              Last verified: {new Date(ytStatus.lastVerified).toLocaleString()}
+            </p>
+          )}
+
           {ytStatus?.envOverride && (
             <p className="text-[11px] text-blue-600">Set via server environment variable — to override, clear the env var first.</p>
           )}
@@ -506,13 +526,19 @@ function LiveApiKeysCard({
         {/* Instagram Access Token */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium flex items-center gap-1.5">
+            <Label className="text-xs font-medium flex items-center gap-1.5 flex-wrap">
               <span className="text-[13px]">📸</span> Instagram Graph API Access Token
               {igStatus?.envOverride && (
                 <Badge variant="outline" className="text-[10px] py-0 h-4 text-blue-600 border-blue-300 ml-1">env override</Badge>
               )}
               {!igStatus?.envOverride && igStatus?.configured && (
-                <Badge variant="outline" className="text-[10px] py-0 h-4 text-emerald-600 border-emerald-300 ml-1">saved</Badge>
+                igStatus?.keyExpired === true ? (
+                  <Badge variant="outline" className="text-[10px] py-0 h-4 text-red-600 border-red-300 ml-1 flex items-center gap-0.5">
+                    <AlertCircle className="w-2.5 h-2.5" /> expired
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] py-0 h-4 text-emerald-600 border-emerald-300 ml-1">saved</Badge>
+                )
               )}
             </Label>
             {igStatus?.configured && !igStatus?.envOverride && (
@@ -589,6 +615,23 @@ function LiveApiKeysCard({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Expired token warning */}
+          {!igStatus?.envOverride && igStatus?.configured && igStatus?.keyExpired === true && (
+            <div className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                This Instagram access token has expired (tokens last 60 days). Generate a fresh long-lived token and save it to restore live viewer counts.
+              </span>
+            </div>
+          )}
+
+          {/* Last verified timestamp */}
+          {!igStatus?.envOverride && igStatus?.configured && igStatus?.lastVerified && (
+            <p className="text-[11px] text-muted-foreground">
+              Last verified: {new Date(igStatus.lastVerified).toLocaleString()}
+            </p>
           )}
 
           {igStatus?.envOverride && (
@@ -780,6 +823,8 @@ export function SettingsPage() {
   const [savingLiveKeys, setSavingLiveKeys] = useState(false);
   const [clearingLiveKey, setClearingLiveKey] = useState<string | null>(null);
   const restreamCheckFiredRef = useRef(false);
+  const youtubeCheckFiredRef = useRef(false);
+  const instagramCheckFiredRef = useRef(false);
 
   const { data, isLoading } = useQuery<CredentialsResponse>({
     queryKey: ["settings-credentials"],
@@ -798,12 +843,30 @@ export function SettingsPage() {
     if (!rst?.configured || rst?.envOverride) return;
     restreamCheckFiredRef.current = true;
     apiFetch("/settings/live-api-keys/check-restream", { method: "POST" })
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] });
-      })
-      .catch(() => {
-        // Silently swallow — network issues shouldn't surface here
-      });
+      .then(() => { queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] }); })
+      .catch(() => {});
+  }, [liveApiKeysData, queryClient]);
+
+  // Background check: silently verify the YouTube API key on page load if one is configured
+  useEffect(() => {
+    if (youtubeCheckFiredRef.current) return;
+    const yt = liveApiKeysData?.youtube;
+    if (!yt?.configured || yt?.envOverride) return;
+    youtubeCheckFiredRef.current = true;
+    apiFetch("/settings/live-api-keys/check-youtube", { method: "POST" })
+      .then(() => { queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] }); })
+      .catch(() => {});
+  }, [liveApiKeysData, queryClient]);
+
+  // Background check: silently verify the Instagram token on page load if one is configured
+  useEffect(() => {
+    if (instagramCheckFiredRef.current) return;
+    const ig = liveApiKeysData?.instagram;
+    if (!ig?.configured || ig?.envOverride) return;
+    instagramCheckFiredRef.current = true;
+    apiFetch("/settings/live-api-keys/check-instagram", { method: "POST" })
+      .then(() => { queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] }); })
+      .catch(() => {});
   }, [liveApiKeysData, queryClient]);
 
   const saveMutation = useMutation({
