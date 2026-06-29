@@ -5,7 +5,7 @@
 | Env var / Secret | Where to set | Value |
 |---|---|---|
 | `RESEND_API_KEY` | Replit Secrets | Your Resend API key |
-| `RESEND_FROM_EMAIL` | Replit Env (shared) | `AreaFada OS <onboarding@resend.dev>` (default) or `AreaFada OS <no-reply@areafada.com>` once domain is verified |
+| `RESEND_FROM_EMAIL` | Replit Env (shared) | `AreaFada OS <no-reply@areafada.com>` — already set correctly; do **not** use the Resend sandbox address |
 
 ## Run the smoke test
 
@@ -44,16 +44,21 @@ valid and confirmed working.
 To trigger seeding for a user, navigate to the Clip Engine tab in AreaFada OS while
 logged in; the seed fires automatically on the first API request for that user.
 
-## Upgrading to a verified sender domain
+## Email deliverability DNS setup
 
-When `areafada.com` (or a sub-domain like `mail.areafada.com`) is verified in Resend:
+`RESEND_FROM_EMAIL` is already set to `AreaFada OS <no-reply@areafada.com>`.
+The remaining step is verifying `areafada.com` in Resend and adding the required
+DNS records (SPF, DKIM, DMARC). Full step-by-step instructions:
 
-1. Go to https://resend.com/domains and complete DNS verification
-2. Update `RESEND_FROM_EMAIL` in Replit Env (shared):
-   ```
-   AreaFada OS <no-reply@areafada.com>
-   ```
-3. Re-run the smoke test with a real inbox to confirm the branded sender appears correctly
+```
+artifacts/api-server/scripts/DNS-SETUP.md
+```
+
+Quick check at any time:
+
+```bash
+pnpm --filter api-server check:dns
+```
 
 ## What the smoke test exercises
 
