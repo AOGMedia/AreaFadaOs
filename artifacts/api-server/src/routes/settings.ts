@@ -260,9 +260,37 @@ router.put("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
 });
 
 // POST /settings/live-api-keys/check-restream — silently verify the stored key and persist result
+// Accepts ?skipIfLive=true: returns the last-persisted verification result without re-calling
+// the Restream API. Use this when a live session is active to avoid latency spikes mid-broadcast.
 router.post("/settings/live-api-keys/check-restream", requireAuth, async (req: any, res): Promise<void> => {
   const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const skipIfLive = req.query.skipIfLive === "true";
+
+  // Fetch the stored row first (needed both for skipIfLive early-return and normal key resolution)
+  const rows = await db.select()
+    .from(platformOauthConfigsTable)
+    .where(and(
+      eq(platformOauthConfigsTable.userId, user.id),
+      eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.restream),
+    ));
+  const rstRow = rows[0];
+
+  if (skipIfLive) {
+    // Return last-persisted result without making any outbound API call
+    let lastVerified: string | null = null;
+    let expired: boolean | null = null;
+    if (rstRow?.appId) {
+      try {
+        const meta = JSON.parse(rstRow.appId) as { lastVerified?: string; expired?: boolean };
+        lastVerified = meta.lastVerified ?? null;
+        expired = meta.expired ?? null;
+      } catch { /* ignore malformed */ }
+    }
+    res.json({ ok: expired !== true, expired: expired ?? false, lastVerified, skipped: true });
+    return;
+  }
 
   // Resolve which key to verify (env override takes precedence)
   let apiKey: string | null = null;
@@ -271,13 +299,6 @@ router.post("/settings/live-api-keys/check-restream", requireAuth, async (req: a
     apiKey = process.env.RESTREAM_API_KEY;
     useEnvKey = true;
   } else {
-    const rows = await db.select()
-      .from(platformOauthConfigsTable)
-      .where(and(
-        eq(platformOauthConfigsTable.userId, user.id),
-        eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.restream),
-      ));
-    const rstRow = rows[0];
     apiKey = rstRow?.appSecret ? decryptToken(rstRow.appSecret) : null;
   }
 
@@ -325,9 +346,37 @@ router.post("/settings/live-api-keys/check-restream", requireAuth, async (req: a
 });
 
 // POST /settings/live-api-keys/check-youtube — silently verify the stored key and persist result
+// Accepts ?skipIfLive=true: returns the last-persisted verification result without re-calling
+// the YouTube API. Use this when a live session is active to avoid latency spikes mid-broadcast.
 router.post("/settings/live-api-keys/check-youtube", requireAuth, async (req: any, res): Promise<void> => {
   const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const skipIfLive = req.query.skipIfLive === "true";
+
+  // Fetch the stored row first (needed both for skipIfLive early-return and normal key resolution)
+  const rows = await db.select()
+    .from(platformOauthConfigsTable)
+    .where(and(
+      eq(platformOauthConfigsTable.userId, user.id),
+      eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.youtube),
+    ));
+  const ytRow = rows[0];
+
+  if (skipIfLive) {
+    // Return last-persisted result without making any outbound API call
+    let lastVerified: string | null = null;
+    let expired: boolean | null = null;
+    if (ytRow?.appSecret) {
+      try {
+        const meta = JSON.parse(ytRow.appSecret) as { lastVerified?: string; expired?: boolean };
+        lastVerified = meta.lastVerified ?? null;
+        expired = meta.expired ?? null;
+      } catch { /* ignore malformed */ }
+    }
+    res.json({ ok: expired !== true, expired: expired ?? false, lastVerified, skipped: true });
+    return;
+  }
 
   let apiKey: string | null = null;
   let useEnvKey = false;
@@ -335,13 +384,7 @@ router.post("/settings/live-api-keys/check-youtube", requireAuth, async (req: an
     apiKey = process.env.YOUTUBE_API_KEY;
     useEnvKey = true;
   } else {
-    const rows = await db.select()
-      .from(platformOauthConfigsTable)
-      .where(and(
-        eq(platformOauthConfigsTable.userId, user.id),
-        eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.youtube),
-      ));
-    apiKey = rows[0]?.appId ?? null;
+    apiKey = ytRow?.appId ?? null;
   }
 
   if (!apiKey) {
@@ -393,9 +436,37 @@ router.post("/settings/live-api-keys/check-youtube", requireAuth, async (req: an
 });
 
 // POST /settings/live-api-keys/check-instagram — silently verify the stored token and persist result
+// Accepts ?skipIfLive=true: returns the last-persisted verification result without re-calling
+// the Instagram API. Use this when a live session is active to avoid latency spikes mid-broadcast.
 router.post("/settings/live-api-keys/check-instagram", requireAuth, async (req: any, res): Promise<void> => {
   const user = await getDbUser(req.clerkUserId);
   if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const skipIfLive = req.query.skipIfLive === "true";
+
+  // Fetch the stored row first (needed both for skipIfLive early-return and normal key resolution)
+  const rows = await db.select()
+    .from(platformOauthConfigsTable)
+    .where(and(
+      eq(platformOauthConfigsTable.userId, user.id),
+      eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.instagram),
+    ));
+  const igRow = rows[0];
+
+  if (skipIfLive) {
+    // Return last-persisted result without making any outbound API call
+    let lastVerified: string | null = null;
+    let expired: boolean | null = null;
+    if (igRow?.appId) {
+      try {
+        const meta = JSON.parse(igRow.appId) as { lastVerified?: string; expired?: boolean };
+        lastVerified = meta.lastVerified ?? null;
+        expired = meta.expired ?? null;
+      } catch { /* ignore malformed */ }
+    }
+    res.json({ ok: expired !== true, expired: expired ?? false, lastVerified, skipped: true });
+    return;
+  }
 
   let accessToken: string | null = null;
   let useEnvKey = false;
@@ -403,13 +474,6 @@ router.post("/settings/live-api-keys/check-instagram", requireAuth, async (req: 
     accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
     useEnvKey = true;
   } else {
-    const rows = await db.select()
-      .from(platformOauthConfigsTable)
-      .where(and(
-        eq(platformOauthConfigsTable.userId, user.id),
-        eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.instagram),
-      ));
-    const igRow = rows[0];
     accessToken = igRow?.appSecret ? decryptToken(igRow.appSecret) : null;
   }
 

@@ -836,38 +836,62 @@ export function SettingsPage() {
     queryFn: () => apiFetch("/settings/live-api-keys"),
   });
 
-  // Background check: silently verify the Restream key on page load if one is configured
+  const { data: liveSessionsData, isSuccess: liveSessionsLoaded } = useQuery<Array<{ id: number; status: string }>>({
+    queryKey: ["live-sessions"],
+    queryFn: () => apiFetch("/live-sessions"),
+    staleTime: 30_000,
+  });
+
+  // Derived only after the query has resolved — undefined while loading
+  const hasActiveLiveSession = liveSessionsLoaded
+    ? (Array.isArray(liveSessionsData) && liveSessionsData.some((s) => s.status === "live"))
+    : null; // null = "not yet known"
+
+  // Background check: silently verify the Restream key on page load if one is configured.
+  // Guards:
+  //  1. liveSessionsLoaded — do not fire until we know whether a session is live (prevents
+  //     the race where liveApiKeysData resolves first and checks run before status is known)
+  //  2. hasActiveLiveSession — skip entirely while a live session is active to avoid
+  //     outbound API calls that could spike latency or open a brief token-invalidation window
   useEffect(() => {
     if (restreamCheckFiredRef.current) return;
+    if (!liveSessionsLoaded) return;
+    if (hasActiveLiveSession) return;
     const rst = liveApiKeysData?.restream;
     if (!rst?.configured || rst?.envOverride) return;
     restreamCheckFiredRef.current = true;
     apiFetch("/settings/live-api-keys/check-restream", { method: "POST" })
       .then(() => { queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] }); })
       .catch(() => {});
-  }, [liveApiKeysData, queryClient]);
+  }, [liveApiKeysData, liveSessionsLoaded, hasActiveLiveSession, queryClient]);
 
-  // Background check: silently verify the YouTube API key on page load if one is configured
+  // Background check: silently verify the YouTube API key on page load if one is configured.
+  // Same guards as the Restream check above — see that comment for rationale.
   useEffect(() => {
     if (youtubeCheckFiredRef.current) return;
+    if (!liveSessionsLoaded) return;
+    if (hasActiveLiveSession) return;
     const yt = liveApiKeysData?.youtube;
     if (!yt?.configured || yt?.envOverride) return;
     youtubeCheckFiredRef.current = true;
     apiFetch("/settings/live-api-keys/check-youtube", { method: "POST" })
       .then(() => { queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] }); })
       .catch(() => {});
-  }, [liveApiKeysData, queryClient]);
+  }, [liveApiKeysData, liveSessionsLoaded, hasActiveLiveSession, queryClient]);
 
-  // Background check: silently verify the Instagram token on page load if one is configured
+  // Background check: silently verify the Instagram token on page load if one is configured.
+  // Same guards as the Restream check above — see that comment for rationale.
   useEffect(() => {
     if (instagramCheckFiredRef.current) return;
+    if (!liveSessionsLoaded) return;
+    if (hasActiveLiveSession) return;
     const ig = liveApiKeysData?.instagram;
     if (!ig?.configured || ig?.envOverride) return;
     instagramCheckFiredRef.current = true;
     apiFetch("/settings/live-api-keys/check-instagram", { method: "POST" })
       .then(() => { queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] }); })
       .catch(() => {});
-  }, [liveApiKeysData, queryClient]);
+  }, [liveApiKeysData, liveSessionsLoaded, hasActiveLiveSession, queryClient]);
 
   const saveMutation = useMutation({
     mutationFn: ({ platform, appId, appSecret }: { platform: string; appId: string; appSecret: string }) =>
