@@ -37,11 +37,15 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 app.use(cors({ credentials: true, origin: true }));
 
-// Preserve raw body for webhook signature verification (must come before express.json)
-app.use(
-  /^\/api\/webhooks\//,
-  express.raw({ type: "application/json" }),
-  (req: Request, _res: Response, next: NextFunction) => {
+// Preserve raw body for webhook signature verification (must come before express.json).
+// Express 5 dropped RegExp path support in app.use(), so we use a plain middleware
+// that only runs the raw-body capture for /api/webhooks/* paths.
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  if (!req.path.startsWith("/api/webhooks/")) {
+    return next();
+  }
+  express.raw({ type: "application/json" })(req, _res, (err?: any) => {
+    if (err) return next(err);
     // Attach rawBody so webhook handlers can verify HMAC against exact bytes
     (req as any).rawBody = req.body as Buffer;
     // Parse JSON body for handler convenience
@@ -51,8 +55,8 @@ app.use(
       req.body = {};
     }
     next();
-  },
-);
+  });
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
