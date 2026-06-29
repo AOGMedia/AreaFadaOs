@@ -247,26 +247,76 @@ async function runDailyIngestionCycle() {
 
 // ─── Publish job scheduler ────────────────────────────────────────────────────
 
-/** Pick up any pending publish_jobs whose scheduledAt has passed and execute them. */
+/**
+ * How long (ms) a job may sit in `in_progress` before we consider it orphaned
+ * (e.g. the server crashed mid-publish).  After this window the job is reset
+ * to `pending` so the next scheduler tick can retry it.
+ */
+const PUBLISH_IN_PROGRESS_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Reset any jobs that have been stuck in `in_progress` for longer than
+ * PUBLISH_IN_PROGRESS_TIMEOUT_MS.  This covers server-restart crashes where
+ * the in-flight HTTP call never completed and the status was never updated.
+ */
+async function recoverOrphanedPublishJobs(now: Date): Promise<void> {
+  const orphanCutoff = new Date(now.getTime() - PUBLISH_IN_PROGRESS_TIMEOUT_MS);
+  const recovered = await db
+    .update(publishJobsTable)
+    .set({ status: "pending", updatedAt: now })
+    .where(
+      and(
+        eq(publishJobsTable.status, "in_progress"),
+        lte(publishJobsTable.updatedAt, orphanCutoff),
+      ),
+    )
+    .returning({ id: publishJobsTable.id });
+
+  if (recovered.length > 0) {
+    logger.warn(
+      { count: recovered.length, ids: recovered.map((r) => r.id) },
+      "Publish job scheduler: recovered orphaned in_progress jobs",
+    );
+  }
+}
+
+/**
+ * Pick up any pending publish_jobs whose scheduledAt has passed and execute
+ * them.
+ *
+ * Jobs are claimed atomically with a single UPDATE … RETURNING before any
+ * executePublishJob call is dispatched.  This closes the race window where two
+ * consecutive minute ticks could both SELECT the same `pending` row and start
+ * duplicate publish attempts before either one had a chance to flip the status
+ * to `in_progress`.
+ */
 async function runPublishJobScheduler(): Promise<void> {
   try {
     const now = new Date();
-    const dueJobs = await db
-      .select({ id: publishJobsTable.id })
-      .from(publishJobsTable)
+
+    // Recover orphaned jobs first so they become eligible in this very tick.
+    await recoverOrphanedPublishJobs(now);
+
+    // Atomically claim all due pending jobs in one statement.
+    // Only rows still `pending` at the moment the UPDATE runs will be returned,
+    // so a second concurrent tick gets an empty result set for the same rows.
+    const claimedJobs = await db
+      .update(publishJobsTable)
+      .set({ status: "in_progress", updatedAt: now })
       .where(
         and(
           eq(publishJobsTable.status, "pending"),
           lte(publishJobsTable.scheduledAt, now),
         ),
-      );
+      )
+      .returning({ id: publishJobsTable.id });
 
-    if (dueJobs.length === 0) return;
+    if (claimedJobs.length === 0) return;
 
-    logger.info({ count: dueJobs.length }, "Publish job scheduler: found due jobs");
+    logger.info({ count: claimedJobs.length }, "Publish job scheduler: claimed jobs for execution");
 
     await Promise.allSettled(
-      dueJobs.map(async ({ id }) => {
+      claimedJobs.map(async ({ id }) => {
         try {
           await executePublishJob(id);
           logger.info({ jobId: id }, "Publish job executed");

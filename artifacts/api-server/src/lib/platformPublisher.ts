@@ -323,7 +323,9 @@ export async function fetchFollowerCount(platform: string, accessToken: string, 
 export async function executePublishJob(jobId: number): Promise<void> {
   const [job] = await db.select().from(publishJobsTable).where(eq(publishJobsTable.id, jobId));
   if (!job) return;
-  if (job.status !== "pending") return;
+  // Accept both `pending` (direct calls) and `in_progress` (scheduler
+  // pre-claimed the job atomically before dispatching here).
+  if (job.status !== "pending" && job.status !== "in_progress") return;
 
   const [account] = await db.select().from(platformAccountsTable).where(
     job.platformAccountId
