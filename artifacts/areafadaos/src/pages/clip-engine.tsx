@@ -473,6 +473,10 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
   const [bulkTime, setBulkTime] = useState("10:00");
   const [bulkIntervalDays, setBulkIntervalDays] = useState("1");
 
+  const [sendModalOpen, setSendModalOpen] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailList, setEmailList] = useState<string[]>([]);
+
   const addSchedule = useMutation({
     mutationFn: (body: Record<string, unknown>) => apiFetch("/clip-schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["clip-schedules-calendar"] }); toast({ title: "Clip scheduled" }); setSchedForm({ clipId: "", accountId: "", scheduledAt: "" }); },
@@ -493,6 +497,43 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
     mutationFn: (id: number) => apiFetch(`/clip-schedules/${id}`, { method: "DELETE" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["clip-schedules-calendar"] }); toast({ title: "Removed from schedule" }); },
   });
+
+  const sendScheduleEmail = useMutation({
+    mutationFn: (recipients: string[]) => apiFetch("/clip-schedules/export-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipients }),
+    }),
+    onSuccess: (r: { status: string; recipients: number; scheduleCount: number }) => {
+      setSendModalOpen(false);
+      setEmailList([]);
+      setEmailInput("");
+      const delivered = r.status === "simulated" ? "queued (configure RESEND_API_KEY for live delivery)" : "sent";
+      toast({ title: "Schedule emailed!", description: `${r.scheduleCount} clip${r.scheduleCount !== 1 ? "s" : ""} ${delivered} to ${r.recipients} recipient${r.recipients !== 1 ? "s" : ""}` });
+    },
+    onError: (e: Error) => toast({ title: "Failed to send", description: e.message, variant: "destructive" }),
+  });
+
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function addEmail() {
+    const trimmed = emailInput.trim();
+    if (!trimmed) return;
+    const raw = trimmed.split(/[,;\s]+/).map(e => e.trim()).filter(Boolean);
+    const valid: string[] = [];
+    const bad: string[] = [];
+    for (const e of raw) {
+      if (!EMAIL_RE.test(e)) { bad.push(e); continue; }
+      if (!emailList.includes(e)) valid.push(e);
+    }
+    if (bad.length > 0) toast({ title: "Invalid email(s)", description: bad.join(", "), variant: "destructive" });
+    if (valid.length > 0) setEmailList(prev => [...prev, ...valid]);
+    setEmailInput("");
+  }
+
+  function removeEmail(email: string) {
+    setEmailList(prev => prev.filter(e => e !== email));
+  }
 
   function buildBulkPayload() {
     if (!bulkStartDate || bulkClips.length === 0 || bulkAccounts.length === 0) return null;
@@ -609,7 +650,63 @@ function CalendarTab({ accounts }: { accounts: ClipAccount[] }) {
         <Button variant="outline" size="sm" onClick={exportICS} disabled={calData.length === 0} title="Download .ics for Google Calendar or Apple Calendar">
           📅 Add to Google Calendar
         </Button>
+        <Button variant="outline" size="sm" onClick={() => { setSendModalOpen(true); setEmailList([]); setEmailInput(""); }} title="Email the 30-day schedule to your team">
+          ✉ Send to Team
+        </Button>
       </div>
+
+      <Dialog open={sendModalOpen} onOpenChange={setSendModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send Schedule to Team</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            <p className="text-sm text-muted-foreground">
+              Your 30-day clip schedule will be emailed as a CSV attachment with a branded AreaFada OS summary. Add up to 20 recipients.
+            </p>
+            <div className="space-y-2">
+              <Label>Recipient email addresses</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="editor@team.com"
+                  value={emailInput}
+                  onChange={e => setEmailInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addEmail(); } }}
+                  className="flex-1"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={addEmail} disabled={!emailInput.trim()}>Add</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Press Enter or comma to add. You can paste multiple addresses separated by commas.</p>
+            </div>
+
+            {emailList.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-3 rounded-lg border bg-muted/30">
+                {emailList.map(email => (
+                  <span key={email} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    {email}
+                    <button onClick={() => removeEmail(email)} className="ml-0.5 opacity-60 hover:opacity-100 text-base leading-none">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="p-3 rounded-lg bg-muted text-xs space-y-1">
+              <p className="font-medium">What gets sent</p>
+              <p className="text-muted-foreground">A branded email with a summary table of your next {calData.length} scheduled clip{calData.length !== 1 ? "s" : ""}, plus the full CSV attached.</p>
+            </div>
+
+            <div className="flex gap-2 justify-end pt-1">
+              <Button variant="outline" onClick={() => setSendModalOpen(false)}>Cancel</Button>
+              <Button
+                onClick={() => sendScheduleEmail.mutate(emailList)}
+                disabled={sendScheduleEmail.isPending || emailList.length === 0}
+              >
+                {sendScheduleEmail.isPending ? "Sending…" : `Send to ${emailList.length} recipient${emailList.length !== 1 ? "s" : ""}`}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {!bulkMode ? (
         <Card>
