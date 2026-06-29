@@ -251,8 +251,9 @@ export async function fetchFollowerCount(platform: string, accessToken: string, 
         return data.data?.public_metrics?.followers_count ?? 0;
       }
       case "instagram": {
+        // IG Business Account metrics are served via graph.facebook.com, not graph.instagram.com
         const data = await fetchJSON(
-          `https://graph.instagram.com/v18.0/${platformUserId}?fields=followers_count&access_token=${accessToken}`,
+          `https://graph.facebook.com/v18.0/${platformUserId}?fields=followers_count&access_token=${accessToken}`,
           {}
         );
         return data.followers_count ?? 0;

@@ -221,58 +221,72 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
       }
 
       case "instagram": {
-        // Instagram Graph API uses Facebook Login — token exchange goes through graph.facebook.com
-        const params = new URLSearchParams({
+        // Step 1: Exchange code for a short-lived user access token via Facebook Login
+        const igParams = new URLSearchParams({
           client_id: process.env.INSTAGRAM_APP_ID ?? "",
           client_secret: process.env.INSTAGRAM_APP_SECRET ?? "",
           redirect_uri: redirect,
           code,
         });
-        const tokenRes = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${params}`);
-        const tokenData = await tokenRes.json() as any;
-        if (!tokenRes.ok) throw new Error(tokenData.error?.message ?? "Instagram token exchange failed");
-        accessToken = tokenData.access_token;
-        expiresAt = tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000) : null;
+        const igTokenRes = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${igParams}`);
+        const igTokenData = await igTokenRes.json() as any;
+        if (!igTokenRes.ok) throw new Error(igTokenData.error?.message ?? "Instagram token exchange failed");
+        const userToken = igTokenData.access_token;
 
-        // Resolve the connected Instagram Business Account ID
-        const igAccountRes = await fetch(
-          `https://graph.facebook.com/v18.0/me?fields=id,name,instagram_business_account&access_token=${accessToken}`
+        // Step 2: Enumerate Pages; find the first one with an Instagram Business Account
+        const pagesRes = await fetch(
+          `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${userToken}`
         );
-        const igAccountData = await igAccountRes.json() as any;
-        const igUserId = igAccountData.instagram_business_account?.id ?? igAccountData.id ?? "";
-        platformUserId = igUserId;
-
-        // Fetch Instagram username from the IG Business Account
-        if (igAccountData.instagram_business_account?.id) {
-          const igMeRes = await fetch(
-            `https://graph.facebook.com/v18.0/${igUserId}?fields=username&access_token=${accessToken}`
+        const pagesData = await pagesRes.json() as any;
+        const igPage = (pagesData.data ?? []).find((p: any) => p.instagram_business_account?.id);
+        if (!igPage) {
+          throw new Error(
+            "No Instagram Business Account found. Make sure your Instagram Professional account is connected to a Facebook Page."
           );
-          const igMeData = await igMeRes.json() as any;
-          handle = `@${igMeData.username ?? "unknown"}`;
-        } else {
-          handle = igAccountData.name ?? "Instagram";
         }
+
+        // Use the Page access token (long-lived) and IG Business Account ID for publishing
+        accessToken = igPage.access_token;
+        platformUserId = igPage.instagram_business_account.id;
+
+        // Step 3: Fetch the IG username and follower count
+        const igMeRes = await fetch(
+          `https://graph.facebook.com/v18.0/${platformUserId}?fields=username,followers_count&access_token=${accessToken}`
+        );
+        const igMeData = await igMeRes.json() as any;
+        handle = `@${igMeData.username ?? "unknown"}`;
         break;
       }
 
       case "facebook": {
-        const params = new URLSearchParams({
+        // Step 1: Exchange code for user access token
+        const fbParams = new URLSearchParams({
           client_id: process.env.FACEBOOK_APP_ID ?? "",
           client_secret: process.env.FACEBOOK_APP_SECRET ?? "",
           redirect_uri: redirect,
           code,
         });
-        const tokenRes = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${params}`);
-        const tokenData = await tokenRes.json() as any;
-        if (!tokenRes.ok) throw new Error(tokenData.error?.message ?? "Facebook token exchange failed");
-        accessToken = tokenData.access_token;
-        expiresAt = tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000) : null;
+        const fbTokenRes = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${fbParams}`);
+        const fbTokenData = await fbTokenRes.json() as any;
+        if (!fbTokenRes.ok) throw new Error(fbTokenData.error?.message ?? "Facebook token exchange failed");
+        const fbUserToken = fbTokenData.access_token;
 
-        const meRes = await fetch(`https://graph.facebook.com/v18.0/me?fields=id,name&access_token=${accessToken}`);
-        const meData = await meRes.json() as any;
-        platformUserId = meData.id ?? "";
-        handle = meData.name ?? "Facebook Page";
-        displayName = meData.name ?? null;
+        // Step 2: Get managed Pages — publishing requires Page access tokens, not user tokens
+        const fbPagesRes = await fetch(
+          `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token&access_token=${fbUserToken}`
+        );
+        const fbPagesData = await fbPagesRes.json() as any;
+        const pages = fbPagesData.data ?? [];
+        if (pages.length === 0) {
+          throw new Error("No Facebook Pages found. Create or connect a Facebook Page to use for publishing.");
+        }
+
+        // Use first managed Page (page access token + page ID for publishing)
+        const page = pages[0];
+        accessToken = page.access_token;
+        platformUserId = page.id;
+        handle = page.name ?? "Facebook Page";
+        displayName = page.name ?? null;
         break;
       }
 

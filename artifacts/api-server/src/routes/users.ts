@@ -75,9 +75,15 @@ const TIER_FEATURES: Record<string, { name: string; price: number | null; featur
   },
 };
 
-const ENTERPRISE_EMAILS = new Set([
-  "osejialexander77@gmail.com",
-]);
+// Comma-separated list of emails that receive enterprise tier automatically.
+// Set via ENTERPRISE_EMAILS env var in production; a platform default is included
+// so the account works before the var is configured.
+const ENTERPRISE_EMAILS = new Set(
+  (process.env.ENTERPRISE_EMAILS ?? "osejialexander77@gmail.com")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 function resolveInitialTier(email?: string): string {
   if (email && ENTERPRISE_EMAILS.has(email.toLowerCase())) return "enterprise";
