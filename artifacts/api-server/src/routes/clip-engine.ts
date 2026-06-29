@@ -963,8 +963,26 @@ router.post("/clip-schedules/export-email", ...requireClip, async (req: any, res
     const { subject, htmlBody, csvBase64, filename, scheduleCount } = buildClipScheduleEmailPayload(schedules, start, end);
 
     if (resend) {
+      const fromAddress = process.env.RESEND_FROM_EMAIL ?? "AreaFada OS <no-reply@areafada.com>";
+      if (fromAddress.includes("resend.dev")) {
+        if (process.env.NODE_ENV === "production") {
+          console.error(
+            "[clip-export-email] RESEND_FROM_EMAIL is set to a Resend sandbox address in production — refusing to send. " +
+            "Set RESEND_FROM_EMAIL=\"AreaFada OS <no-reply@areafada.com>\" in Replit Secrets and verify the domain in Resend.",
+          );
+          res.status(503).json({
+            error: "Email sender is not configured for production.",
+            detail: "RESEND_FROM_EMAIL must use an @areafada.com address. Update this in Replit Secrets.",
+          });
+          return;
+        }
+        console.warn(
+          "[clip-export-email] RESEND_FROM_EMAIL is using a Resend sandbox address — " +
+          "this is only permitted outside production. Run `pnpm --filter api-server check:dns` to validate DNS.",
+        );
+      }
       const { data, error } = await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL ?? "AreaFada OS <onboarding@resend.dev>",
+        from: fromAddress,
         to: recipients,
         subject,
         html: htmlBody,

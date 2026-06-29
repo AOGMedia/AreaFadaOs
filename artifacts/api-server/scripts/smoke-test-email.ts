@@ -43,6 +43,17 @@ const resend = new Resend(key);
 const recipient = process.env.SMOKE_RECIPIENT ?? "delivered@resend.dev";
 const fromAddress = process.env.RESEND_FROM_EMAIL ?? "AreaFada OS <onboarding@resend.dev>";
 
+if (fromAddress.includes("resend.dev")) {
+  console.error(
+    "❌ RESEND_FROM_EMAIL is using the Resend sandbox address. " +
+    "Emails sent from this address WILL fail spam checks.\n" +
+    "   Set RESEND_FROM_EMAIL=\"AreaFada OS <no-reply@areafada.com>\" in Replit Secrets,\n" +
+    "   verify the domain in Resend (https://resend.com/domains),\n" +
+    "   then re-run: pnpm --filter api-server check:dns",
+  );
+  process.exit(1);
+}
+
 console.log("\n🔬 AreaFada OS — Clip Schedule Email Smoke Test");
 console.log("   Testing the REAL route logic (DB query + email builder + Resend API)\n");
 
