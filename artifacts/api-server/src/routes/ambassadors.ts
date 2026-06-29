@@ -872,19 +872,23 @@ router.get("/ambassadors/widget", async (req: any, res): Promise<void> => {
       const color = esc(zoneColor[a.zone] ?? "#6b7280");
       const medal = medalIcons[i] ?? `<span style="color:#94a3b8;font-size:13px;font-family:monospace;">${i + 1}</span>`;
       return `
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #f1f5f9;">
-        <span style="font-size:18px;width:24px;text-align:center;">${medal}</span>
+      <div class="row" style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #f1f5f9;transition:background 0.15s;">
+        <span style="font-size:18px;width:24px;text-align:center;flex-shrink:0;">${medal}</span>
         <div style="width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;">${initials}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:13px;color:#0f172a;">${name}</div>
-          <div style="font-size:11px;color:#64748b;">${state} · ${zone}</div>
+          <div style="font-weight:600;font-size:13px;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+          <div style="font-size:11px;color:#64748b;margin-top:1px;">${state} · ${zone}</div>
         </div>
-        <div style="text-align:right;">
+        <div style="text-align:right;flex-shrink:0;">
           <div style="font-weight:700;font-size:14px;color:#0f172a;">${a.totalPoints.toLocaleString()}</div>
           <div style="font-size:11px;color:#94a3b8;">pts ${esc(tierIcon[a.tier] ?? "")}</div>
         </div>
       </div>`;
     }).join("");
+
+    const emptyHtml = rows.length === 0
+      ? `<div style="padding:32px 16px;text-align:center;color:#94a3b8;font-size:13px;">No ambassadors yet — check back soon.</div>`
+      : "";
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -892,29 +896,38 @@ router.get("/ambassadors/widget", async (req: any, res): Promise<void> => {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Area Fada Ambassador Leaderboard</title>
-<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;}</style>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8fafc;min-height:100vh;}
+.row:last-child{border-bottom:none!important;}
+.row:hover{background:#f1f5f9;}
+</style>
 </head>
 <body>
-<div style="padding:16px 16px 8px;border-bottom:2px solid #0f172a;">
-  <div style="display:flex;align-items:center;gap:8px;">
-    <span style="font-size:20px;">🏆</span>
+<div style="background:hsl(152,80%,36%);padding:14px 16px 12px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span style="font-size:22px;line-height:1;">🏆</span>
     <div>
-      <div style="font-weight:800;font-size:15px;color:#0f172a;">Area Fada Ambassador Leaderboard</div>
-      <div style="font-size:11px;color:#64748b;">Top 10 · Updated live</div>
+      <div style="font-weight:800;font-size:15px;color:#fff;letter-spacing:-0.01em;">Ambassador Leaderboard</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:1px;">Top 10 · refreshes every 60 s</div>
     </div>
   </div>
 </div>
-${rows_html}
-<div style="padding:8px 16px;text-align:center;">
-  <a href="https://areafada.os" target="_blank" style="font-size:10px;color:#94a3b8;text-decoration:none;">Powered by Area Fada OS</a>
+<div style="background:#fff;border-radius:0 0 8px 8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+${rows_html || emptyHtml}
+</div>
+<div style="padding:10px 16px;text-align:center;">
+  <a href="https://areafada.com" target="_blank" rel="noopener" style="font-size:10px;color:#94a3b8;text-decoration:none;letter-spacing:0.02em;">Powered by <span style="color:hsl(152,80%,36%);font-weight:600;">Area Fada OS</span></a>
 </div>
 <script>setTimeout(()=>location.reload(),60000);</script>
 </body>
 </html>`;
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.setHeader("X-Frame-Options", "ALLOWALL");
+    res.removeHeader("X-Frame-Options");
     res.setHeader("Content-Security-Policy", "frame-ancestors *");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.send(html);
   } catch (err) {
     console.error(err);
