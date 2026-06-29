@@ -135,10 +135,28 @@ router.get("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
   const igRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.instagram);
   const rstRow = rows.find(r => r.platform === LIVE_API_PLATFORMS.restream);
 
+  // Restream: parse verification metadata stored in the otherwise-unused appId column
+  let restreamLastVerified: string | null = null;
+  let restreamKeyExpired: boolean | null = null;
+  if (rstRow?.appId) {
+    try {
+      const meta = JSON.parse(rstRow.appId) as { lastVerified?: string; expired?: boolean };
+      restreamLastVerified = meta.lastVerified ?? null;
+      restreamKeyExpired = meta.expired ?? null;
+    } catch {
+      // ignore malformed metadata
+    }
+  }
+
   res.json({
     youtube: { configured: !!(ytRow?.appId), envOverride: !!process.env.YOUTUBE_API_KEY },
     instagram: { configured: !!(igRow?.appSecret), envOverride: !!process.env.INSTAGRAM_ACCESS_TOKEN },
-    restream: { configured: !!(rstRow?.appSecret), envOverride: !!process.env.RESTREAM_API_KEY },
+    restream: {
+      configured: !!(rstRow?.appSecret) || !!process.env.RESTREAM_API_KEY,
+      envOverride: !!process.env.RESTREAM_API_KEY,
+      lastVerified: restreamLastVerified,
+      keyExpired: restreamKeyExpired,
+    },
   });
 });
 
@@ -190,7 +208,8 @@ router.put("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
 
     if (existing) {
       await db.update(platformOauthConfigsTable)
-        .set({ appSecret: encrypted, updatedAt: new Date() })
+        // Reset verification metadata whenever a new key is saved
+        .set({ appSecret: encrypted, appId: null, updatedAt: new Date() })
         .where(eq(platformOauthConfigsTable.id, existing.id));
     } else {
       await db.insert(platformOauthConfigsTable).values({
@@ -200,6 +219,71 @@ router.put("/settings/live-api-keys", requireAuth, async (req: any, res): Promis
   }
 
   res.json({ ok: true });
+});
+
+// POST /settings/live-api-keys/check-restream — silently verify the stored key and persist result
+router.post("/settings/live-api-keys/check-restream", requireAuth, async (req: any, res): Promise<void> => {
+  const user = await getDbUser(req.clerkUserId);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  // Resolve which key to verify (env override takes precedence)
+  let apiKey: string | null = null;
+  let useEnvKey = false;
+  if (process.env.RESTREAM_API_KEY) {
+    apiKey = process.env.RESTREAM_API_KEY;
+    useEnvKey = true;
+  } else {
+    const rows = await db.select()
+      .from(platformOauthConfigsTable)
+      .where(and(
+        eq(platformOauthConfigsTable.userId, user.id),
+        eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.restream),
+      ));
+    const rstRow = rows[0];
+    apiKey = rstRow?.appSecret ? decryptToken(rstRow.appSecret) : null;
+  }
+
+  if (!apiKey) {
+    res.status(422).json({ ok: false, error: "No Restream API key configured." });
+    return;
+  }
+
+  let expired = false;
+  let verifyError: string | null = null;
+
+  try {
+    const response = await fetch("https://api.restream.io/v2/user/profile", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (response.status === 401 || response.status === 403) {
+      expired = true;
+    } else if (!response.ok) {
+      verifyError = `Restream returned ${response.status}`;
+    }
+  } catch (err: any) {
+    verifyError = err?.name === "TimeoutError" ? "Request timed out" : (err?.message ?? "Network error");
+  }
+
+  const lastVerified = new Date().toISOString();
+  const meta = JSON.stringify({ lastVerified, expired });
+
+  // Persist verification result in the DB row (only when using the stored key, not env override)
+  if (!useEnvKey) {
+    const [existing] = await db.select({ id: platformOauthConfigsTable.id })
+      .from(platformOauthConfigsTable)
+      .where(and(
+        eq(platformOauthConfigsTable.userId, user.id),
+        eq(platformOauthConfigsTable.platform, LIVE_API_PLATFORMS.restream),
+      ));
+    if (existing) {
+      await db.update(platformOauthConfigsTable)
+        .set({ appId: meta, updatedAt: new Date() })
+        .where(eq(platformOauthConfigsTable.id, existing.id));
+    }
+  }
+
+  res.json({ ok: !expired && !verifyError, expired, lastVerified, error: verifyError });
 });
 
 // POST /settings/live-api-keys/test-restream — validate key against Restream API

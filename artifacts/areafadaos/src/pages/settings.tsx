@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -47,10 +47,15 @@ interface LiveApiKeyStatus {
   envOverride: boolean;
 }
 
+interface RestreamApiKeyStatus extends LiveApiKeyStatus {
+  lastVerified?: string | null;
+  keyExpired?: boolean | null;
+}
+
 interface LiveApiKeysResponse {
   youtube: LiveApiKeyStatus;
   instagram: LiveApiKeyStatus;
-  restream: LiveApiKeyStatus;
+  restream: RestreamApiKeyStatus;
 }
 
 const PLATFORM_CONFIG = [
@@ -453,13 +458,19 @@ function LiveApiKeysCard({
         {/* Restream API Key */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label className="text-xs font-medium flex items-center gap-1.5">
+            <Label className="text-xs font-medium flex items-center gap-1.5 flex-wrap">
               <span className="text-[13px]">📡</span> Restream.io API Key
               {rstStatus?.envOverride && (
                 <Badge variant="outline" className="text-[10px] py-0 h-4 text-blue-600 border-blue-300 ml-1">env override</Badge>
               )}
               {!rstStatus?.envOverride && rstStatus?.configured && (
-                <Badge variant="outline" className="text-[10px] py-0 h-4 text-emerald-600 border-emerald-300 ml-1">saved</Badge>
+                rstStatus?.keyExpired === true ? (
+                  <Badge variant="outline" className="text-[10px] py-0 h-4 text-red-600 border-red-300 ml-1 flex items-center gap-0.5">
+                    <AlertCircle className="w-2.5 h-2.5" /> expired
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] py-0 h-4 text-emerald-600 border-emerald-300 ml-1">saved</Badge>
+                )
               )}
             </Label>
             {rstStatus?.configured && !rstStatus?.envOverride && (
@@ -561,6 +572,23 @@ function LiveApiKeysCard({
             </div>
           )}
 
+          {/* Expired key warning */}
+          {!rstStatus?.envOverride && rstStatus?.configured && rstStatus?.keyExpired === true && (
+            <div className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                This Restream Personal Access Token has expired or been revoked. Paste a fresh token and save to restore live streaming.
+              </span>
+            </div>
+          )}
+
+          {/* Last verified timestamp */}
+          {!rstStatus?.envOverride && rstStatus?.configured && rstStatus?.lastVerified && (
+            <p className="text-[11px] text-muted-foreground">
+              Last verified: {new Date(rstStatus.lastVerified).toLocaleString()}
+            </p>
+          )}
+
           {rstStatus?.envOverride && (
             <p className="text-[11px] text-blue-600">Set via server environment variable — to override, clear the env var first.</p>
           )}
@@ -601,6 +629,7 @@ export function SettingsPage() {
   const [clearingPlatform, setClearingPlatform] = useState<string | null>(null);
   const [savingLiveKeys, setSavingLiveKeys] = useState(false);
   const [clearingLiveKey, setClearingLiveKey] = useState<string | null>(null);
+  const restreamCheckFiredRef = useRef(false);
 
   const { data, isLoading } = useQuery<CredentialsResponse>({
     queryKey: ["settings-credentials"],
@@ -611,6 +640,21 @@ export function SettingsPage() {
     queryKey: ["settings-live-api-keys"],
     queryFn: () => apiFetch("/settings/live-api-keys"),
   });
+
+  // Background check: silently verify the Restream key on page load if one is configured
+  useEffect(() => {
+    if (restreamCheckFiredRef.current) return;
+    const rst = liveApiKeysData?.restream;
+    if (!rst?.configured || rst?.envOverride) return;
+    restreamCheckFiredRef.current = true;
+    apiFetch("/settings/live-api-keys/check-restream", { method: "POST" })
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["settings-live-api-keys"] });
+      })
+      .catch(() => {
+        // Silently swallow — network issues shouldn't surface here
+      });
+  }, [liveApiKeysData, queryClient]);
 
   const saveMutation = useMutation({
     mutationFn: ({ platform, appId, appSecret }: { platform: string; appId: string; appSecret: string }) =>
