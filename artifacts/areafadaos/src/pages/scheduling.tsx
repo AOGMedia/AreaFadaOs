@@ -61,6 +61,7 @@ import {
   History,
   LayoutGrid,
   CalendarDays,
+  AlertTriangle,
 } from "lucide-react";
 import {
   format,
@@ -1207,6 +1208,75 @@ function RecycleDialog({ post, open, onClose }: { post: any; open: boolean; onCl
   );
 }
 
+// ── Reconnect Required Banner ────────────────────────────────────────────
+
+// Platforms with a working /oauth/:platform/start flow
+const OAUTH_SUPPORTED_PLATFORMS = ["x", "instagram", "facebook", "tiktok"] as const;
+type OAuthPlatform = typeof OAUTH_SUPPORTED_PLATFORMS[number];
+
+function ReconnectRequiredBanner({ accounts }: { accounts: any[] }) {
+  const needsReconnect = accounts.filter((a) => a.errorCode === "auth_required" && a.connected);
+  if (needsReconnect.length === 0) return null;
+
+  const PLATFORM_LABELS: Record<string, string> = {
+    instagram: "Instagram", facebook: "Facebook", tiktok: "TikTok",
+    x: "X / Twitter", youtube: "YouTube", threads: "Threads",
+  };
+  const PLATFORM_ICONS: Record<string, string> = {
+    instagram: "📸", tiktok: "🎵", x: "🐦", facebook: "📘", youtube: "📺", threads: "🧵",
+  };
+
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  // Split into accounts we can reconnect via OAuth vs those that need manual support
+  const reconnectable = needsReconnect.filter((a) =>
+    (OAUTH_SUPPORTED_PLATFORMS as readonly string[]).includes(a.platform)
+  );
+  const manualOnly = needsReconnect.filter((a) =>
+    !(OAUTH_SUPPORTED_PLATFORMS as readonly string[]).includes(a.platform)
+  );
+
+  return (
+    <div className="rounded-xl bg-red-50 border border-red-200 p-4 mb-4 space-y-3">
+      <div className="flex items-center gap-2 text-sm">
+        <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+        <span className="font-semibold text-red-800">
+          {needsReconnect.length === 1
+            ? "1 account needs reconnection — token refresh failed"
+            : `${needsReconnect.length} accounts need reconnection — token refresh failed`}
+        </span>
+      </div>
+      <p className="text-xs text-red-700">
+        Analytics could not be automatically refreshed for the accounts below. This happens when a token is fully revoked or the platform requires manual re-authorization.
+      </p>
+
+      {reconnectable.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {reconnectable.map((a) => (
+            <a
+              key={a.id}
+              href={`${base}/api/oauth/${a.platform}/start`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors"
+            >
+              <AlertTriangle className="w-3 h-3" />
+              Reconnect {PLATFORM_LABELS[a.platform] ?? a.platform}
+              {PLATFORM_ICONS[a.platform] ? ` ${PLATFORM_ICONS[a.platform]}` : ""}
+            </a>
+          ))}
+        </div>
+      )}
+
+      {manualOnly.length > 0 && (
+        <p className="text-xs text-red-600">
+          <span className="font-medium">Note:</span>{" "}
+          {manualOnly.map((a) => `${PLATFORM_LABELS[a.platform] ?? a.platform} ${PLATFORM_ICONS[a.platform] ?? ""}`).join(", ")}{" "}
+          {manualOnly.length === 1 ? "requires" : "require"} manual reconnection — disconnect and reconnect the account from your platform settings.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Connect Account Banner ───────────────────────────────────────────────
 
 const PLATFORM_OAUTH: { platform: string; label: string; color: string; textColor: string }[] = [
@@ -1399,6 +1469,9 @@ export default function SchedulingPage() {
               <Plus className="w-4 h-4" /> New Post
             </Button>
           </div>
+
+          {/* Reconnect required banner (token refresh failed) */}
+          <ReconnectRequiredBanner accounts={accounts} />
 
           {/* Connect banner */}
           <ConnectBanner accounts={accounts} />

@@ -16,7 +16,8 @@
 import { db } from "@workspace/db";
 import { platformAccountsTable, analyticsSnapshots } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
-import { decryptToken, isTokenExpired } from "./tokenEncryption.js";
+import { decryptToken, encryptToken, isTokenExpired } from "./tokenEncryption.js";
+import { refreshPlatformToken } from "./tokenRefresh.js";
 import { logger } from "./logger.js";
 
 // ─── HTTP helper ────────────────────────────────────────────────────────────
@@ -163,6 +164,31 @@ async function fetchYouTubeMetrics(accessToken: string): Promise<PlatformMetrics
   return { followers, reach, impressions, engagementRate: 5.4, profileViews: 0 };
 }
 
+// ─── Metrics dispatch helper ─────────────────────────────────────────────────
+
+async function fetchMetricsForPlatform(
+  platform: string,
+  plainToken: string,
+  platformUserId: string | null | undefined
+): Promise<PlatformMetrics> {
+  switch (platform) {
+    case "instagram":
+      if (!platformUserId) throw new Error("platformUserId missing for Instagram");
+      return fetchInstagramMetrics(plainToken, platformUserId);
+    case "facebook":
+      if (!platformUserId) throw new Error("platformUserId missing for Facebook");
+      return fetchFacebookMetrics(plainToken, platformUserId);
+    case "x":
+      return fetchXMetrics(plainToken);
+    case "tiktok":
+      return fetchTikTokMetrics(plainToken);
+    case "youtube":
+      return fetchYouTubeMetrics(plainToken);
+    default:
+      throw Object.assign(new Error(`Unsupported platform: ${platform}`), { unsupported: true });
+  }
+}
+
 // ─── Main ingestion entry point ──────────────────────────────────────────────
 
 export interface IngestResult {
@@ -198,69 +224,25 @@ export async function ingestPlatformData(userId?: number): Promise<IngestResult[
       continue;
     }
 
-    // Skip if token is expired (without a refresh mechanism here)
-    if (isTokenExpired(account.tokenExpiresAt)) {
+    // ── Helper: persist refreshed tokens and patch in-memory account ──────────
+    async function applyRefreshedTokens(refreshed: { accessToken: string; refreshToken?: string; expiresAt?: Date }) {
       await db.update(platformAccountsTable)
-        .set({ errorMessage: "Access token expired", errorCode: "auth_failure", updatedAt: new Date() })
+        .set({
+          accessToken: encryptToken(refreshed.accessToken),
+          refreshToken: refreshed.refreshToken ? encryptToken(refreshed.refreshToken) : account.refreshToken,
+          tokenExpiresAt: refreshed.expiresAt ?? account.tokenExpiresAt,
+          errorMessage: null,
+          errorCode: null,
+          updatedAt: new Date(),
+        })
         .where(eq(platformAccountsTable.id, account.id));
-      results.push({ platform: account.platform, handle: account.handle, status: "skipped", reason: "token_expired" });
-      logger.warn({ accountId: account.id }, `${tag} — token expired, skipping`);
-      continue;
+      account.accessToken = encryptToken(refreshed.accessToken);
+      if (refreshed.refreshToken) account.refreshToken = encryptToken(refreshed.refreshToken);
+      if (refreshed.expiresAt) account.tokenExpiresAt = refreshed.expiresAt;
     }
 
-    // Idempotency: skip if we already have a snapshot for today
-    const existingToday = await db.select({ id: analyticsSnapshots.id })
-      .from(analyticsSnapshots)
-      .where(
-        and(
-          eq(analyticsSnapshots.userId, account.userId),
-          eq(analyticsSnapshots.platform, account.platform)
-        )
-      )
-      .limit(1);
-
-    if (existingToday.length > 0) {
-      // Check if today's snapshot already recorded — allow re-ingest for manual triggers
-      // (we'll always insert fresh for on-demand; scheduler skips if same calendar day)
-      const latestSnap = existingToday[0];
-      // We'll proceed — duplicate daily snapshots are fine; the summary query takes latest
-    }
-
-    let plainToken: string;
-    try {
-      plainToken = decryptToken(account.accessToken);
-    } catch (err: any) {
-      logger.error({ accountId: account.id, err: err.message }, `${tag} — token decryption failed`);
-      results.push({ platform: account.platform, handle: account.handle, status: "error", reason: "decrypt_failed" });
-      continue;
-    }
-
-    try {
-      let metrics: PlatformMetrics;
-
-      switch (account.platform) {
-        case "instagram":
-          if (!account.platformUserId) throw new Error("platformUserId missing for Instagram");
-          metrics = await fetchInstagramMetrics(plainToken, account.platformUserId);
-          break;
-        case "facebook":
-          if (!account.platformUserId) throw new Error("platformUserId missing for Facebook");
-          metrics = await fetchFacebookMetrics(plainToken, account.platformUserId);
-          break;
-        case "x":
-          metrics = await fetchXMetrics(plainToken);
-          break;
-        case "tiktok":
-          metrics = await fetchTikTokMetrics(plainToken);
-          break;
-        case "youtube":
-          metrics = await fetchYouTubeMetrics(plainToken);
-          break;
-        default:
-          results.push({ platform: account.platform, handle: account.handle, status: "skipped", reason: "unsupported_platform" });
-          continue;
-      }
-
+    // ── Helper: write a metrics snapshot and clear errors ──────────────────────
+    async function writeSnapshot(metrics: PlatformMetrics) {
       await db.insert(analyticsSnapshots).values({
         userId: account.userId,
         platform: account.platform,
@@ -272,23 +254,107 @@ export async function ingestPlatformData(userId?: number): Promise<IngestResult[
         engagementRate: String(metrics.engagementRate.toFixed(2)),
         profileViews: metrics.profileViews,
       });
-
-      // Update follower count on the platform_accounts row too
       await db.update(platformAccountsTable)
-        .set({
-          followerCount: metrics.followers,
-          errorMessage: null,
-          errorCode: null,
-          updatedAt: new Date(),
-        })
+        .set({ followerCount: metrics.followers, errorMessage: null, errorCode: null, updatedAt: new Date() })
         .where(eq(platformAccountsTable.id, account.id));
+    }
 
+    // Attempt token refresh when expired (proactive path)
+    if (isTokenExpired(account.tokenExpiresAt)) {
+      logger.warn({ accountId: account.id }, `${tag} — token expired, attempting refresh`);
+      try {
+        const currentPlainToken = decryptToken(account.accessToken);
+        const refreshPlainToken = account.refreshToken ? decryptToken(account.refreshToken) : null;
+
+        const refreshed = await refreshPlatformToken(
+          account.userId,
+          account.platform,
+          currentPlainToken,
+          refreshPlainToken,
+          account.platformUserId
+        );
+
+        await applyRefreshedTokens(refreshed);
+        logger.info({ accountId: account.id }, `${tag} — token refreshed successfully (proactive)`);
+      } catch (refreshErr: any) {
+        await db.update(platformAccountsTable)
+          .set({ errorMessage: refreshErr.message ?? "Token refresh failed", errorCode: "auth_required", updatedAt: new Date() })
+          .where(eq(platformAccountsTable.id, account.id));
+        logger.warn({ accountId: account.id, err: refreshErr.message }, `${tag} — proactive token refresh failed, manual reconnect needed`);
+        results.push({ platform: account.platform, handle: account.handle, status: "skipped", reason: "refresh_failed" });
+        continue;
+      }
+    }
+
+    // Idempotency guard skipped (we allow re-ingest on both scheduler and manual triggers)
+
+    let plainToken: string;
+    try {
+      plainToken = decryptToken(account.accessToken);
+    } catch (err: any) {
+      logger.error({ accountId: account.id, err: err.message }, `${tag} — token decryption failed`);
+      results.push({ platform: account.platform, handle: account.handle, status: "error", reason: "decrypt_failed" });
+      continue;
+    }
+
+    try {
+      const metrics = await fetchMetricsForPlatform(account.platform, plainToken, account.platformUserId);
+      await writeSnapshot(metrics);
       logger.info({ accountId: account.id, followers: metrics.followers }, `${tag} — snapshot written`);
       results.push({ platform: account.platform, handle: account.handle, status: "ok", followers: metrics.followers });
 
     } catch (err: any) {
+      // Unsupported platform check
+      if ((err as any).unsupported) {
+        results.push({ platform: account.platform, handle: account.handle, status: "skipped", reason: "unsupported_platform" });
+        continue;
+      }
+
       const status = Number(err.status ?? 0);
-      const errorCode: string = status === 401 || status === 403 ? "auth_failure" : status === 429 ? "rate_limit" : "unknown";
+      const isAuthError = status === 401 || status === 403;
+
+      // Reactive refresh: on auth errors, attempt one-shot token refresh and retry
+      // This handles accounts with null/stale tokenExpiresAt (e.g. pre-existing Meta accounts)
+      if (isAuthError) {
+        logger.warn({ accountId: account.id, status }, `${tag} — auth error (${status}), attempting token refresh and retry`);
+        try {
+          const currentPlainToken2 = decryptToken(account.accessToken!);
+          const refreshPlainToken2 = account.refreshToken ? decryptToken(account.refreshToken) : null;
+
+          const refreshed = await refreshPlatformToken(
+            account.userId,
+            account.platform,
+            currentPlainToken2,
+            refreshPlainToken2,
+            account.platformUserId
+          );
+
+          await applyRefreshedTokens(refreshed);
+          logger.info({ accountId: account.id }, `${tag} — token refreshed after auth error, retrying fetch`);
+
+          // Retry the fetch with the fresh token in the same cycle
+          const freshPlainToken = refreshed.accessToken;
+          const retryMetrics = await fetchMetricsForPlatform(account.platform, freshPlainToken, account.platformUserId);
+          await writeSnapshot(retryMetrics);
+          logger.info({ accountId: account.id, followers: retryMetrics.followers }, `${tag} — snapshot written after token refresh retry`);
+          results.push({ platform: account.platform, handle: account.handle, status: "ok", followers: retryMetrics.followers });
+        } catch (refreshErr: any) {
+          // Refresh or retry fetch failed — creator must reconnect manually
+          const isRetryAuthError = Number((refreshErr as any).status ?? 0) === 401 || Number((refreshErr as any).status ?? 0) === 403;
+          await db.update(platformAccountsTable)
+            .set({
+              errorMessage: refreshErr.message ?? "Token refresh failed after auth error",
+              errorCode: isRetryAuthError ? "auth_required" : "auth_required",
+              updatedAt: new Date(),
+            })
+            .where(eq(platformAccountsTable.id, account.id));
+          logger.warn({ accountId: account.id, err: refreshErr.message }, `${tag} — reactive refresh failed, manual reconnect needed`);
+          results.push({ platform: account.platform, handle: account.handle, status: "error", reason: refreshErr.message });
+        }
+        continue;
+      }
+
+      const errorCode: string = status === 429 ? "rate_limit" : "unknown";
       const errorMessage = err.message ?? "Unknown error";
 
       await db.update(platformAccountsTable)

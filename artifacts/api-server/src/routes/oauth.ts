@@ -263,6 +263,7 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
         const igAppId = igCreds.appId ?? process.env.INSTAGRAM_APP_ID ?? "";
         const igAppSecret = igCreds.appSecret ?? process.env.INSTAGRAM_APP_SECRET ?? "";
 
+        // Step 1: short-lived code → short-lived user token
         const igParams = new URLSearchParams({
           client_id: igAppId,
           client_secret: igAppSecret,
@@ -272,10 +273,23 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
         const igTokenRes = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${igParams}`);
         const igTokenData = await igTokenRes.json() as any;
         if (!igTokenRes.ok) throw new Error(igTokenData.error?.message ?? "Instagram token exchange failed");
-        const userToken = igTokenData.access_token;
+        const shortLivedUserToken = igTokenData.access_token;
 
+        // Step 2: exchange short-lived user token for a long-lived one (60-day expiry)
+        const igLlParams = new URLSearchParams({
+          grant_type: "fb_exchange_token",
+          client_id: igAppId,
+          client_secret: igAppSecret,
+          fb_exchange_token: shortLivedUserToken,
+        });
+        const igLlRes = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${igLlParams}`);
+        const igLlData = await igLlRes.json() as any;
+        const longLivedUserToken = igLlRes.ok ? (igLlData.access_token ?? shortLivedUserToken) : shortLivedUserToken;
+        const igLlExpiresIn = igLlRes.ok ? Number(igLlData.expires_in ?? 0) : 0;
+
+        // Step 3: get the Instagram Business Account via the user's connected Page
         const pagesRes = await fetch(
-          `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${userToken}`
+          `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${longLivedUserToken}`
         );
         const pagesData = await pagesRes.json() as any;
         const igPage = (pagesData.data ?? []).find((p: any) => p.instagram_business_account?.id);
@@ -285,8 +299,14 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
           );
         }
 
+        // Page access tokens derived from a long-lived user token are also long-lived.
+        // Store the long-lived User token in refreshToken so the refresh flow can use it
+        // with fb_exchange_token (which only accepts User tokens, not Page tokens).
         accessToken = igPage.access_token;
+        refreshToken = longLivedUserToken;
         platformUserId = igPage.instagram_business_account.id;
+        // Store the expiry so the refresh logic can trigger before expiry
+        expiresAt = igLlExpiresIn > 0 ? new Date(Date.now() + igLlExpiresIn * 1000) : new Date(Date.now() + 60 * 24 * 3600 * 1000);
 
         const igMeRes = await fetch(
           `https://graph.facebook.com/v18.0/${platformUserId}?fields=username,followers_count&access_token=${accessToken}`
@@ -301,6 +321,7 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
         const fbAppId = fbCreds.appId ?? process.env.FACEBOOK_APP_ID ?? "";
         const fbAppSecret = fbCreds.appSecret ?? process.env.FACEBOOK_APP_SECRET ?? "";
 
+        // Step 1: short-lived code → short-lived user token
         const fbParams = new URLSearchParams({
           client_id: fbAppId,
           client_secret: fbAppSecret,
@@ -310,10 +331,23 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
         const fbTokenRes = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${fbParams}`);
         const fbTokenData = await fbTokenRes.json() as any;
         if (!fbTokenRes.ok) throw new Error(fbTokenData.error?.message ?? "Facebook token exchange failed");
-        const fbUserToken = fbTokenData.access_token;
+        const fbShortLivedToken = fbTokenData.access_token;
 
+        // Step 2: exchange for long-lived user token (60-day expiry)
+        const fbLlParams = new URLSearchParams({
+          grant_type: "fb_exchange_token",
+          client_id: fbAppId,
+          client_secret: fbAppSecret,
+          fb_exchange_token: fbShortLivedToken,
+        });
+        const fbLlRes = await fetch(`https://graph.facebook.com/v18.0/oauth/access_token?${fbLlParams}`);
+        const fbLlData = await fbLlRes.json() as any;
+        const fbLongLivedToken = fbLlRes.ok ? (fbLlData.access_token ?? fbShortLivedToken) : fbShortLivedToken;
+        const fbLlExpiresIn = fbLlRes.ok ? Number(fbLlData.expires_in ?? 0) : 0;
+
+        // Step 3: get the user's Facebook Page (page access tokens from a long-lived user token are long-lived)
         const fbPagesRes = await fetch(
-          `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token&access_token=${fbUserToken}`
+          `https://graph.facebook.com/v18.0/me/accounts?fields=id,name,access_token&access_token=${fbLongLivedToken}`
         );
         const fbPagesData = await fbPagesRes.json() as any;
         const pages = fbPagesData.data ?? [];
@@ -322,10 +356,15 @@ router.get("/oauth/:platform/callback", async (req: any, res): Promise<void> => 
         }
 
         const page = pages[0];
+        // Store the long-lived User token in refreshToken so the refresh flow can use
+        // fb_exchange_token with it (which only accepts User tokens, not Page tokens).
         accessToken = page.access_token;
+        refreshToken = fbLongLivedToken;
         platformUserId = page.id;
         handle = page.name ?? "Facebook Page";
         displayName = page.name ?? null;
+        // Store expiry so refresh logic can trigger proactively
+        expiresAt = fbLlExpiresIn > 0 ? new Date(Date.now() + fbLlExpiresIn * 1000) : new Date(Date.now() + 60 * 24 * 3600 * 1000);
         break;
       }
 
