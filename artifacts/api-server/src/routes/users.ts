@@ -17,6 +17,13 @@ const requireAuth = (req: any, res: any, next: any) => {
 
   // Extract email from JWT session claims so routes can pass the real
   // email address to getOrCreateUser on first login.
+  //
+  // REQUIRED CLERK CONFIG — Clerk Auth pane → JWT Templates → "Default session token":
+  //   Add claim:  email  →  {{user.primary_email_address}}
+  //
+  // Once saved, every JWT will include the email claim and req.clerkEmail
+  // is always populated here, making the fetchEmailFromClerk() fallback below
+  // a no-op in normal operation.
   const claims = auth?.sessionClaims as Record<string, unknown> | null | undefined;
   const rawEmail = claims?.email ?? claims?.primaryEmailAddress;
   req.clerkEmail = typeof rawEmail === "string" && rawEmail ? rawEmail.toLowerCase() : undefined;
@@ -100,7 +107,11 @@ function resolveInitialTier(email?: string): string {
 /**
  * Fetch the primary email address for a Clerk user via the Clerk Backend API.
  * Returns undefined if CLERK_SECRET_KEY is not set or the request fails.
- * Used as a fallback when the JWT session claims do not include the email claim.
+ *
+ * Safety-net fallback only — this should never be called in normal operation
+ * once the Clerk JWT template is configured to include the `email` claim
+ * (Clerk Auth pane → JWT Templates → "Default session token" → add
+ *  `email: {{user.primary_email_address}}`).
  */
 async function fetchEmailFromClerk(clerkId: string): Promise<string | undefined> {
   const secretKey = process.env.CLERK_SECRET_KEY;
