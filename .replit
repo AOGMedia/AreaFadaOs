@@ -26,3 +26,4 @@ channel = "stable-25_05"
 
 [userenv.shared]
 RESEND_FROM_EMAIL = "AreaFada OS <no-reply@areafada.com>"
+ENTERPRISE_EMAILS = "osejialexander77@gmail.com,royalheritageinc@gmail.com"
