@@ -18,6 +18,116 @@ import { requireTier } from "../middlewares/tierGuard";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
+// ─── Email payload builder (exported for smoke-testing without HTTP layer) ────
+export type ClipScheduleRow = {
+  schedule: { scheduledAt: Date | string; status: string };
+  clip: { label: string; format: string; captionText: string; hashtags: string[] | unknown } | null;
+  account: { name: string; platform: string; color: string } | null;
+};
+
+export function buildClipScheduleEmailPayload(
+  schedules: ClipScheduleRow[],
+  start: Date,
+  end: Date,
+): { subject: string; htmlBody: string; csvBase64: string; filename: string; scheduleCount: number } {
+  const fromDate = start.toISOString().slice(0, 10);
+  const toDate = end.toISOString().slice(0, 10);
+  const scheduleCount = schedules.length;
+  const subject = `AreaFada OS — Clip Schedule (${fromDate} to ${toDate})`;
+
+  const CSV_HEADER = ["Date", "Time", "Account", "Platform", "Clip Label", "Format", "Caption", "Hashtags", "Status"];
+  const csvRows = schedules.map(item => {
+    const dt = new Date(item.schedule.scheduledAt);
+    return [
+      dt.toLocaleDateString("en-NG", { year: "numeric", month: "2-digit", day: "2-digit" }),
+      dt.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: false }),
+      item.account?.name ?? "",
+      item.account?.platform ?? "",
+      item.clip?.label ?? "",
+      item.clip?.format ?? "",
+      item.clip?.captionText ?? "",
+      (item.clip?.hashtags as string[] ?? []).join(" "),
+      item.schedule.status,
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
+  });
+  const csvContent = [CSV_HEADER.join(","), ...csvRows].join("\n");
+  const csvBase64 = Buffer.from(csvContent, "utf-8").toString("base64");
+  const filename = `clip-schedule-${fromDate}.csv`;
+
+  const htmlBody = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:#16a34a;padding:28px 32px;">
+            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">AreaFada OS</h1>
+            <p style="margin:4px 0 0;color:#bbf7d0;font-size:13px;">Clip Content Engine</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <h2 style="margin:0 0 8px;color:#111827;font-size:18px;font-weight:600;">Your 30-Day Clip Schedule</h2>
+            <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6;">
+              ${scheduleCount === 0
+    ? "No clips are currently scheduled for the next 30 days. Log in to AreaFada OS to build your schedule."
+    : `You have <strong style="color:#16a34a;">${scheduleCount} clip${scheduleCount !== 1 ? "s" : ""}</strong> scheduled over the next 30 days (${fromDate} – ${toDate}). The full schedule is attached as a CSV file.`}
+            </p>
+            ${scheduleCount > 0 ? `
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr style="background:#f1f5f9;">
+                  <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:1px solid #e5e7eb;">Date</th>
+                  <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:1px solid #e5e7eb;">Account</th>
+                  <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:1px solid #e5e7eb;">Clip</th>
+                  <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:1px solid #e5e7eb;">Format</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${schedules.slice(0, 10).map((item, i) => {
+    const dt = new Date(item.schedule.scheduledAt);
+    const dateStr = dt.toLocaleDateString("en-NG", { weekday: "short", month: "short", day: "numeric" });
+    const timeStr = dt.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: false });
+    const color = item.account?.color ?? "#6b7280";
+    return `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f9fafb"};">
+                    <td style="padding:8px 10px;color:#374151;border-bottom:1px solid #f3f4f6;">${dateStr}, ${timeStr}</td>
+                    <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;">
+                      <span style="display:inline-flex;align-items:center;gap:6px;">
+                        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span>
+                        <span style="color:#374151;">${item.account?.name ?? "—"}</span>
+                      </span>
+                    </td>
+                    <td style="padding:8px 10px;color:#374151;border-bottom:1px solid #f3f4f6;">${item.clip?.label ?? "—"}</td>
+                    <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;"><span style="background:#e5e7eb;color:#374151;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;">${item.clip?.format ?? "—"}</span></td>
+                  </tr>`;
+  }).join("")}
+                ${scheduleCount > 10 ? `<tr><td colspan="4" style="padding:10px;text-align:center;color:#6b7280;font-size:12px;font-style:italic;">+ ${scheduleCount - 10} more — see attached CSV for full schedule</td></tr>` : ""}
+              </tbody>
+            </table>` : ""}
+            <div style="margin-top:28px;padding:16px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+              <p style="margin:0;color:#166534;font-size:13px;line-height:1.5;">
+                <strong>Tip:</strong> Import the attached CSV into Google Sheets or Excel to assign tasks, track progress, and collaborate with your team.
+              </p>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:16px 32px 24px;border-top:1px solid #f3f4f6;">
+            <p style="margin:0;color:#9ca3af;font-size:11px;text-align:center;">Sent via AreaFada OS · Clip Content Engine</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
+  return { subject, htmlBody, csvBase64, filename, scheduleCount };
+}
+
 const router = Router();
 const requireClip = [requireAuth, requireTier("brand")];
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -850,107 +960,11 @@ router.post("/clip-schedules/export-email", ...requireClip, async (req: any, res
       ))
       .orderBy(clipSchedulesTable.scheduledAt);
 
-    // Build CSV
-    const CSV_HEADER = ["Date", "Time", "Account", "Platform", "Clip Label", "Format", "Caption", "Hashtags", "Status"];
-    const csvRows = schedules.map(item => {
-      const dt = new Date(item.schedule.scheduledAt);
-      return [
-        dt.toLocaleDateString("en-NG", { year: "numeric", month: "2-digit", day: "2-digit" }),
-        dt.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: false }),
-        item.account?.name ?? "",
-        item.account?.platform ?? "",
-        item.clip?.label ?? "",
-        item.clip?.format ?? "",
-        item.clip?.captionText ?? "",
-        (item.clip?.hashtags as string[] ?? []).join(" "),
-        item.schedule.status,
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",");
-    });
-
-    const csvContent = [CSV_HEADER.join(","), ...csvRows].join("\n");
-    const csvBase64 = Buffer.from(csvContent, "utf-8").toString("base64");
-
-    const fromDate = start.toISOString().slice(0, 10);
-    const toDate = end.toISOString().slice(0, 10);
-    const scheduleCount = schedules.length;
-    const subject = `AreaFada OS — Clip Schedule (${fromDate} to ${toDate})`;
-
-    const htmlBody = `
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#16a34a;padding:28px 32px;">
-            <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">AreaFada OS</h1>
-            <p style="margin:4px 0 0;color:#bbf7d0;font-size:13px;">Clip Content Engine</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:32px;">
-            <h2 style="margin:0 0 8px;color:#111827;font-size:18px;font-weight:600;">Your 30-Day Clip Schedule</h2>
-            <p style="margin:0 0 24px;color:#6b7280;font-size:14px;line-height:1.6;">
-              ${scheduleCount === 0
-      ? "No clips are currently scheduled for the next 30 days. Log in to AreaFada OS to build your schedule."
-      : `You have <strong style="color:#16a34a;">${scheduleCount} clip${scheduleCount !== 1 ? "s" : ""}</strong> scheduled over the next 30 days (${fromDate} – ${toDate}). The full schedule is attached as a CSV file.`}
-            </p>
-            ${scheduleCount > 0 ? `
-            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
-              <thead>
-                <tr style="background:#f1f5f9;">
-                  <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:1px solid #e5e7eb;">Date</th>
-                  <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:1px solid #e5e7eb;">Account</th>
-                  <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:1px solid #e5e7eb;">Clip</th>
-                  <th style="text-align:left;padding:8px 10px;color:#374151;font-weight:600;border-bottom:1px solid #e5e7eb;">Format</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${schedules.slice(0, 10).map((item, i) => {
-      const dt = new Date(item.schedule.scheduledAt);
-      const dateStr = dt.toLocaleDateString("en-NG", { weekday: "short", month: "short", day: "numeric" });
-      const timeStr = dt.toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: false });
-      const color = item.account?.color ?? "#6b7280";
-      return `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#f9fafb"};">
-                    <td style="padding:8px 10px;color:#374151;border-bottom:1px solid #f3f4f6;">${dateStr}, ${timeStr}</td>
-                    <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;">
-                      <span style="display:inline-flex;align-items:center;gap:6px;">
-                        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span>
-                        <span style="color:#374151;">${item.account?.name ?? "—"}</span>
-                      </span>
-                    </td>
-                    <td style="padding:8px 10px;color:#374151;border-bottom:1px solid #f3f4f6;">${item.clip?.label ?? "—"}</td>
-                    <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;"><span style="background:#e5e7eb;color:#374151;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;">${item.clip?.format ?? "—"}</span></td>
-                  </tr>`;
-    }).join("")}
-                ${scheduleCount > 10 ? `<tr><td colspan="4" style="padding:10px;text-align:center;color:#6b7280;font-size:12px;font-style:italic;">+ ${scheduleCount - 10} more — see attached CSV for full schedule</td></tr>` : ""}
-              </tbody>
-            </table>` : ""}
-            <div style="margin-top:28px;padding:16px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
-              <p style="margin:0;color:#166534;font-size:13px;line-height:1.5;">
-                <strong>Tip:</strong> Import the attached CSV into Google Sheets or Excel to assign tasks, track progress, and collaborate with your team.
-              </p>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:16px 32px 24px;border-top:1px solid #f3f4f6;">
-            <p style="margin:0;color:#9ca3af;font-size:11px;text-align:center;">Sent via AreaFada OS · Clip Content Engine</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`.trim();
-
-    const filename = `clip-schedule-${fromDate}.csv`;
+    const { subject, htmlBody, csvBase64, filename, scheduleCount } = buildClipScheduleEmailPayload(schedules, start, end);
 
     if (resend) {
       const { data, error } = await resend.emails.send({
-        from: "AreaFada OS <no-reply@areafada.com>",
+        from: process.env.RESEND_FROM_EMAIL ?? "AreaFada OS <onboarding@resend.dev>",
         to: recipients,
         subject,
         html: htmlBody,
