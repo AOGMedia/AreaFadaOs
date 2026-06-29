@@ -360,6 +360,24 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
     staleTime: 120000,
   });
 
+  const RESTREAM_CHECK_INTERVAL_MS = 5 * 60 * 1000;
+
+  const { data: restreamKeyHealth } = useQuery<{ ok: boolean; expired: boolean; lastVerified: string; error: string | null } | null>({
+    queryKey: ["restream-key-health", session.id],
+    queryFn: async () => {
+      const res = await fetch(`${API}/settings/live-api-keys/check-restream`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.status === 422) return null;
+      if (!res.ok) return null;
+      return res.json() as Promise<{ ok: boolean; expired: boolean; lastVerified: string; error: string | null }>;
+    },
+    enabled: session.status === "live",
+    refetchInterval: session.status === "live" ? RESTREAM_CHECK_INTERVAL_MS : false,
+    staleTime: RESTREAM_CHECK_INTERVAL_MS - 60000,
+  });
+
   const updateConfig = useMutation({
     mutationFn: ({ platform, body }: { platform: string; body: object }) =>
       apiFetch(`/live-sessions/${session.id}/platform-configs/${platform}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
@@ -452,6 +470,25 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                 </Button>
               </div>
             </div>
+            {/* ─── Restream key health warning banner ─── */}
+            {restreamKeyHealth != null && (!restreamKeyHealth.ok || restreamKeyHealth.expired) && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 mb-2 text-xs text-amber-900">
+                <WifiOff className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-600" />
+                <div className="flex-1">
+                  <span className="font-semibold">⚠ Restream key {restreamKeyHealth.expired ? "revoked or expired" : "unreachable"}.</span>{" "}
+                  {restreamKeyHealth.expired
+                    ? "Your API key was revoked or expired mid-session — your broadcast may have dropped."
+                    : `Check failed: ${restreamKeyHealth.error ?? "unknown error"} — Restream may be unreachable.`}{" "}
+                  <a
+                    href={`${import.meta.env.BASE_URL}settings#live-viewer-api-keys`}
+                    className="underline font-semibold hover:text-amber-700"
+                  >
+                    Update key in Settings →
+                  </a>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center">
                 <p className="font-black text-2xl text-red-700">{(viewerData?.totalViewers ?? session.totalViewers).toLocaleString()}</p>
