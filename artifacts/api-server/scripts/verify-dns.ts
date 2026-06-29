@@ -227,23 +227,33 @@ try {
       `No DMARC TXT record at ${dmarcHost}`,
       `Add a TXT record:\n` +
       `         Name: _dmarc  (or _dmarc.${DOMAIN})\n` +
-      `         Value: v=DMARC1; p=none; rua=mailto:dmarc@${DOMAIN}\n` +
-      `         Start with p=none (monitoring) — tighten to quarantine/reject later`,
+      `         Value: v=DMARC1; p=quarantine; rua=mailto:dmarc@${DOMAIN}\n` +
+      `         Use p=quarantine to move spoofed mail to spam (set after SPF+DKIM pass consistently)`,
+    );
+  } else if (dmarcRecord.includes("p=reject")) {
+    ok(`DMARC record found`, dmarcRecord.slice(0, 80));
+    warn(
+      "DMARC policy is p=reject — unauthenticated mail will be silently dropped",
+      "p=reject is the strictest policy; confirm SPF and DKIM have been passing for several weeks before using it. Consider p=quarantine if you are not yet certain.",
+    );
+  } else if (dmarcRecord.includes("p=quarantine")) {
+    ok(`DMARC record found with enforcement policy`, dmarcRecord.slice(0, 80));
+  } else if (dmarcRecord.includes("p=none")) {
+    ok(`DMARC record found`, dmarcRecord.slice(0, 80));
+    warn(
+      "DMARC policy is p=none — spoofed mail is only reported, not blocked",
+      `Tighten to p=quarantine once SPF and DKIM have been passing consistently for 2–4 weeks.\n` +
+      `         Update your DNS TXT record at _dmarc.${DOMAIN}:\n` +
+      `           v=DMARC1; p=quarantine; rua=mailto:dmarc@${DOMAIN}`,
     );
   } else {
     ok(`DMARC record found`, dmarcRecord.slice(0, 80));
-    if (dmarcRecord.includes("p=reject")) {
-      warn(
-        "DMARC policy is p=reject — unauthenticated mail will be silently dropped",
-        "Only use p=reject after SPF and DKIM both consistently pass; use p=none during rollout",
-      );
-    }
   }
 } catch (e: any) {
   if (e.code === "ENOTFOUND" || e.code === "ENODATA") {
     fail(
       `DMARC TXT record not found at ${dmarcHost}`,
-      `Add TXT at _dmarc.${DOMAIN}: v=DMARC1; p=none; rua=mailto:dmarc@${DOMAIN}`,
+      `Add TXT at _dmarc.${DOMAIN}: v=DMARC1; p=quarantine; rua=mailto:dmarc@${DOMAIN}`,
     );
   } else {
     fail(`DNS lookup error for ${dmarcHost}: ${e.message}`, "Check DNS propagation");

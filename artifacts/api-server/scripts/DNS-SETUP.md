@@ -72,12 +72,15 @@ record.
 |-------|-------|
 | Type  | TXT   |
 | Name  | `_dmarc` (or `_dmarc.areafada.com`) |
-| Value | `v=DMARC1; p=none; rua=mailto:dmarc@areafada.com` |
+| Value | `v=DMARC1; p=quarantine; rua=mailto:dmarc@areafada.com` |
 | TTL   | 3600 (or default) |
 
-> `p=none` is the correct starting policy — it monitors without blocking any
-> mail. Tighten to `p=quarantine` or `p=reject` only after SPF and DKIM have
-> been passing consistently for several weeks.
+> `p=quarantine` moves spoofed mail to the recipient's spam/junk folder instead
+> of letting it reach the inbox undetected. Set this policy only after confirming
+> that SPF and DKIM have been passing consistently for at least 2–4 weeks
+> (check the aggregate reports delivered to `dmarc@areafada.com` or a service
+> like Postmark's DMARC Digests). When you are ready to block spoofed mail
+> entirely, advance to `p=reject`.
 
 ---
 
@@ -157,7 +160,7 @@ placement after all DNS checks are green.
 |-------------|------|-------|--------|
 | TXT (SPF)   | `@` | `v=spf1 include:spf.efwd.registrar-servers.com include:_spf.resend.com ~all` | **Edit** existing record |
 | CNAME (DKIM) | `resend._domainkey` | `<token>.dkim.resend.com` (from Resend dashboard) | **Add** |
-| TXT (DMARC) | `_dmarc` | `v=DMARC1; p=none; rua=mailto:dmarc@areafada.com` | **Add** |
+| TXT (DMARC) | `_dmarc` | `v=DMARC1; p=quarantine; rua=mailto:dmarc@areafada.com` | **Add** |
 | CNAME (Clerk 1) | from Replit Publishing panel | from Replit Publishing panel | **Add** |
 | CNAME (Clerk 2) | from Replit Publishing panel | from Replit Publishing panel | **Add** |
 
