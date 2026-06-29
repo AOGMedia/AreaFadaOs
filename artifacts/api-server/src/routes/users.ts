@@ -166,7 +166,16 @@ router.patch("/users/me", requireAuth, async (req: any, res): Promise<void> => {
 
 router.get("/users/me/tier", requireAuth, async (req: any, res): Promise<void> => {
   try {
-    const user = await getOrCreateUser(req.clerkUserId);
+    let user = await getOrCreateUser(req.clerkUserId);
+
+    if (ENTERPRISE_EMAILS.has(user.email.toLowerCase()) && user.tier !== "enterprise") {
+      const [upgraded] = await db.update(usersTable)
+        .set({ tier: "enterprise", updatedAt: new Date() })
+        .where(eq(usersTable.clerkId, req.clerkUserId))
+        .returning();
+      user = upgraded;
+    }
+
     const tierKey = user.tier as keyof typeof TIER_FEATURES;
     const tierData = TIER_FEATURES[tierKey] || TIER_FEATURES.free;
     res.json({

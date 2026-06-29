@@ -51,10 +51,11 @@ if (!clerkPubKey) {
 const clerkAppearance = {
   theme: shadcn,
   cssLayerName: "clerk",
-  options: {
+  layout: {
     logoPlacement: "inside" as const,
     logoLinkUrl: basePath || "/",
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
+    applicationName: "AreaFada OS",
   },
   variables: {
     colorPrimary: "#2dd172",
