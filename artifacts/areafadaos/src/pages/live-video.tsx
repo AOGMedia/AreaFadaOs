@@ -488,6 +488,9 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
   });
   const hasMissingKeys = platformsWithMissingKeys.length > 0;
 
+  const platformsWithPendingStatus = configs.filter(c => c.status === "pending").map(c => c.platform);
+  const hasPendingConfigs = platformsWithPendingStatus.length > 0;
+
   return (
     <div className="space-y-4">
       {/* ─── Live viewer count panel (only when live) ─── */}
@@ -881,6 +884,27 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
               </div>
             )}
 
+            {!hasMissingKeys && hasPendingConfigs && (
+              <div className="mt-3 rounded-lg p-3 text-xs bg-amber-50 border border-amber-200 text-amber-800">
+                <div className="flex items-start gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold mb-0.5">Validation required before going live</p>
+                    <p className="text-amber-700 mb-1">The following platforms have a stream key that hasn't been validated yet. Click <strong>Validate Keys</strong> to confirm your keys are working before starting the broadcast.</p>
+                    <ul className="space-y-0.5">
+                      {platformsWithPendingStatus.map(p => (
+                        <li key={p} className="flex items-center gap-1">
+                          <span>{PLATFORM_ICONS[p]}</span>
+                          <span className="capitalize font-medium">{PLATFORM_LABELS[p] ?? p}</span>
+                          <span className="text-amber-600">— pending validation</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 mt-3">
               <Button size="sm" variant="outline" onClick={() => validateKeys.mutate()} disabled={validateKeys.isPending || configs.length === 0 || hasMissingKeys}>
                 <ShieldCheck className="w-3.5 h-3.5 mr-1.5" />{validateKeys.isPending ? "Validating…" : "Validate Keys"}
@@ -889,7 +913,7 @@ function BroadcastTab({ session, onSessionUpdate }: { session: LiveSession; onSe
                 size="sm"
                 className="bg-red-600 hover:bg-red-700 text-white"
                 onClick={() => goLive.mutate()}
-                disabled={goLive.isPending || !allValidated || hasMissingKeys}
+                disabled={goLive.isPending || !allValidated || hasMissingKeys || hasPendingConfigs}
               >
                 <MonitorPlay className="w-3.5 h-3.5 mr-1.5" />{goLive.isPending ? "Going Live…" : "🔴 Go Live"}
               </Button>
