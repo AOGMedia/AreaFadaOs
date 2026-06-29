@@ -11,10 +11,16 @@ process.env.RESEND_API_KEY = "test_key_clip_email";
 
 const capturedEmails: any[] = [];
 
+type SendBehavior = "success" | "network-error";
+let sendBehavior: SendBehavior = "success";
+
 const resendStub = {
   Resend: class {
     emails = {
       send: async (payload: any) => {
+        if (sendBehavior === "network-error") {
+          throw Object.assign(new Error("connect ETIMEDOUT 1.2.3.4:443"), { code: "ETIMEDOUT" });
+        }
         capturedEmails.push(payload);
         return { data: { id: "msg_test_001" }, error: null };
       },
@@ -273,5 +279,61 @@ describe("POST /clip-schedules/export-email — happy path (3 scheduled clips)",
 
     const sentTo: string[] = capturedEmails[0].to;
     assert.deepEqual(sentTo.sort(), ["a@test.com", "b@test.com"]);
+  });
+});
+
+describe("POST /clip-schedules/export-email — Resend network exception (timeout / DNS failure)", () => {
+  beforeEach(() => {
+    sendBehavior = "network-error";
+    setResults([USER_ROW], [makeScheduleRow(0)]);
+  });
+
+  // Restore default behaviour after each test so other suites are unaffected.
+  const afterEach = () => { sendBehavior = "success"; };
+
+  test("returns HTTP 503", async () => {
+    const res = await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.equal(res.status, 503, `Expected 503, got ${res.status}: ${JSON.stringify(res.body)}`);
+  });
+
+  test("response includes retryable: true", async () => {
+    const res = await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.equal(res.body.retryable, true, `Expected retryable:true in body: ${JSON.stringify(res.body)}`);
+  });
+
+  test("response includes a user-friendly error message", async () => {
+    const res = await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.ok(
+      typeof res.body.error === "string" && res.body.error.length > 0,
+      `Expected a non-empty error string in body: ${JSON.stringify(res.body)}`,
+    );
+  });
+
+  test("response body detail contains the underlying error message", async () => {
+    const res = await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.ok(
+      typeof res.body.detail === "string" && res.body.detail.includes("ETIMEDOUT"),
+      `Expected detail to contain 'ETIMEDOUT': ${JSON.stringify(res.body)}`,
+    );
+  });
+
+  test("no email is captured by the Resend stub (send never completes)", async () => {
+    await agent
+      .post("/clip-schedules/export-email")
+      .send({ recipients: ["creator@test.com"] });
+    afterEach();
+    assert.equal(capturedEmails.length, 0, "No email should be captured when network throws");
   });
 });

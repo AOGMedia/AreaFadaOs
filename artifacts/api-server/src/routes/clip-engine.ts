@@ -981,20 +981,35 @@ router.post("/clip-schedules/export-email", ...requireClip, async (req: any, res
           "this is only permitted outside production. Run `pnpm --filter api-server check:dns` to validate DNS.",
         );
       }
-      const { data, error } = await resend.emails.send({
-        from: fromAddress,
-        to: recipients,
-        subject,
-        html: htmlBody,
-        attachments: [{ filename, content: csvBase64 }],
-      });
-      if (error) {
-        console.error("[clip-export-email] Resend error:", error);
-        res.status(502).json({ error: "Email delivery failed", detail: error.message });
+      let sendData: { id?: string } | null = null;
+      let sendError: { message?: string } | null = null;
+      try {
+        const { data, error } = await resend.emails.send({
+          from: fromAddress,
+          to: recipients,
+          subject,
+          html: htmlBody,
+          attachments: [{ filename, content: csvBase64 }],
+        });
+        sendData = data;
+        sendError = error;
+      } catch (networkErr: unknown) {
+        const msg = networkErr instanceof Error ? networkErr.message : String(networkErr);
+        console.error("[clip-export-email] Network error calling Resend:", msg);
+        res.status(503).json({
+          error: "Email delivery failed due to a network error. Please try again.",
+          retryable: true,
+          detail: msg,
+        });
         return;
       }
-      console.info(`[clip-export-email] Sent to ${recipients.length} recipient(s). messageId=${data?.id}`);
-      res.json({ status: "sent", recipients: recipients.length, scheduleCount, messageId: data?.id });
+      if (sendError) {
+        console.error("[clip-export-email] Resend error:", sendError);
+        res.status(502).json({ error: "Email delivery failed", detail: sendError.message });
+        return;
+      }
+      console.info(`[clip-export-email] Sent to ${recipients.length} recipient(s). messageId=${sendData?.id}`);
+      res.json({ status: "sent", recipients: recipients.length, scheduleCount, messageId: sendData?.id });
     } else {
       if (process.env.NODE_ENV === "production") {
         console.error("[clip-export-email] RESEND_API_KEY is not configured — refusing to silently drop email in production");
