@@ -4,6 +4,7 @@ import { db } from "@workspace/db";
 import { usersTable, platformOauthConfigsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { encryptToken, decryptToken } from "../lib/tokenEncryption.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -31,67 +32,194 @@ const PLATFORM_LABELS: Record<OAuthPlatform, { appIdLabel: string; appSecretLabe
   tiktok: { appIdLabel: "Client Key", appSecretLabel: "Client Secret" },
 };
 
+// GET /settings/health — verify platform_oauth_configs table is accessible
+router.get("/settings/health", async (_req, res): Promise<void> => {
+  try {
+    await db.select({ id: platformOauthConfigsTable.id }).from(platformOauthConfigsTable).limit(1);
+    res.json({ ok: true, tables: { platform_oauth_configs: true } });
+  } catch (err: any) {
+    logger.error({ err }, "Health check: platform_oauth_configs table missing or inaccessible");
+    res.status(503).json({
+      ok: false,
+      tables: { platform_oauth_configs: false },
+      message: "Database table 'platform_oauth_configs' is not accessible. Run migrations and restart the server.",
+      error: err.message,
+    });
+  }
+});
+
 // GET /settings/credentials — return credential status per platform (secrets masked)
 router.get("/settings/credentials", requireAuth, async (req: any, res): Promise<void> => {
-  const user = await getDbUser(req.clerkUserId);
-  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) {
+      res.status(401).json({ error: "Unauthorized", message: "Session expired — please reload the page." });
+      return;
+    }
 
-  const rows = await db.select()
-    .from(platformOauthConfigsTable)
-    .where(eq(platformOauthConfigsTable.userId, user.id));
+    const rows = await db.select()
+      .from(platformOauthConfigsTable)
+      .where(eq(platformOauthConfigsTable.userId, user.id));
 
-  const result: Record<string, { appId: string | null; hasSecret: boolean }> = {};
-  for (const platform of PLATFORMS) {
-    const row = rows.find((r) => r.platform === platform);
-    result[platform] = {
-      appId: row?.appId ?? null,
-      hasSecret: !!row?.appSecret,
-    };
+    const result: Record<string, { appId: string | null; hasSecret: boolean }> = {};
+    for (const platform of PLATFORMS) {
+      const row = rows.find((r) => r.platform === platform);
+      result[platform] = {
+        appId: row?.appId ?? null,
+        hasSecret: !!row?.appSecret,
+      };
+    }
+
+    res.json({ credentials: result });
+  } catch (err: any) {
+    logger.error({ err }, "Failed to load platform credentials");
+    if (err.code === "42P01") {
+      res.status(503).json({
+        error: "Database table missing",
+        message: "Credentials table is not set up. Please contact support.",
+      });
+      return;
+    }
+    res.status(500).json({
+      error: "Database error",
+      message: "Could not load credentials. Please try again.",
+    });
   }
-
-  res.json({ credentials: result });
 });
 
 // PUT /settings/credentials — upsert credentials for a single platform
 router.put("/settings/credentials/:platform", requireAuth, async (req: any, res): Promise<void> => {
   const { platform } = req.params;
-  if (!PLATFORMS.includes(platform as OAuthPlatform)) {
-    res.status(400).json({ error: `Unsupported platform: ${platform}` });
-    return;
-  }
+  try {
+    if (!PLATFORMS.includes(platform as OAuthPlatform)) {
+      res.status(400).json({ error: "Unsupported platform", message: `"${platform}" is not a supported platform.` });
+      return;
+    }
 
-  const user = await getDbUser(req.clerkUserId);
-  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) {
+      res.status(401).json({ error: "Unauthorized", message: "Session expired — please reload the page." });
+      return;
+    }
 
-  const { appId, appSecret } = req.body as { appId?: string; appSecret?: string };
+    const { appId, appSecret } = req.body as { appId?: string; appSecret?: string };
 
-  const [existing] = await db.select({ id: platformOauthConfigsTable.id, appSecret: platformOauthConfigsTable.appSecret })
-    .from(platformOauthConfigsTable)
-    .where(and(
-      eq(platformOauthConfigsTable.userId, user.id),
-      eq(platformOauthConfigsTable.platform, platform),
-    ));
+    const [existing] = await db.select({ id: platformOauthConfigsTable.id, appSecret: platformOauthConfigsTable.appSecret })
+      .from(platformOauthConfigsTable)
+      .where(and(
+        eq(platformOauthConfigsTable.userId, user.id),
+        eq(platformOauthConfigsTable.platform, platform),
+      ));
 
-  const encryptedSecret = appSecret ? encryptToken(appSecret) : existing?.appSecret ?? null;
+    const encryptedSecret = appSecret ? encryptToken(appSecret) : existing?.appSecret ?? null;
 
-  if (existing) {
-    await db.update(platformOauthConfigsTable)
-      .set({
-        appId: appId !== undefined ? (appId || null) : undefined,
+    if (existing) {
+      await db.update(platformOauthConfigsTable)
+        .set({
+          appId: appId !== undefined ? (appId || null) : undefined,
+          appSecret: encryptedSecret,
+          updatedAt: new Date(),
+        })
+        .where(eq(platformOauthConfigsTable.id, existing.id));
+    } else {
+      await db.insert(platformOauthConfigsTable).values({
+        userId: user.id,
+        platform,
+        appId: appId || null,
         appSecret: encryptedSecret,
-        updatedAt: new Date(),
-      })
-      .where(eq(platformOauthConfigsTable.id, existing.id));
-  } else {
-    await db.insert(platformOauthConfigsTable).values({
-      userId: user.id,
-      platform,
-      appId: appId || null,
-      appSecret: encryptedSecret,
+      });
+    }
+
+    res.json({ ok: true, platform });
+  } catch (err: any) {
+    logger.error({ err, platform }, "Failed to save platform credentials");
+    if (err.code === "42P01") {
+      res.status(503).json({
+        error: "Database table missing",
+        message: "The credentials table has not been created yet. Please contact support.",
+      });
+      return;
+    }
+    if (err.code === "23505") {
+      res.status(409).json({
+        error: "Conflict",
+        message: "A concurrent save occurred. Please refresh and try again.",
+      });
+      return;
+    }
+    res.status(500).json({
+      error: "Database error",
+      message: "Failed to save credentials. Please try again or contact support.",
     });
   }
+});
 
-  res.json({ ok: true, platform });
+// POST /settings/credentials/test/:platform — validate stored App ID + Secret against the platform API
+// Currently only supports instagram and facebook (both use the Meta Graph API).
+router.post("/settings/credentials/test/:platform", requireAuth, async (req: any, res): Promise<void> => {
+  const { platform } = req.params;
+  try {
+    if (platform !== "instagram" && platform !== "facebook") {
+      res.status(400).json({ ok: false, message: "Credential testing is only supported for Instagram and Facebook." });
+      return;
+    }
+
+    const user = await getDbUser(req.clerkUserId);
+    if (!user) {
+      res.status(401).json({ ok: false, message: "Session expired — please reload the page." });
+      return;
+    }
+
+    const [row] = await db.select({
+      appId: platformOauthConfigsTable.appId,
+      appSecret: platformOauthConfigsTable.appSecret,
+    })
+      .from(platformOauthConfigsTable)
+      .where(and(
+        eq(platformOauthConfigsTable.userId, user.id),
+        eq(platformOauthConfigsTable.platform, platform),
+      ));
+
+    if (!row?.appId || !row?.appSecret) {
+      res.status(422).json({ ok: false, message: "No credentials saved for this platform. Save your App ID and Secret first." });
+      return;
+    }
+
+    let appSecret: string;
+    try {
+      appSecret = decryptToken(row.appSecret);
+    } catch {
+      res.status(500).json({ ok: false, message: "Stored credentials are corrupted. Please re-enter and save them." });
+      return;
+    }
+
+    const accessToken = `${row.appId}|${appSecret}`;
+    const url = `https://graph.facebook.com/v21.0/${encodeURIComponent(row.appId)}?fields=id,name&access_token=${encodeURIComponent(accessToken)}`;
+
+    let graphRes: Response;
+    try {
+      graphRes = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    } catch (fetchErr: any) {
+      logger.warn({ fetchErr, platform }, "Meta Graph API unreachable during credential test");
+      res.status(502).json({ ok: false, message: "Could not reach Meta Graph API — check your network connection." });
+      return;
+    }
+
+    const body = await graphRes.json() as any;
+
+    if (!graphRes.ok || body?.error) {
+      const reason = body?.error?.message ?? `HTTP ${graphRes.status}`;
+      logger.info({ platform, appId: row.appId, reason }, "Meta credential test failed");
+      res.json({ ok: false, message: `Meta rejected these credentials: ${reason}` });
+      return;
+    }
+
+    logger.info({ platform, appId: row.appId, name: body?.name }, "Meta credential test passed");
+    res.json({ ok: true, appName: body?.name ?? null });
+  } catch (err: any) {
+    logger.error({ err, platform }, "Unexpected error during credential test");
+    res.status(500).json({ ok: false, message: "An unexpected error occurred during the test. Please try again." });
+  }
 });
 
 // DELETE /settings/credentials/:platform — clear saved credentials

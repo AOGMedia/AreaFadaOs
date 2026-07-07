@@ -23,13 +23,24 @@ import {
   Wifi,
   WifiOff,
   AlertCircle,
+  FlaskConical,
+  XCircle,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
 
 async function apiFetch(path: string, opts?: RequestInit) {
   const r = await fetch(`${API}${path}`, { credentials: "include", ...opts });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    let message: string;
+    try {
+      const body = await r.json();
+      message = body.message ?? body.error ?? `Request failed (${r.status})`;
+    } catch {
+      message = await r.text().catch(() => `Request failed (${r.status})`);
+    }
+    throw new Error(message);
+  }
   return r.json();
 }
 
@@ -110,6 +121,12 @@ const PLATFORM_CONFIG = [
   },
 ] as const;
 
+interface CredentialTestResult {
+  ok: boolean;
+  message?: string;
+  appName?: string | null;
+}
+
 function PlatformCredentialCard({
   platform,
   status,
@@ -128,11 +145,27 @@ function PlatformCredentialCard({
   const [appId, setAppId] = useState(status?.appId ?? "");
   const [appSecret, setAppSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<CredentialTestResult | null>(null);
 
   const isConfigured = !!(status?.appId && status?.hasSecret);
   const hasPartial = !!(status?.appId || status?.hasSecret);
+  const canTest = (platform.key === "instagram" || platform.key === "facebook") && isConfigured;
 
   const callbackUrl = `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/oauth/${platform.callbackPlatform}/callback`;
+
+  async function handleTest() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await apiFetch(`/settings/credentials/test/${platform.key}`, { method: "POST" });
+      setTestResult(result as CredentialTestResult);
+    } catch (err: any) {
+      setTestResult({ ok: false, message: err?.message ?? "Test request failed." });
+    } finally {
+      setTesting(false);
+    }
+  }
 
   return (
     <Card className={`border ${isConfigured ? "border-emerald-200 bg-emerald-50/30" : hasPartial ? "border-amber-200 bg-amber-50/30" : "border-border"}`}>
@@ -185,7 +218,7 @@ function PlatformCredentialCard({
           <Label className="text-xs font-medium">{platform.appIdLabel}</Label>
           <Input
             value={appId}
-            onChange={(e) => setAppId(e.target.value)}
+            onChange={(e) => { setAppId(e.target.value); setTestResult(null); }}
             placeholder={`Enter your ${platform.appIdLabel}`}
             className="h-8 text-sm font-mono"
           />
@@ -204,7 +237,7 @@ function PlatformCredentialCard({
             <Input
               type={showSecret ? "text" : "password"}
               value={appSecret}
-              onChange={(e) => setAppSecret(e.target.value)}
+              onChange={(e) => { setAppSecret(e.target.value); setTestResult(null); }}
               placeholder={status?.hasSecret ? "Leave blank to keep existing secret" : `Enter your ${platform.appSecretLabel}`}
               className="h-8 text-sm font-mono pr-9"
             />
@@ -239,9 +272,22 @@ function PlatformCredentialCard({
             onClick={() => onSave(appId, appSecret)}
             disabled={isSaving || (!appId && !appSecret)}
           >
-            <Save className="w-3 h-3 mr-1.5" />
+            {isSaving ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <Save className="w-3 h-3 mr-1.5" />}
             {isSaving ? "Saving…" : "Save credentials"}
           </Button>
+          {canTest && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={handleTest}
+              disabled={testing || isSaving}
+              title="Verify credentials against the Meta Graph API"
+            >
+              {testing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <FlaskConical className="w-3 h-3 mr-1" />}
+              {testing ? "Testing…" : "Test"}
+            </Button>
+          )}
           {hasPartial && (
             <Button
               size="sm"
@@ -255,6 +301,21 @@ function PlatformCredentialCard({
             </Button>
           )}
         </div>
+
+        {testResult !== null && (
+          <div className={`flex items-start gap-2 p-2.5 rounded-lg text-xs border ${testResult.ok ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-red-50 border-red-200 text-red-800"}`}>
+            {testResult.ok ? (
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-600" />
+            ) : (
+              <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-600" />
+            )}
+            <span className="leading-relaxed">
+              {testResult.ok
+                ? `Credentials verified${testResult.appName ? ` — App: ${testResult.appName}` : ""}. Ready for OAuth.`
+                : (testResult.message ?? "Credential test failed.")}
+            </span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
