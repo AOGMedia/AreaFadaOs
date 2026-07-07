@@ -1,39 +1,99 @@
-# [Project name]
+# AreaFada OS
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+All-in-one creator management platform for African artists, influencers, and entertainment brands. Combines social scheduling, monetization, fan engagement, live video, ambassador CRM, and AI-powered campaign intelligence in a single workspace.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port from `PORT` env, default 5000)
+- `pnpm --filter @workspace/areafadaos run dev` — run the web dashboard (Vite dev server)
+- `pnpm --filter @workspace/areafada-revenue run start` — start the Expo mobile app
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
-- Required env: `RESEND_API_KEY` — Resend API key for transactional email (e.g. clip schedule exports). Without this key the `/clip-schedules/export-email` endpoint returns 503 in production. Obtain from resend.com and set as a secret.
+
+**Required secrets (set in Replit Secrets pane):**
+- `DATABASE_URL` — PostgreSQL connection string (auto-managed by Replit DB)
+- `CLERK_SECRET_KEY` — Clerk backend secret
+- `CLERK_PUBLISHABLE_KEY` / `VITE_CLERK_PUBLISHABLE_KEY` — Clerk frontend key
+- `CLERK_WEBHOOK_SECRET` — Clerk webhook signing secret
+- `TOKEN_ENCRYPTION_KEY` — 32-byte hex key for OAuth token encryption at rest
+- `SESSION_SECRET` — random string for session signing
+- `RESEND_API_KEY` — Resend transactional email (without this, `/clip-schedules/export-email` returns 503 in production)
+- `FLUTTERWAVE_SECRET_KEY` / `FLUTTERWAVE_SECRET_HASH` — Flutterwave payments
+- `PAYSTACK_SECRET_KEY` — Paystack payments
+- `ANTHROPIC_API_KEY` — AI features (campaign intelligence, clip engine)
+
+**Shared env vars (set in Replit Env Vars):**
+- `RESEND_FROM_EMAIL` — sender address (must be a verified Resend domain)
+- `ENTERPRISE_EMAILS` — comma-separated emails with Enterprise tier access
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
+- Auth: Clerk (managed via Replit Auth pane — instance `app_3FiDiM426PyZHTYJk629JG6Ji7p`)
 - Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- API codegen: Orval (from OpenAPI spec in `lib/api-spec/`)
+- Web: React 19, Vite 7, Tailwind CSS v4, Wouter (routing)
+- Mobile: Expo (React Native), DM Sans font, brand green tokens
+- Email: Resend
+- Payments: Flutterwave, Paystack
+- AI: Anthropic Claude
+- Build: esbuild (ESM bundle → `dist/index.mjs` for API server)
 
-## Where things live
+## Where Things Live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+```
+artifacts/api-server/src/
+  app.ts                    # Express app factory + middleware
+  index.ts                  # Entry point, server start
+  routes/                   # One file per feature domain
+  lib/                      # Server utilities (logger, tokenEncryption, platformPublisher, etc.)
 
-## Architecture decisions
+artifacts/areafadaos/src/
+  App.tsx                   # Router root
+  pages/                    # One file per page/route
+  components/               # Shared UI components
+  hooks/                    # React Query hooks (generated + custom)
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+artifacts/areafada-revenue/ # Expo mobile app (Clerk auth, 4 tabs: Home, Deals, Invoices, Affiliates)
+
+lib/db/src/
+  schema.ts                 # Drizzle schema — source of truth for DB shape
+  seed.ts                   # Auto-fires when ambassador tables are empty (non-prod)
+
+lib/api-spec/               # OpenAPI spec — source of truth for all API contracts
+lib/api-client-react/       # Orval-generated React Query hooks
+lib/api-zod/                # Orval-generated Zod schemas
+```
+
+## Architecture Decisions
+
+- **OpenAPI-first codegen**: `lib/api-spec/` defines all routes; Orval generates both React Query hooks (`lib/api-client-react/`) and Zod schemas (`lib/api-zod/`). Always run `pnpm --filter @workspace/api-spec run codegen` after changing any route shape — don't hand-edit the generated files.
+- **Drizzle `sql<type>`casting**: Numeric/timestamp columns returned from `drizzle-orm` raw queries must be cast with `sql<type>` helpers to avoid string-typed values at runtime. This is a known Drizzle quirk — see `db-schema.md` in agent memory.
+- **OAuth token encryption**: Platform OAuth tokens (Instagram, TikTok, YouTube, etc.) are AES-encrypted before storage using `TOKEN_ENCRYPTION_KEY`. Losing this key makes all stored tokens unrecoverable.
+- **Tier gating**: `requireTier("agency")` middleware guards Ambassador CRM and campaign intelligence routes. Tiers are: `free`, `creator`, `pro`, `agency`, `enterprise`.
+- **Ambassador seed**: Seed data auto-fires when ambassador tables are empty in non-production environments, so the CRM always has demo data in dev.
+- **esbuild ESM bundle**: The API server builds to a single `dist/index.mjs` for deployment (start with `node --enable-source-maps ./dist/index.mjs`); the dev server uses `tsx` for direct TS execution without a build step.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+**AreaFada OS** serves creators and their teams across eight feature domains:
 
-## User preferences
+1. **Social Scheduling** — draft, schedule, and auto-publish to Instagram, TikTok, X, YouTube, Facebook
+2. **Monetization Hub** — invoicing, affiliate links, Flutterwave/Paystack payment collection, revenue analytics
+3. **Fan Hub** — tiered loyalty (Tier 1–3), challenges, points, fan portal, auto-generated merch codes at Tier 3
+4. **Ambassador CRM** — manage brand ambassadors, track KPIs, issue payouts (agency tier only)
+5. **Live Video** — OBS WebSocket streaming, live session management, fan ticket sales, reminder sign-ups
+6. **Clip Engine** — AI video clip extraction, captions, watermarks, multi-account distribution (with FFmpeg)
+7. **Campaign Intelligence** — AI brief generation, campaign analytics, WhatsApp approval notifications
+8. **Media Partners** — book promo deals and traffic exchange with partner media houses
+
+**AreaFada Revenue** (mobile) — Expo app for on-the-go deal management, invoices, and affiliate tracking.
+
+## User Preferences
 
 _Populate as you build — explicit user instructions worth remembering across sessions._
 
@@ -56,8 +116,13 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- **Always run codegen after API changes**: Any change to `lib/api-spec/` must be followed by `pnpm --filter @workspace/api-spec run codegen` or the frontend will be out of sync with the backend.
+- **DB push is dev-only**: `pnpm --filter @workspace/db run push` is destructive in production — use `generate` + `migrate` for production schema changes.
+- **`orval` index.ts patch**: The generated `lib/api-client-react/src/index.ts` exports need a manual patch after codegen — see `db-schema.md` in agent memory for details.
+- **OBS WebSocket**: Live video features require OBS running locally with WebSocket server enabled. `OBS_WEBSOCKET_URL`, `OBS_WEBSOCKET_PASSWORD`, and `OBS_WEBSOCKET_ALLOWED_HOSTS` must all be set.
+- **Flutterwave webhook hash**: `FLUTTERWAVE_SECRET_HASH` must exactly match the hash configured in the Flutterwave dashboard for webhook verification to pass.
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- GitHub repo: https://github.com/AOGMedia/AreaFadaOs
