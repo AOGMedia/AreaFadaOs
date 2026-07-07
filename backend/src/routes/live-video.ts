@@ -1714,7 +1714,7 @@ router.get("/live-sessions/:id/restream-channels", ...requireLive, async (req: a
       id: ch.id ?? ch.channelId,
       displayName: ch.displayName ?? ch.name ?? ch.platform ?? "Unknown",
       platform: ch.type ?? ch.platform ?? "unknown",
-      active: ch.active ?? ch.enabled ?? ch.status === "active" ?? false,
+      active: ch.active ?? ch.enabled ?? (ch.status === "active"),
     }));
 
     res.json({ ok: true, configured: true, channels });

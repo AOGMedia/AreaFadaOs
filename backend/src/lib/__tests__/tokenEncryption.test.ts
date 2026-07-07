@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
 // tokenEncryption.ts has no DB dependency — import directly
-import { encryptToken, decryptToken, isTokenExpired } from "../tokenEncryption.ts";
+import { encryptToken, decryptToken, isTokenExpired } from "../tokenEncryption";
 
 describe("encryptToken / decryptToken round-trip", () => {
   test("encrypts and decrypts a simple string with the dev key", () => {

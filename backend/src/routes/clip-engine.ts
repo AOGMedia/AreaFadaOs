@@ -22,7 +22,7 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 // ─── Email payload builder (exported for smoke-testing without HTTP layer) ────
 export type ClipScheduleRow = {
   schedule: { scheduledAt: Date | string; status: string };
-  clip: { label: string; format: string; captionText: string; hashtags: string[] | unknown } | null;
+  clip: { label: string; format: string; captionText: string | null; hashtags: string[] | unknown } | null;
   account: { name: string; platform: string; color: string } | null;
 };
 

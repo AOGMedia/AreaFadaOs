@@ -1,8 +1,8 @@
 import {
-  DM_Sans_400Regular,
-  DM_Sans_500Medium,
-  DM_Sans_600SemiBold,
-  DM_Sans_700Bold,
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
   useFonts,
 } from "@expo-google-fonts/dm-sans";
 import { ClerkProvider, ClerkLoaded } from "@clerk/expo";
@@ -39,10 +39,10 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    DM_Sans_400Regular,
-    DM_Sans_500Medium,
-    DM_Sans_600SemiBold,
-    DM_Sans_700Bold,
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
   });
 
   useEffect(() => {

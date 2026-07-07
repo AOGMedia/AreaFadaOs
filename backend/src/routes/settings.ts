@@ -582,7 +582,7 @@ router.post("/settings/live-api-keys/test-restream", requireAuth, async (req: an
       id: ch.id ?? ch.channelId,
       displayName: ch.displayName ?? ch.name ?? ch.platform ?? "Unknown",
       platform: ch.type ?? ch.platform ?? "unknown",
-      active: ch.active ?? ch.enabled ?? ch.status === "active" ?? false,
+      active: ch.active ?? ch.enabled ?? (ch.status === "active"),
     }));
 
     res.json({ ok: true, channels });
@@ -751,7 +751,7 @@ router.get("/settings/live-api-keys/restream-channels", requireAuth, async (req:
       id: ch.id ?? ch.channelId,
       displayName: ch.displayName ?? ch.name ?? ch.platform ?? "Unknown",
       platform: ch.type ?? ch.platform ?? "unknown",
-      active: ch.active ?? ch.enabled ?? ch.status === "active" ?? false,
+      active: ch.active ?? ch.enabled ?? (ch.status === "active"),
     }));
 
     res.json({ ok: true, configured: true, channels });
