@@ -193,13 +193,13 @@ router.get("/analytics/summary", requireAuth, requireTier("creator"), async (req
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    const snaps = await db.select().from(analyticsSnapshots)
+    const snaps: typeof analyticsSnapshots.$inferSelect[] = await db.select().from(analyticsSnapshots)
       .where(eq(analyticsSnapshots.userId, user.id))
       .orderBy(desc(analyticsSnapshots.snapshotDate));
 
     if (snaps.length === 0 && process.env.NODE_ENV !== "production") {
       await seedAnalyticsForUser(user.id);
-      const fresh = await db.select().from(analyticsSnapshots)
+      const fresh: typeof analyticsSnapshots.$inferSelect[] = await db.select().from(analyticsSnapshots)
         .where(eq(analyticsSnapshots.userId, user.id))
         .orderBy(desc(analyticsSnapshots.snapshotDate));
       res.json(buildSummary(fresh)); return;
@@ -261,7 +261,7 @@ router.get("/analytics/audience", requireAuth, requireTier("creator"), async (re
 
     const platform = (req.query.platform as string) || "instagram";
 
-    let segments = await db.select().from(audienceSegments)
+    let segments: typeof audienceSegments.$inferSelect[] = await db.select().from(audienceSegments)
       .where(and(eq(audienceSegments.userId, user.id), eq(audienceSegments.platform, platform)));
 
     if (segments.length === 0) {
@@ -313,7 +313,7 @@ router.get("/analytics/best-times", requireAuth, requireTier("creator"), async (
     const platform = (req.query.platform as string) || "instagram";
 
     // ── 1. Pull historical post_performance rows ──────────────────────────
-    const rawPosts = await db.select({
+    const rawPosts: Array<Pick<typeof postPerformance.$inferSelect, "publishedAt" | "likes" | "comments" | "shares" | "saves" | "impressions">> = await db.select({
       publishedAt: postPerformance.publishedAt,
       likes: postPerformance.likes,
       comments: postPerformance.comments,
@@ -432,7 +432,7 @@ router.get("/analytics/post-performance", requireAuth, requireTier("creator"), a
       ? and(eq(postPerformance.userId, user.id), eq(postPerformance.platform, platform))
       : eq(postPerformance.userId, user.id);
 
-    let posts = await db.select().from(postPerformance).where(where).orderBy(desc(postPerformance.publishedAt)).limit(50);
+    let posts: typeof postPerformance.$inferSelect[] = await db.select().from(postPerformance).where(where).orderBy(desc(postPerformance.publishedAt)).limit(50);
 
     if (posts.length === 0) {
       const existing = await db.select().from(analyticsSnapshots).where(eq(analyticsSnapshots.userId, user.id));
@@ -472,13 +472,13 @@ router.get("/analytics/platform-comparison", requireAuth, requireTier("creator")
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    const snaps = await db.select().from(analyticsSnapshots)
+    const snaps: typeof analyticsSnapshots.$inferSelect[] = await db.select().from(analyticsSnapshots)
       .where(eq(analyticsSnapshots.userId, user.id))
       .orderBy(desc(analyticsSnapshots.snapshotDate));
 
     if (snaps.length === 0 && process.env.NODE_ENV !== "production") {
       await seedAnalyticsForUser(user.id);
-      const fresh = await db.select().from(analyticsSnapshots).where(eq(analyticsSnapshots.userId, user.id)).orderBy(desc(analyticsSnapshots.snapshotDate));
+      const fresh: typeof analyticsSnapshots.$inferSelect[] = await db.select().from(analyticsSnapshots).where(eq(analyticsSnapshots.userId, user.id)).orderBy(desc(analyticsSnapshots.snapshotDate));
       res.json(buildComparison(fresh)); return;
     }
 
@@ -523,7 +523,7 @@ router.post("/analytics/reports/generate", requireAuth, requireTier("brand"), as
     if (!clientName) { res.status(400).json({ error: "clientName is required" }); return; }
 
     // Fetch analytics data for the report
-    const snaps = await db.select().from(analyticsSnapshots)
+    const snaps: typeof analyticsSnapshots.$inferSelect[] = await db.select().from(analyticsSnapshots)
       .where(eq(analyticsSnapshots.userId, user.id))
       .orderBy(desc(analyticsSnapshots.snapshotDate));
 
@@ -744,7 +744,7 @@ router.post("/analytics/digest", requireAuth, requireTier("creator"), async (req
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    const snaps = await db.select().from(analyticsSnapshots)
+    const snaps: typeof analyticsSnapshots.$inferSelect[] = await db.select().from(analyticsSnapshots)
       .where(eq(analyticsSnapshots.userId, user.id))
       .orderBy(desc(analyticsSnapshots.snapshotDate))
       .limit(70);

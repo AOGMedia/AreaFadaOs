@@ -202,7 +202,7 @@ router.get("/ambassadors", requireAuth, requireTier("agency"), async (req: any, 
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    let rows = await db.select().from(ambassadorsTable)
+    let rows: typeof ambassadorsTable.$inferSelect[] = await db.select().from(ambassadorsTable)
       .where(eq(ambassadorsTable.userId, user.id))
       .orderBy(desc(ambassadorsTable.totalPoints));
 
@@ -288,7 +288,7 @@ router.get("/ambassadors/leaderboard", requireAuth, requireTier("agency"), async
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    const rows = await db.select().from(ambassadorsTable)
+    const rows: typeof ambassadorsTable.$inferSelect[] = await db.select().from(ambassadorsTable)
       .where(eq(ambassadorsTable.userId, user.id))
       .orderBy(desc(ambassadorsTable.totalPoints))
       .limit(50);
@@ -307,7 +307,7 @@ router.get("/ambassadors/leaderboard/csv", requireAuth, requireTier("agency"), a
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    const rows = await db.select().from(ambassadorsTable)
+    const rows: typeof ambassadorsTable.$inferSelect[] = await db.select().from(ambassadorsTable)
       .where(eq(ambassadorsTable.userId, user.id))
       .orderBy(desc(ambassadorsTable.totalPoints));
 
@@ -343,7 +343,7 @@ router.post("/ambassadors/:id/points", requireAuth, requireTier("agency"), async
     await db.insert(ambassadorPointsTable).values({ ambassadorId, userId: user.id, action, points, description });
 
     const newTotal = ambassador.totalPoints + points;
-    const managedTiers = await db.select({ name: rewardTiersTable.name, minPoints: rewardTiersTable.minPoints })
+    const managedTiers: Array<Pick<typeof rewardTiersTable.$inferSelect, "name" | "minPoints">> = await db.select({ name: rewardTiersTable.name, minPoints: rewardTiersTable.minPoints })
       .from(rewardTiersTable).where(eq(rewardTiersTable.userId, user.id))
       .orderBy(desc(rewardTiersTable.minPoints));
     const tier = managedTiers.find(t => newTotal >= t.minPoints)?.name ?? "member";
@@ -385,7 +385,7 @@ router.post("/ambassador-tasks", requireAuth, requireTier("agency"), async (req:
     if (!title) { res.status(400).json({ error: "title required" }); return; }
 
     // Count ambassadors in target group
-    let ambassadors = await db.select({ id: ambassadorsTable.id, state: ambassadorsTable.state, zone: ambassadorsTable.zone, tier: ambassadorsTable.tier })
+    let ambassadors: Array<Pick<typeof ambassadorsTable.$inferSelect, "id" | "state" | "zone" | "tier">> = await db.select({ id: ambassadorsTable.id, state: ambassadorsTable.state, zone: ambassadorsTable.zone, tier: ambassadorsTable.tier })
       .from(ambassadorsTable).where(eq(ambassadorsTable.userId, user.id));
 
     const tg: string = targetGroup ?? "all";
@@ -504,7 +504,7 @@ router.get("/gamification-configs", requireAuth, requireTier("agency"), async (r
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    let configs = await db.select().from(gamificationConfigsTable)
+    let configs: typeof gamificationConfigsTable.$inferSelect[] = await db.select().from(gamificationConfigsTable)
       .where(eq(gamificationConfigsTable.userId, user.id));
 
     if (configs.length === 0 && process.env.NODE_ENV !== "production") {
@@ -513,7 +513,7 @@ router.get("/gamification-configs", requireAuth, requireTier("agency"), async (r
       configs = await db.select().from(gamificationConfigsTable).where(eq(gamificationConfigsTable.userId, user.id));
     }
 
-    const rewardTiers = await db.select().from(rewardTiersTable).where(eq(rewardTiersTable.userId, user.id));
+    const rewardTiers: typeof rewardTiersTable.$inferSelect[] = await db.select().from(rewardTiersTable).where(eq(rewardTiersTable.userId, user.id));
     res.json({ configs, rewardTiers });
   } catch (err) {
     console.error(err);
@@ -624,7 +624,7 @@ router.get("/ambassadors/leaderboard/weekly", requireAuth, requireTier("agency")
     weekStart.setHours(0, 0, 0, 0);
     weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday = start of week
 
-    const weeklyPoints = await db.select({
+    const weeklyPoints: Array<{ ambassadorId: number; weeklyPoints: number }> = await db.select({
       ambassadorId: ambassadorPointsTable.ambassadorId,
       weeklyPoints: sql<number>`CAST(SUM(${ambassadorPointsTable.points}) AS INTEGER)`,
     }).from(ambassadorPointsTable)
@@ -634,7 +634,7 @@ router.get("/ambassadors/leaderboard/weekly", requireAuth, requireTier("agency")
     if (weeklyPoints.length === 0) { res.json({ weekStart, leaders: [] }); return; }
 
     const ambassadorIds = weeklyPoints.map(r => r.ambassadorId);
-    const ambassadorRows = await db.select({
+    const ambassadorRows: Array<Pick<typeof ambassadorsTable.$inferSelect, "id" | "name" | "state" | "zone" | "tier" | "avatarInitials">> = await db.select({
       id: ambassadorsTable.id, name: ambassadorsTable.name, state: ambassadorsTable.state,
       zone: ambassadorsTable.zone, tier: ambassadorsTable.tier, avatarInitials: ambassadorsTable.avatarInitials,
     }).from(ambassadorsTable)
@@ -659,7 +659,7 @@ router.get("/micro-influencers", requireAuth, requireTier("agency"), async (req:
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    let rows = await db.select().from(microInfluencersTable)
+    let rows: typeof microInfluencersTable.$inferSelect[] = await db.select().from(microInfluencersTable)
       .where(eq(microInfluencersTable.userId, user.id))
       .orderBy(desc(microInfluencersTable.followerCount));
 
@@ -840,7 +840,7 @@ router.get("/ambassadors/widget", async (req: any, res): Promise<void> => {
     }
 
     // Fetch top 10 for this tenant only
-    const rows = await db.select({
+    const rows: Array<Pick<typeof ambassadorsTable.$inferSelect, "id" | "name" | "state" | "zone" | "tier" | "totalPoints" | "avatarInitials">> = await db.select({
       id: ambassadorsTable.id,
       name: ambassadorsTable.name,
       state: ambassadorsTable.state,

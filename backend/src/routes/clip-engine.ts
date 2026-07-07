@@ -217,7 +217,7 @@ router.get("/clip-accounts", ...requireClip, async (req: any, res): Promise<void
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     if (process.env.NODE_ENV !== "production") await maybeClipSeed(user.id);
-    const accounts = await db.select().from(clipAccountsTable)
+    const accounts: typeof clipAccountsTable.$inferSelect[] = await db.select().from(clipAccountsTable)
       .where(eq(clipAccountsTable.userId, user.id))
       .orderBy(clipAccountsTable.name);
     res.json(accounts);
@@ -242,7 +242,7 @@ router.patch("/clip-accounts/:id", ...requireClip, async (req: any, res): Promis
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
     const { name, platform, handle, personaLabel, personaProfile, color, status } = req.body;
-    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    const patch: Partial<typeof clipAccountsTable.$inferInsert> & { updatedAt?: Date } = { updatedAt: new Date() };
     if (name !== undefined) patch.name = name;
     if (platform !== undefined) patch.platform = platform;
     if (handle !== undefined) patch.handle = handle;
@@ -275,7 +275,7 @@ router.get("/source-videos", ...requireClip, async (req: any, res): Promise<void
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const videos = await db.select().from(sourceVideosTable)
+    const videos: typeof sourceVideosTable.$inferSelect[] = await db.select().from(sourceVideosTable)
       .where(eq(sourceVideosTable.userId, user.id))
       .orderBy(desc(sourceVideosTable.createdAt));
     res.json(videos);
@@ -374,7 +374,7 @@ router.get("/clip-jobs", ...requireClip, async (req: any, res): Promise<void> =>
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const jobs = await db.select().from(clipJobsTable)
+    const jobs: typeof clipJobsTable.$inferSelect[] = await db.select().from(clipJobsTable)
       .where(eq(clipJobsTable.userId, user.id))
       .orderBy(desc(clipJobsTable.createdAt)).limit(50);
     res.json(jobs);
@@ -402,7 +402,7 @@ router.get("/clips", ...requireClip, async (req: any, res): Promise<void> => {
     if (accountId) conditions.push(eq(clipsTable.accountId, Number(accountId)));
     if (sourceVideoId) conditions.push(eq(clipsTable.sourceVideoId, Number(sourceVideoId)));
     if (status) conditions.push(eq(clipsTable.status, String(status)));
-    const clips = await db.select().from(clipsTable).where(and(...conditions)).orderBy(desc(clipsTable.createdAt));
+    const clips: typeof clipsTable.$inferSelect[] = await db.select().from(clipsTable).where(and(...conditions)).orderBy(desc(clipsTable.createdAt));
     res.json(clips);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to fetch clips" }); }
 });
@@ -450,7 +450,7 @@ router.patch("/clips/:id", ...requireClip, async (req: any, res): Promise<void> 
         .where(and(eq(clipAccountsTable.id, Number(collabAccountId)), eq(clipAccountsTable.userId, user.id)));
       if (!owned) { res.status(403).json({ error: "Collab account not found or not owned by you" }); return; }
     }
-    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    const patch: Partial<typeof clipsTable.$inferInsert> & { updatedAt?: Date } = { updatedAt: new Date() };
     if (label !== undefined) patch.label = label;
     if (format !== undefined) patch.format = format;
     if (captionTone !== undefined) patch.captionTone = captionTone;
@@ -540,9 +540,9 @@ router.post("/source-videos/:id/distribute", ...requireClip, async (req: any, re
     }
 
     const moments = job.momentsDetected;
-    const accounts = await db.select().from(clipAccountsTable)
+    const accounts: typeof clipAccountsTable.$inferSelect[] = await db.select().from(clipAccountsTable)
       .where(and(eq(clipAccountsTable.userId, user.id)));
-    const targetAccounts = accounts.filter(a => (accountIds as number[]).includes(a.id));
+    const targetAccounts: typeof clipAccountsTable.$inferSelect[] = accounts.filter(a => (accountIds as number[]).includes(a.id));
 
     const tones = ["african_english", "pidgin", "yoruba", "hausa"];
     const formats = ["9:16", "1:1", "16:9"];
@@ -699,7 +699,7 @@ router.get("/clip-schedules", ...requireClip, async (req: any, res): Promise<voi
     if (accountId) conditions.push(eq(clipSchedulesTable.accountId, Number(accountId)));
     if (from) conditions.push(gte(clipSchedulesTable.scheduledAt, new Date(String(from))));
     if (to) conditions.push(lte(clipSchedulesTable.scheduledAt, new Date(String(to))));
-    const schedules = await db.select().from(clipSchedulesTable).where(and(...conditions)).orderBy(clipSchedulesTable.scheduledAt);
+    const schedules: typeof clipSchedulesTable.$inferSelect[] = await db.select().from(clipSchedulesTable).where(and(...conditions)).orderBy(clipSchedulesTable.scheduledAt);
     res.json(schedules);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to fetch schedules" }); }
 });
@@ -790,7 +790,7 @@ router.patch("/clip-schedules/:id", ...requireClip, async (req: any, res): Promi
         .where(and(eq(clipAccountsTable.id, Number(accountId)), eq(clipAccountsTable.userId, user.id)));
       if (!ownedAcct) { res.status(403).json({ error: "Clip account not found or not owned by you" }); return; }
     }
-    const patch: Record<string, unknown> = {};
+    const patch: Partial<typeof clipSchedulesTable.$inferInsert> = {};
     if (scheduledAt !== undefined) patch.scheduledAt = new Date(scheduledAt);
     if (status !== undefined) patch.status = status;
     if (accountId !== undefined) patch.accountId = accountId;
@@ -822,7 +822,7 @@ router.get("/brand-overlay-configs", ...requireClip, async (req: any, res): Prom
     const { accountId } = req.query;
     const conditions = [eq(brandOverlayConfigsTable.userId, user.id)];
     if (accountId) conditions.push(eq(brandOverlayConfigsTable.accountId, Number(accountId)));
-    const configs = await db.select().from(brandOverlayConfigsTable).where(and(...conditions));
+    const configs: typeof brandOverlayConfigsTable.$inferSelect[] = await db.select().from(brandOverlayConfigsTable).where(and(...conditions));
     res.json(configs);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to fetch overlay configs" }); }
 });
@@ -871,7 +871,7 @@ router.get("/clip-performance", ...requireClip, async (req: any, res): Promise<v
     const conditions = [eq(clipPerformanceLogsTable.userId, user.id)];
     if (clipId) conditions.push(eq(clipPerformanceLogsTable.clipId, Number(clipId)));
     if (accountId) conditions.push(eq(clipPerformanceLogsTable.accountId, Number(accountId)));
-    const logs = await db.select().from(clipPerformanceLogsTable).where(and(...conditions)).orderBy(desc(clipPerformanceLogsTable.recordedAt));
+    const logs: typeof clipPerformanceLogsTable.$inferSelect[] = await db.select().from(clipPerformanceLogsTable).where(and(...conditions)).orderBy(desc(clipPerformanceLogsTable.recordedAt));
     res.json(logs);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to fetch performance logs" }); }
 });
@@ -903,9 +903,9 @@ router.get("/clip-performance/summary", ...requireClip, async (req: any, res): P
   try {
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const logs = await db.select().from(clipPerformanceLogsTable).where(eq(clipPerformanceLogsTable.userId, user.id));
+    const logs: typeof clipPerformanceLogsTable.$inferSelect[] = await db.select().from(clipPerformanceLogsTable).where(eq(clipPerformanceLogsTable.userId, user.id));
     // Fetch ALL clips for correct byFormat aggregation (not just top-10 subset)
-    const allClips = await db.select().from(clipsTable).where(eq(clipsTable.userId, user.id));
+    const allClips: typeof clipsTable.$inferSelect[] = await db.select().from(clipsTable).where(eq(clipsTable.userId, user.id));
     const topClips = [...allClips].sort((a, b) => Number(b.performanceScore ?? 0) - Number(a.performanceScore ?? 0)).slice(0, 10);
 
     const totals = logs.reduce((acc, l) => ({ views: acc.views + l.views, shares: acc.shares + l.shares, saves: acc.saves + l.saves, comments: acc.comments + l.comments, watchTime: acc.watchTime + l.watchTimeSeconds }), { views: 0, shares: 0, saves: 0, comments: 0, watchTime: 0 });

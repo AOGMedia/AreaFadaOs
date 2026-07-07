@@ -112,7 +112,7 @@ router.get("/fan-hub/profiles", requireAuth, requireTier("agency"), async (req: 
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    let rows = await db.select().from(fanProfilesTable)
+    let rows: typeof fanProfilesTable.$inferSelect[] = await db.select().from(fanProfilesTable)
       .where(eq(fanProfilesTable.userId, user.id))
       .orderBy(desc(fanProfilesTable.totalPoints));
 
@@ -276,7 +276,7 @@ router.get("/fan-hub/challenges", requireAuth, requireTier("agency"), async (req
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    let rows = await db.select().from(fanChallengesTable)
+    let rows: typeof fanChallengesTable.$inferSelect[] = await db.select().from(fanChallengesTable)
       .where(eq(fanChallengesTable.userId, user.id))
       .orderBy(desc(fanChallengesTable.createdAt));
 
@@ -702,9 +702,9 @@ router.get("/fan-hub/analytics", requireAuth, requireTier("agency"), async (req:
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-    const fans = await db.select().from(fanProfilesTable).where(eq(fanProfilesTable.userId, user.id));
-    const challenges = await db.select().from(fanChallengesTable).where(eq(fanChallengesTable.userId, user.id));
-    const vaultItems = await db.select().from(contentVaultItemsTable).where(eq(contentVaultItemsTable.userId, user.id));
+    const fans: typeof fanProfilesTable.$inferSelect[] = await db.select().from(fanProfilesTable).where(eq(fanProfilesTable.userId, user.id));
+    const challenges: typeof fanChallengesTable.$inferSelect[] = await db.select().from(fanChallengesTable).where(eq(fanChallengesTable.userId, user.id));
+    const vaultItems: typeof contentVaultItemsTable.$inferSelect[] = await db.select().from(contentVaultItemsTable).where(eq(contentVaultItemsTable.userId, user.id));
 
     const totalFans = fans.length;
     const fansByTier: Record<string, number> = { "1": 0, "2": 0, "3": 0, "4": 0 };

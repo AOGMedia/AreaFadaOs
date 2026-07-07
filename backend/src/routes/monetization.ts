@@ -155,7 +155,7 @@ router.get("/brand-deals", ...requireMonetization, async (req: any, res): Promis
       ? and(eq(brandDealsTable.userId, user.id), eq(brandDealsTable.status, req.query.status as DealStatus))
       : eq(brandDealsTable.userId, user.id);
 
-    const deals = await db.select().from(brandDealsTable).where(where).orderBy(desc(brandDealsTable.createdAt));
+    const deals: typeof brandDealsTable.$inferSelect[] = await db.select().from(brandDealsTable).where(where).orderBy(desc(brandDealsTable.createdAt));
 
     if (deals.length === 0 && process.env.NODE_ENV !== "production") {
       const seeds: typeof brandDealsTable.$inferInsert[] = [
@@ -165,7 +165,7 @@ router.get("/brand-deals", ...requireMonetization, async (req: any, res): Promis
         { userId: user.id, brandName: "TechPoint Africa", contactName: "Bola Adesanya", contactEmail: "bola@techpoint.africa", dealValue: "350000", currency: "NGN", status: "paid", deliverables: "Brand mention in podcast", platforms: ["youtube"] },
       ];
       await db.insert(brandDealsTable).values(seeds);
-      const fresh = await db.select().from(brandDealsTable).where(eq(brandDealsTable.userId, user.id)).orderBy(desc(brandDealsTable.createdAt));
+      const fresh: typeof brandDealsTable.$inferSelect[] = await db.select().from(brandDealsTable).where(eq(brandDealsTable.userId, user.id)).orderBy(desc(brandDealsTable.createdAt));
       res.json(fresh.map(mapDeal)); return;
     }
 
@@ -256,7 +256,7 @@ router.get("/invoices", ...requireMonetization, async (req: any, res): Promise<v
       ? and(eq(invoicesTable.userId, user.id), eq(invoicesTable.status, req.query.status as InvoiceStatus))
       : eq(invoicesTable.userId, user.id);
 
-    const invoices = await db.select().from(invoicesTable).where(where).orderBy(desc(invoicesTable.createdAt));
+    const invoices: typeof invoicesTable.$inferSelect[] = await db.select().from(invoicesTable).where(where).orderBy(desc(invoicesTable.createdAt));
 
     if (invoices.length === 0 && process.env.NODE_ENV !== "production") {
       const seeds: typeof invoicesTable.$inferInsert[] = [
@@ -265,7 +265,7 @@ router.get("/invoices", ...requireMonetization, async (req: any, res): Promise<v
         { userId: user.id, invoiceNumber: "INV-0003", clientName: "TechPoint Africa", clientEmail: "accounts@techpoint.africa", currency: "NGN", subtotal: "350000", taxRate: "0", taxAmount: "0", total: "350000", status: "overdue", dueDate: new Date(Date.now() - 10 * 86400000) },
       ];
       await db.insert(invoicesTable).values(seeds);
-      const fresh = await db.select().from(invoicesTable).where(eq(invoicesTable.userId, user.id)).orderBy(desc(invoicesTable.createdAt));
+      const fresh: typeof invoicesTable.$inferSelect[] = await db.select().from(invoicesTable).where(eq(invoicesTable.userId, user.id)).orderBy(desc(invoicesTable.createdAt));
       res.json(fresh.map(mapInvoice)); return;
     }
 
@@ -325,7 +325,7 @@ router.get("/invoices/:id", ...requireMonetization, async (req: any, res): Promi
     const [invoice] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, user.id)));
     if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
 
-    const lineItems = await db.select().from(invoiceLineItemsTable).where(eq(invoiceLineItemsTable.invoiceId, id));
+    const lineItems: typeof invoiceLineItemsTable.$inferSelect[] = await db.select().from(invoiceLineItemsTable).where(eq(invoiceLineItemsTable.invoiceId, id));
     res.json({ ...mapInvoice(invoice), lineItems: lineItems.map(mapLineItem) });
   } catch (err) {
     console.error(err);
@@ -519,7 +519,7 @@ router.get("/invoices/:id/pdf-view", ...requireMonetization, async (req: any, re
     const [invoice] = await db.select().from(invoicesTable).where(and(eq(invoicesTable.id, id), eq(invoicesTable.userId, user.id)));
     if (!invoice) { res.status(404).json({ error: "Invoice not found" }); return; }
 
-    const lineItems = await db.select().from(invoiceLineItemsTable).where(eq(invoiceLineItemsTable.invoiceId, id));
+    const lineItems: typeof invoiceLineItemsTable.$inferSelect[] = await db.select().from(invoiceLineItemsTable).where(eq(invoiceLineItemsTable.invoiceId, id));
 
     const lineRows = lineItems.length > 0
       ? lineItems.map(li => `<tr><td>${li.description}</td><td style="text-align:center">${li.quantity}</td><td style="text-align:right">${Number(li.unitPrice).toLocaleString()}</td><td style="text-align:right">${Number(li.amount).toLocaleString()}</td></tr>`).join("")
@@ -655,7 +655,7 @@ router.post("/monetization/process-reminders", requireAuth, async (req: any, res
       const windowStart = new Date(now.getTime() - (days + 1) * 86400000);
       const windowEnd = new Date(now.getTime() - days * 86400000);
 
-      const overdueInvoices = await db.select().from(invoicesTable).where(
+      const overdueInvoices: typeof invoicesTable.$inferSelect[] = await db.select().from(invoicesTable).where(
         and(
           eq(invoicesTable.userId, user.id),
           eq(invoicesTable.status, "overdue"),
@@ -769,7 +769,7 @@ router.get("/affiliate-links", ...requireMonetization, async (req: any, res): Pr
     const user = await getDbUser(req.clerkUserId);
     if (!user) { res.json([]); return; }
 
-    const links = await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id)).orderBy(desc(affiliateLinksTable.createdAt));
+    const links: typeof affiliateLinksTable.$inferSelect[] = await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id)).orderBy(desc(affiliateLinksTable.createdAt));
 
     if (links.length === 0 && process.env.NODE_ENV !== "production") {
       const seeds: typeof affiliateLinksTable.$inferInsert[] = [
@@ -778,7 +778,7 @@ router.get("/affiliate-links", ...requireMonetization, async (req: any, res): Pr
         { userId: user.id, name: "Paystack Referral", destinationUrl: "https://paystack.com/refer/areafada", slug: "ps-ref", platform: null, campaignTag: "partnership", clickCount: 567, conversionCount: 89, revenueGenerated: "133500" },
       ];
       await db.insert(affiliateLinksTable).values(seeds);
-      const fresh = await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id)).orderBy(desc(affiliateLinksTable.createdAt));
+      const fresh: typeof affiliateLinksTable.$inferSelect[] = await db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id)).orderBy(desc(affiliateLinksTable.createdAt));
       res.json(fresh.map(mapLink)); return;
     }
 
@@ -903,7 +903,11 @@ router.get("/monetization/revenue", ...requireMonetization, async (req: any, res
 
     const rangeStart = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
-    const [deals, invoices, links] = await Promise.all([
+    const [deals, invoices, links]: [
+      typeof brandDealsTable.$inferSelect[],
+      typeof invoicesTable.$inferSelect[],
+      typeof affiliateLinksTable.$inferSelect[]
+    ] = await Promise.all([
       db.select().from(brandDealsTable).where(and(eq(brandDealsTable.userId, user.id), gte(brandDealsTable.createdAt, rangeStart))),
       db.select().from(invoicesTable).where(and(eq(invoicesTable.userId, user.id), gte(invoicesTable.createdAt, rangeStart))),
       db.select().from(affiliateLinksTable).where(eq(affiliateLinksTable.userId, user.id)),
