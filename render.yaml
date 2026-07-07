@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: areafada-api
+    runtime: node
+    buildCommand: pnpm install && pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps backend/dist/index.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production

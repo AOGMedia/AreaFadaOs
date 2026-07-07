@@ -1,7 +1,9 @@
 packages:
-  - artifacts/*
-  - lib/*
-  - lib/integrations/*
+  - web
+  - mobile
+  - backend
+  - packages/*
+  - artifacts/mockup-sandbox
   - scripts
 
 autoInstallPeers: false
