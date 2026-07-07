@@ -114,6 +114,13 @@ _Populate as you build — explicit user instructions worth remembering across s
 2. Copy the CNAME records Replit provides and add them at your DNS provider.
 3. Allow up to 48 h for DNS propagation; re-check the Manage panel until all records show verified.
 
+## CI / GitHub Actions
+
+The `build-web` job in `.github/workflows/ci.yml` runs a Vite production build as a smoke-check. It uses `VITE_CLERK_PUBLISHABLE_KEY` with a built-in fallback (`pk_test_placeholder`) so the build succeeds even when the secret is not configured in repository settings. This means forks and open PRs can build without needing a real Clerk key.
+
+**Secrets that must be set in GitHub → Settings → Secrets and Variables → Actions for a fully functional CI:**
+- `VITE_CLERK_PUBLISHABLE_KEY` — real Clerk publishable key (optional; falls back to placeholder for build-only checks)
+
 ## Gotchas
 
 - **Always run codegen after API changes**: Any change to `lib/api-spec/` must be followed by `pnpm --filter @workspace/api-spec run codegen` or the frontend will be out of sync with the backend.
