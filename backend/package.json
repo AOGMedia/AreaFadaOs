@@ -9,7 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "pretypecheck": "pnpm --filter @workspace/db --filter @workspace/api-zod run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import=tsx/esm --test-force-exit --test src/lib/__tests__/tokenEncryption.test.ts src/lib/__tests__/classifyError.test.ts src/lib/__tests__/publishScheduler.test.ts src/routes/__tests__/oauth.start.test.ts src/routes/__tests__/oauth.callback.test.ts src/routes/__tests__/autoPost.publish.test.ts src/routes/__tests__/users.me.test.ts src/routes/__tests__/clipScheduleEmail.test.ts src/routes/__tests__/admin.test.ts src/routes/__tests__/settings.liveApiKeys.test.ts src/middlewares/__tests__/tierGuard.test.ts src/routes/__tests__/webhookResend.test.ts",
+    "test": "node --import=tsx/esm --test-force-exit --test 'src/**/*.test.ts'",
     "smoke:email": "tsx scripts/smoke-test-email.ts",
     "check:dns": "tsx scripts/verify-dns.ts",
     "test:clerk-email": "tsx scripts/test-clerk-email.ts",
